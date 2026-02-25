@@ -1,2 +1,3 @@
 dist
 .vite
+src/pages/preview/reader.js

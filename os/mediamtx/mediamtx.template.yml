@@ -1,8 +1,15 @@
-# https://github.com/bluenviron/mediamtx/blob/v1.16.1/mediamtx.yml
+# https://github.com/bluenviron/mediamtx/blob/v1.16.2/mediamtx.yml
 
 # https://mediamtx.org/docs/usage/webrtc-specific-features#solving-webrtc-connectivity-issues
 webrtcAdditionalHosts:
-  [localhost, planktoscope.local, 192.168.4.1, raspberrypi, raspberrypi.local]
+  [
+    localhost,
+    planktoscope.local,
+    192.168.4.1,
+    raspberrypi,
+    raspberrypi.local,
+    192.0.2.1,
+  ]
 
 # https://mediamtx.org/docs/usage/decrease-packet-loss
 writeQueueSize: 1024

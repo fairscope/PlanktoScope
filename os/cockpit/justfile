@@ -16,8 +16,8 @@ setup: cockpit-files
 # https://github.com/cockpit-project/cockpit-files/issues/635
 cockpit-files:
     sudo apt install -y gettext
-    wget https://github.com/cockpit-project/cockpit-files/releases/download/30/cockpit-files-30.tar.xz -P /tmp
-    cd /tmp && tar -xf cockpit-files-30.tar.xz
+    wget https://github.com/cockpit-project/cockpit-files/releases/download/36/cockpit-files-36.tar.xz -P /tmp
+    cd /tmp && tar -xf cockpit-files-36.tar.xz
     rm -rf ~/.local/share/cockpit/files
     sudo rm -rf /usr/local/share/cockpit/files
     cd /tmp/cockpit-files && make
