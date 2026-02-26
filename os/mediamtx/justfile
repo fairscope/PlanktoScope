@@ -6,8 +6,7 @@ setup:
     -sudo systemctl stop mediamtx
     sudo cp /tmp/mediamtx /usr/local/bin/mediamtx
     sudo cp mediamtx.service /etc/systemd/system/
-    cp mediamtx.template.yml mediamtx.yml
-    # sudo sed -i "s/raspberrypi/$(hostname)/g" mediamtx.yml
+    node ../../lib/mediamtx.js
     sudo systemctl reenable mediamtx
     sudo systemctl restart mediamtx
 

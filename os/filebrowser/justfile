@@ -1,5 +1,5 @@
 setup:
-    wget https://github.com/filebrowser/filebrowser/releases/download/v2.44.2/linux-arm64-filebrowser.tar.gz -P /tmp
+    wget https://github.com/filebrowser/filebrowser/releases/download/v2.60.0/linux-arm64-filebrowser.tar.gz -P /tmp
     cd /tmp && tar -xzf /tmp/linux-arm64-filebrowser.tar.gz filebrowser
     -sudo systemctl stop filebrowser
     sudo cp /tmp/filebrowser /usr/local/bin/filebrowser
