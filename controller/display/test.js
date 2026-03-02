@@ -7,8 +7,6 @@ watch("display").then(async (messages) => {
   }
 })
 
-let n = 0
-
 function generateRandomString() {
   const length = Math.floor(Math.random() * 11) + 10 // 10–20
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
