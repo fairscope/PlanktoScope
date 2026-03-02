@@ -114,6 +114,8 @@ def render(status=""):
     drawStatus(status)
 
     epd.init()
+    epd.Clear(0xFF)
+
     epd.display_Base(epd.getbuffer(image))
     # epd.sleep()
 
@@ -138,9 +140,14 @@ async def clear():
     assert epd is not None
     assert width is not None
     assert height is not None
+    # not functional
     epd.init()
     epd.Clear(0xFF)
     epd.sleep()
+    # image = Image.new("1", (width, height), 255)
+    # draw = ImageDraw.Draw(image)
+    # draw.rectangle((0, 0, height, width), fill=255)
+    # epd.display_Partial(epd.getbuffer(image))
 
 
 async def start() -> None:
