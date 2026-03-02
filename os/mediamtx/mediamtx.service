@@ -5,7 +5,7 @@ After=network.target
 Wants=network.target
 
 [Service]
-ExecStart=/usr/local/bin/mediamtx /usr/local/etc/mediamtx.yml
+ExecStart=/usr/local/bin/mediamtx /home/pi/PlanktoScope/os/mediamtx/mediamtx.yml
 
 [Install]
 WantedBy=multi-user.target

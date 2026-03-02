@@ -1,5 +1,3 @@
-// https://github.com/bluenviron/mediamtx/blob/v1.16.1/internal/servers/webrtc/reader.js
-
 'use strict';
 
 /**
