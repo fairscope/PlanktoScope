@@ -114,29 +114,33 @@ def render(status=""):
     drawStatus(status)
 
     epd.init()
-    epd.Clear(0xFF)
-
-    epd.display_Partial(epd.getbuffer(image))
-    epd.sleep()
+    epd.display_Base(epd.getbuffer(image))
+    # epd.sleep()
 
 
 async def configure(config):
+    assert draw is not None
+    assert width is not None
+    assert height is not None
+    assert epd is not None
+    assert image is not None
+
     status = config.get("status", "")
-    render(status)
+
+    drawStatus(status=status)
+    newimage = image.crop((0, height - BAR_HEIGHT, width, height))
+    image.paste(newimage, (0, height - BAR_HEIGHT))
+
+    epd.display_Partial(epd.getbuffer(image))
 
 
 async def clear():
     assert epd is not None
     assert width is not None
     assert height is not None
-    # not functional
     epd.init()
     epd.Clear(0xFF)
     epd.sleep()
-    # image = Image.new("1", (width, height), 255)
-    # draw = ImageDraw.Draw(image)
-    # draw.rectangle((0, 0, height, width), fill=255)
-    # epd.display_Partial(epd.getbuffer(image))
 
 
 async def start() -> None:

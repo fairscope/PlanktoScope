@@ -1,3 +1,4 @@
+import { setTimeout } from "node:timers/promises"
 import { configureDisplay, watch } from "../../lib/scope.js"
 
 watch("display").then(async (messages) => {
@@ -6,7 +7,12 @@ watch("display").then(async (messages) => {
   }
 })
 
-const status = `http://planktoscope-sponge-bob`
-await configureDisplay({
-  status,
-})
+let n = 0
+
+while (true) {
+  const status = `http://192.168.1.${n++}`
+  await configureDisplay({
+    status,
+  })
+  await setTimeout(1000)
+}
