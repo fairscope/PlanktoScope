@@ -9,10 +9,24 @@ watch("display").then(async (messages) => {
 
 let n = 0
 
+function generateRandomString() {
+  const length = Math.floor(Math.random() * 11) + 10 // 10–20
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+  let result = ""
+
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+
+  return result
+}
+
 while (true) {
-  const status = `http://192.168.1.${n++}`
+  const status = generateRandomString()
   await configureDisplay({
     status,
   })
-  await setTimeout(1000)
+  // await setTimeout(1000)
 }
+
+// 10:54
