@@ -1,5 +1,4 @@
-import { configureDisplay, clearDisplay, watch } from "../../lib/scope.js"
-import { setTimeout } from "timers/promises"
+import { configureDisplay, watch } from "../../lib/scope.js"
 
 watch("display").then(async (messages) => {
   for await (const message of messages) {
@@ -7,13 +6,7 @@ watch("display").then(async (messages) => {
   }
 })
 
-const url = `http://planktoscope-sponge-bob`
-const hostname = "sponge-bob"
-
+const status = `http://planktoscope-sponge-bob`
 await configureDisplay({
-  url,
-  hostname,
+  status,
 })
-
-await setTimeout(5000)
-await clearDisplay()

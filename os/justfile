@@ -1,4 +1,5 @@
 setup:
+    # Should be first
     just --justfile machine-name/justfile setup
     just --justfile localization/justfile setup
     just --justfile caddy/justfile        setup

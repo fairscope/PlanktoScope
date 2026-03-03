@@ -37,6 +37,7 @@ libdir = os.path.join(dirname, "e-paper/lib")
 if os.path.exists(libdir):
     sys.path.append(libdir)
 
+machine_name = None
 epd = None
 fontsmall = ImageFont.truetype(os.path.join(picdir, "Font.ttc"), 18)
 fontnormal = ImageFont.truetype(os.path.join(picdir, "Font.ttc"), 19)
@@ -54,7 +55,7 @@ height = None
 BAR_HEIGHT = 26
 
 
-def drawURL(url):
+def drawStatus(status=""):
     assert draw is not None
     assert width is not None
     assert height is not None
@@ -62,18 +63,20 @@ def drawURL(url):
     draw.rectangle((0, height - BAR_HEIGHT, width, height), fill=0)
     # White text centered in the bar
     draw.text(
-        (width // 2, height - BAR_HEIGHT // 2), text=url, anchor="mm", font=fontnormal, fill=255
+        (width // 2, height - BAR_HEIGHT // 2), text=status, anchor="mm", font=fontnormal, fill=255
     )
 
 
-def drawHostname(hostname):
+def drawMachineName(machine_name):
     assert width is not None
     assert height is not None
     assert draw is not None
     # Black bar across the top
     draw.rectangle((0, 0, width, BAR_HEIGHT), fill=0)
     # White text centered in the bar
-    draw.text((width // 2, BAR_HEIGHT // 2 + 2), text=hostname, anchor="mm", font=fontbig, fill=255)
+    draw.text(
+        (width // 2, BAR_HEIGHT // 2 + 2), text=machine_name, anchor="mm", font=fontbig, fill=255
+    )
 
 
 def drawBrand():
@@ -89,7 +92,7 @@ def drawBrand():
     image.paste(logo, (x, y))
 
 
-def render(url="", hostname=""):
+def render(status=""):
     assert epd is not None
     assert width is not None
     assert height is not None
@@ -103,12 +106,12 @@ def render(url="", hostname=""):
     # # TODO: only clear relevant area ?
     draw.rectangle((0, 0, height, width), fill=255)
 
-    # top black bar with hostname
-    drawHostname(hostname)
+    # top black bar with machine_name
+    drawMachineName(machine_name)
     # center logo
     drawBrand()
-    # bottom black bar with URL
-    drawURL(url)
+    # bottom black bar with status
+    drawStatus(status)
 
     epd.init()
     epd.Clear(0xFF)
@@ -118,9 +121,8 @@ def render(url="", hostname=""):
 
 
 async def configure(config):
-    url = config.get("url", "")
-    machine_name = config.get("machine-name", "")
-    render(url, machine_name)
+    status = config.get("status", "")
+    render(status)
 
 
 async def clear():
@@ -142,7 +144,7 @@ async def start() -> None:
     if (await helpers.get_hat_version()) != 3.3:
         sys.exit()
 
-    global epd, epd2in9_V2, width, height
+    global epd, epd2in9_V2, width, height, machine_name
     from waveshare_epd import epd2in9_V2  # type: ignore
 
     epd = epd2in9_V2.EPD()
@@ -150,9 +152,9 @@ async def start() -> None:
     width = epd.height
     height = epd.width
 
-    url = "http://192.168.4.1"
     machine_name = helpers.get_machine_name()
-    render(url=url, hostname=machine_name)
+
+    render(status="http://192.168.4.1")
 
     global client
     client = aiomqtt.Client(hostname="localhost", port=1883, protocol=aiomqtt.ProtocolVersion.V5)
@@ -188,9 +190,8 @@ async def handle_action(action: str, payload) -> None:
 
 
 async def stop() -> None:
-    machine_name = helpers.get_machine_name()
     if epd is not None:
-        render(url="OFF", hostname=machine_name)
+        render(status="OFF")
     loop.stop()
 
 
