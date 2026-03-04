@@ -8,7 +8,7 @@ import sys
 from pprint import pprint
 
 import aiomqtt  # type: ignore
-from PIL import Image, ImageDraw, ImageFont  # type: ignore
+from PIL import Image, ImageDraw, ImageFont, ImageOps  # type: ignore
 
 import helpers
 
@@ -37,7 +37,6 @@ libdir = os.path.join(dirname, "e-paper/lib")
 if os.path.exists(libdir):
     sys.path.append(libdir)
 
-machine_name = None
 epd = None
 fontsmall = ImageFont.truetype(os.path.join(picdir, "Font.ttc"), 18)
 fontnormal = ImageFont.truetype(os.path.join(picdir, "Font.ttc"), 19)
@@ -47,96 +46,161 @@ draw = None
 epd2in9_V2 = None
 
 logo = Image.open(os.path.join(dirname, "fairscope.bmp"))
+logo_inverted = ImageOps.invert(logo.convert("L")).convert("1")
 
 width = None
 height = None
 
 
-BAR_HEIGHT = 26
+BAR_HEIGHT = 30
 
 
-def drawStatus(status=""):
+def drawURL(url):
     assert draw is not None
     assert width is not None
     assert height is not None
-    # Black bar across the bottom
-    draw.rectangle((0, height - BAR_HEIGHT, width, height), fill=0)
-    # White text centered in the bar
+    # White bar across the bottom, black text (partial-refresh friendly)
+    draw.rectangle((0, height - BAR_HEIGHT, width, height), fill=255)
     draw.text(
-        (width // 2, height - BAR_HEIGHT // 2), text=status, anchor="mm", font=fontnormal, fill=255
+        (width // 2, height - BAR_HEIGHT // 2), text=url, anchor="mm", font=fontnormal, fill=0
     )
 
 
-def drawMachineName(machine_name):
+def drawHostname(hostname):
     assert width is not None
     assert height is not None
     assert draw is not None
-    # Black bar across the top
-    draw.rectangle((0, 0, width, BAR_HEIGHT), fill=0)
-    # White text centered in the bar
-    draw.text(
-        (width // 2, BAR_HEIGHT // 2 + 2), text=machine_name, anchor="mm", font=fontbig, fill=255
-    )
+    # White bar across the top, black text (partial-refresh friendly)
+    draw.rectangle((0, 0, width, BAR_HEIGHT), fill=255)
+    draw.text((width // 2, BAR_HEIGHT // 2 + 2), text=hostname, anchor="mm", font=fontbig, fill=0)
 
 
 def drawBrand():
     assert width is not None
     assert height is not None
     assert image is not None
-    # Paste logo centered in the middle white area (between the two bars)
+    assert draw is not None
+    # Black center area between the white bars
     middle_top = BAR_HEIGHT
     middle_bottom = height - BAR_HEIGHT
+    draw.rectangle((0, middle_top, width, middle_bottom), fill=0)
+    # Paste inverted logo (white on black) centered
     middle_h = middle_bottom - middle_top
-    x = (width - logo.width) // 2
-    y = middle_top + (middle_h - logo.height) // 2
-    image.paste(logo, (x, y))
+    x = (width - logo_inverted.width) // 2
+    y = middle_top + (middle_h - logo_inverted.height) // 2
+    image.paste(logo_inverted, (x, y))
 
 
-def render(status=""):
+def init_display(url="", hostname=""):
+    """Full refresh to establish a clean baseline. Used once at startup."""
     assert epd is not None
     assert width is not None
     assert height is not None
 
     global image, draw
-    if image is None or draw is None:
-        image = Image.new("1", (width, height), 255)
-        draw = ImageDraw.Draw(image)
+    image = Image.new("1", (width, height), 255)
+    draw = ImageDraw.Draw(image)
 
-    # clear screen
-    # # TODO: only clear relevant area ?
-    draw.rectangle((0, 0, height, width), fill=255)
-
-    # top black bar with machine_name
-    drawMachineName(machine_name)
-    # center logo
+    drawHostname(hostname)
     drawBrand()
-    # bottom black bar with status
-    drawStatus(status)
+    drawURL(url)
 
     epd.init()
     epd.Clear(0xFF)
+    epd.display_Base(epd.getbuffer(image))
+    epd.sleep()
 
+
+def update_url(url):
+    """Partial refresh to update only the bottom bar. No full screen flash."""
+    assert epd is not None
+    assert draw is not None
+
+    drawURL(url)
+
+    epd.init()
+    epd.display_Partial(epd.getbuffer(image))
+    epd.sleep()
+
+
+def update_hostname(hostname):
+    """Partial refresh to update only the top bar. No full screen flash."""
+    assert epd is not None
+    assert draw is not None
+
+    drawHostname(hostname)
+
+    epd.init()
+    epd.display_Partial(epd.getbuffer(image))
+    epd.sleep()
+
+
+def render(url="", hostname=""):
+    """Partial refresh to update both bars. No full screen flash."""
+    assert epd is not None
+    assert draw is not None
+    assert width is not None
+    assert height is not None
+
+    drawHostname(hostname)
+    drawURL(url)
+
+    epd.init()
     epd.display_Partial(epd.getbuffer(image))
     epd.sleep()
 
 
 async def configure(config):
-    status = config.get("status", "")
-    render(status)
+    url = config.get("url", "")
+    machine_name = config.get("machine-name", "")
+    render(url, machine_name)
+
+
+def render_off(hostname=""):
+    """Full refresh with inverted colors to indicate power off."""
+    assert epd is not None
+    assert draw is not None
+    assert width is not None
+    assert height is not None
+    assert image is not None
+
+    # Black bar across the top, white hostname
+    draw.rectangle((0, 0, width, BAR_HEIGHT), fill=0)
+    draw.text((width // 2, BAR_HEIGHT // 2 + 2), text=hostname, anchor="mm", font=fontbig, fill=255)
+
+    # White center with black logo (original, non-inverted)
+    middle_top = BAR_HEIGHT
+    middle_bottom = height - BAR_HEIGHT
+    draw.rectangle((0, middle_top, width, middle_bottom), fill=255)
+    middle_h = middle_bottom - middle_top
+    x = (width - logo.width) // 2
+    y = middle_top + (middle_h - logo.height) // 2
+    image.paste(logo, (x, y))
+
+    # Black bar across the bottom, white "OFF"
+    draw.rectangle((0, height - BAR_HEIGHT, width, height), fill=0)
+    draw.text(
+        (width // 2, height - BAR_HEIGHT // 2), text="OFF", anchor="mm", font=fontnormal, fill=255
+    )
+
+    epd.init()
+    epd.display_Base(epd.getbuffer(image))
+    epd.sleep()
 
 
 async def clear():
     assert epd is not None
     assert width is not None
     assert height is not None
-    # not functional
+
+    global image, draw
+    image = Image.new("1", (width, height), 255)
+    draw = ImageDraw.Draw(image)
+
     epd.init()
     epd.Clear(0xFF)
+    epd.display_Base(epd.getbuffer(image))
     epd.sleep()
-    # image = Image.new("1", (width, height), 255)
-    # draw = ImageDraw.Draw(image)
-    # draw.rectangle((0, 0, height, width), fill=255)
-    # epd.display_Partial(epd.getbuffer(image))
 
 
 async def start() -> None:
@@ -144,7 +208,7 @@ async def start() -> None:
     if (await helpers.get_hat_version()) != 3.3:
         sys.exit()
 
-    global epd, epd2in9_V2, width, height, machine_name
+    global epd, epd2in9_V2, width, height
     from waveshare_epd import epd2in9_V2  # type: ignore
 
     epd = epd2in9_V2.EPD()
@@ -152,9 +216,9 @@ async def start() -> None:
     width = epd.height
     height = epd.width
 
+    url = "http://192.168.4.1"
     machine_name = helpers.get_machine_name()
-
-    render(status="http://192.168.4.1")
+    init_display(url=url, hostname=machine_name)
 
     global client
     client = aiomqtt.Client(hostname="localhost", port=1883, protocol=aiomqtt.ProtocolVersion.V5)
@@ -191,7 +255,8 @@ async def handle_action(action: str, payload) -> None:
 
 async def stop() -> None:
     if epd is not None:
-        render(status="OFF")
+        machine_name = helpers.get_machine_name()
+        render_off(hostname=machine_name)
     loop.stop()
 
 
