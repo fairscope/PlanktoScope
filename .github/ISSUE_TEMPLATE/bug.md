@@ -1,6 +1,6 @@
 ---
-name: Software bug report
-about: Create a report to help us
+name: Bug
+about: Report a bug
 title: ''
 labels: bug, software
 assignees: ''
