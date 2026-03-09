@@ -90,6 +90,15 @@ class i2c_led:
         value = int(current * 0.34)
         self._write_byte(self.Register.torch, value)
 
+    # 0 - 127
+    # 0 is ~ 2.4 mA
+    # 128 is ~ 376 mA
+    def set_torch_value(self, value: int) -> None:
+        self._write_byte(self.Register.torch, int(value))
+
+    def get_torch_value(self) -> int:
+        return self._read_byte(self.Register.torch)
+
     def get_torch_current(self):
         return self._read_byte(self.Register.torch)
 
@@ -152,9 +161,9 @@ def deinit() -> None:
 
 
 def get_value() -> float:
-    return int(round(led.get_torch_current() / 20))
+    return led.get_torch_current() / 127
 
 
 def set_value(value: float) -> None:
-    led.set_torch_current(int(round(value * 20)))
+    led.set_torch_value(int(value * 127))
     return
