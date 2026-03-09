@@ -76,7 +76,7 @@ export default function Stream(props) {
       </div>
       <div
         ref={stream_container}
-        style="display: none;"
+        style={{ display: "none" }}
         class={styles.stream_container}
       >
         <div ref={zoomist_container} class="zoomist-container">

@@ -154,8 +154,6 @@ async def start() -> None:
 
     machine_name = helpers.get_machine_name()
 
-    render(status="http://192.168.4.1")
-
     global client
     client = aiomqtt.Client(hostname="localhost", port=1883, protocol=aiomqtt.ProtocolVersion.V5)
     task_group = asyncio.TaskGroup()
@@ -163,6 +161,7 @@ async def start() -> None:
         _ = await asyncio.gather(
             client.subscribe("display"),
         )
+
         async for message in client.messages:
             task_group.create_task(handle_message(message))
 
@@ -171,7 +170,12 @@ async def handle_message(message) -> None:
     if not message.topic.matches("display"):
         return
 
-    payload = json.loads(message.payload.decode("utf-8"))
+    payload = None
+    try:
+        payload = json.loads(message.payload.decode("utf-8"))
+        assert isinstance(payload, dict)
+    except Exception:
+        return
     pprint(payload)
 
     action = payload.get("action")

@@ -50,9 +50,9 @@ export default function Preview() {
           <input
             type="checkbox"
             name="bubbler"
-            checked={bubbler}
+            checked={bubbler()}
             onChange={onBubblerChange}
-          ></input>
+          />
         </div>
       </div>
       <div class={styles.preview}>

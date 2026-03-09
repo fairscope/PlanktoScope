@@ -61,7 +61,12 @@ async def handle_message(message) -> None:
     if not message.topic.matches("actuator/bubbler"):
         return
 
-    payload = json.loads(message.payload.decode("utf-8"))
+    payload = None
+    try:
+        payload = json.loads(message.payload.decode("utf-8"))
+        assert isinstance(payload, dict)
+    except Exception:
+        return
     pprint(payload)
 
     action = payload.get("action")

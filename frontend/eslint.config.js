@@ -17,6 +17,6 @@ export default defineConfig([
       globals: { ...globals.browser },
     },
   },
-  globalIgnores(["dist"]),
+  globalIgnores(["dist", "public"]),
   solid,
 ])
