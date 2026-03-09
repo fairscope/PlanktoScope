@@ -37,3 +37,5 @@ just dev
   }
 }
 ```
+
+Make sure to send the message with `retain`.

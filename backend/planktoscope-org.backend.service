@@ -2,7 +2,6 @@
 Description=PlanktoScope backend service
 Wants=mosquitto.service
 After=mosquitto.service
-After=planktoscope-org.controller.display.service
 
 [Service]
 Type=simple
