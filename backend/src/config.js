@@ -5,7 +5,7 @@ import {
   DeviceWireless,
   getWifis,
   scan,
-} from "../../lib/network.js"
+} from "../../lib/network/wireless.js"
 
 async function publishAccessPoints() {
   try {

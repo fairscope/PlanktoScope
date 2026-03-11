@@ -6,7 +6,7 @@ import express from "express"
 import cors from "cors"
 
 import "./factory.js"
-import "./config.js"
+// import "./config.js"
 import "./led-operating-time.js"
 import "./network.js"
 import { readSoftwareConfig, removeConfig } from "../../lib/file-config.js"
