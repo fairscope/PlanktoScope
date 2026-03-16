@@ -1,5 +1,5 @@
 setup:
-    npm list -g node-red@4.1.3 || npm install -g node-red@v4.1.3
+    npm list -g node-red@v5.0.0-beta.3 || npm install -g node-red@v5.0.0-beta.3
     npm ci --omit=dev
     sudo cp nodered.service /etc/systemd/system/
     sudo mkdir -p /etc/systemd/system/nodered.service.d

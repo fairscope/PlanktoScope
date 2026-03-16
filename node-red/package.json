@@ -2,7 +2,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@flowfuse/node-red-dashboard": "~1.30.1",
+    "@flowfuse/node-red-dashboard": "~1.30.2",
     "@flowfuse/node-red-dashboard-2-ui-flowviewer": "~1.0.2",
     "node-red-node-ui-list": "~0.3.6"
   },
@@ -12,7 +12,7 @@
     "eslint": "^9.39.2",
     "eslint-plugin-html": "^8.1.3",
     "globals": "^17.0.0",
-    "node-red": "^4.1.3",
-    "node-red-node-test-helper": "^0.3.5"
+    "node-red": "^5.0.0-beta.3",
+    "node-red-node-test-helper": "^0.3.6"
   }
 }

@@ -11,6 +11,12 @@ base: install-uv
     mkdir -p /home/pi/.local
     npm config set prefix /home/pi/.local
 
+update:
+    git checkout main
+    git pull
+    git submodule update --init
+    just
+
 setup:
     just --justfile node-red/justfile      setup
     just --justfile controller/justfile    setup
