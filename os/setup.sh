@@ -14,8 +14,13 @@ fi
 
 cd /home/pi
 sudo apt install -y git just
-if cd PlanktoScope; then git pull; else git clone https://github.com/PlanktoScope/PlanktoScope.git; fi
-cd PlanktoScope
+if cd PlanktoScope; then
+    git pull
+else
+    git clone https://github.com/PlanktoScope/PlanktoScope.git
+    cd PlanktoScope
+fi
+git submodule update --init
 just
 ./os/postinstall.sh
 
