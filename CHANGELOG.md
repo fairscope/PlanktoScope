@@ -9,7 +9,7 @@ All dates in this file are given in the [UTC time zone](https://en.wikipedia.org
 
 ## v2026.0.0 - UNRELEASED
 
-Support for PlanktoScope 2.1 was removed. [More info](https://github.com/PlanktoScope/PlanktoScope/pull/821)
+Support for PlanktoScope 2.1 was removed. [More info](https://github.com/fairscope/PlanktoScope/pull/821)
 
 Pump and focus can be used at the same time.
 
@@ -107,7 +107,7 @@ We have changed this behavior to be configurable and more accurate. On every seg
 - (System: networking) If you plug in a supported USB Wi-Fi dongle into the PlanktoScope, now it will by default automatically create a Wi-Fi hotspot network from that Wi-Fi dongle - regardless of whether the PlanktoScope's internal Wi-Fi module is configured to also create the same Wi-Fi hotspot network or to connect to some external Wi-Fi network. This means that the PlanktoScope now supports creating its own Wi-Fi hotspot while simultaneously being connected to the internet via a Wi-Fi network, if you plug in a USB Wi-Fi dongle.
 - (System: networking) If the PlanktoScope is connected to a Wi-Fi network with a captive portal, you should be able to access and proceed through the captive portal from a computer/phone connected to the PlanktoScope.
 - (System: networking) Firewalld is now enabled, and default firewall policies are provided (via Forklift) for the `public` and `nm-shared` firewall zones. This means that if you want to access any additional ports besides the ports for programs provided with the standard PlanktoScope OS from other devices, now you must add configurations to open those additional ports, e.g. via drop-in configuration snippets in `/etc/firewalld/zones.d`.
-- (Developers) [Tips and Tricks page](https://github.com/PlanktoScope/PlanktoScope/blob/main/documentation/docs/community/contribute/tips-and-tricks.md)
+- (Developers) [Tips and Tricks page](https://github.com/fairscope/PlanktoScope/blob/main/documentation/docs/community/contribute/tips-and-tricks.md)
 - (System) Enable [CQE](https://www.raspberrypi.com/news/sd-cards-and-bumper/) for significantly faster sdcard speed (Raspberry PI 5 only)
 - (System) Enable [SDRAM tuning](https://www.jeffgeerling.com/blog/2024/raspberry-pi-boosts-pi-5-performance-sdram-tuning) improvements for faster processing
 
@@ -382,7 +382,7 @@ We have changed this behavior to be configurable and more accurate. On every seg
 ### Fixed
 
 - (Application: GUI) The white balance gains are now only validated and sent to the backend _after_ the user changes focus away from the input field, instead of being validated and sent 300 ms after the user pauses while editing the value in the input field. This prevents the input validation from being run while the user is still editing the value.
-- (Application) The default brightness of the illumination LED for the pscopehat version of the backend (for the custom PlanktoScope HAT) has been reduced; this a temporary workaround to a bug with raspimjpeg where saved images are overexposed even on the default brightness settings with minimum shutter speed and ISO, despite the brightness of raspimjpeg's camera preview looking reasonable (see https://github.com/PlanktoScope/PlanktoScope/issues/259 for details).
+- (Application) The default brightness of the illumination LED for the pscopehat version of the backend (for the custom PlanktoScope HAT) has been reduced; this a temporary workaround to a bug with raspimjpeg where saved images are overexposed even on the default brightness settings with minimum shutter speed and ISO, despite the brightness of raspimjpeg's camera preview looking reasonable (see https://github.com/fairscope/PlanktoScope/issues/259 for details).
 - (Application: GUI) In the "Sample" page, when the minimal & maximal fraction size fields and min & max sampling depth fields are both displayed simultaneously, now the adafruithat version of the Node-RED dashboard shows the fraction size fields on one row and the sampling depth fields on another row, rather than showing them in adjacent columns. This way, the adafruithat version of the Node-RED dashboard now matches the layout in the pscopehat version of the Node-RED dashboard.
 - (Application: GUI) The "System Monitoring" page now correctly displays the PlanktoScope hardware version in the "Information" panel's "Instrument Type" field.
 - (Application: GUI) The "System Monitoring" and "Fluidic Acquisition" pages now display a software version string which is either a tagged version (e.g. `v2023.9.0-beta.1`) when the version is tagged, or else a pseudoversion (e.g. `v2023.9.0-beta.1-36-gf276e84`) which contains an abbreviated commit SHA and a list of the number of commits since the last tagged version. This version string is now also used for the `acq_software` metadata field.
@@ -489,7 +489,7 @@ We have changed this behavior to be configurable and more accurate. On every seg
 
 ### Fixed
 
-- (Major fault-tolerance improvement; Application: GUI) When an invalid value is entered for the red or blue white balance gain on the Node-RED dashboard's "Optic Configuration" page, that value is now ignored, a notification is displayed about the invalid value, and the white balance gain is reset to the last valid value (loaded from the `hardware.json` configuration file). This fixes [issue #166](https://github.com/PlanktoScope/PlanktoScope/issues/166) by preventing the Node-RED dashboard from saving an invalid value to the `hardware.json` file, which would crash the Python hardware controller after the next boot (or after the next time the Python hardware controller was restarted).
+- (Major fault-tolerance improvement; Application: GUI) When an invalid value is entered for the red or blue white balance gain on the Node-RED dashboard's "Optic Configuration" page, that value is now ignored, a notification is displayed about the invalid value, and the white balance gain is reset to the last valid value (loaded from the `hardware.json` configuration file). This fixes [issue #166](https://github.com/fairscope/PlanktoScope/issues/166) by preventing the Node-RED dashboard from saving an invalid value to the `hardware.json` file, which would crash the Python hardware controller after the next boot (or after the next time the Python hardware controller was restarted).
 - (Major quality-of-life improvement; Backend: dependencies) The `adafruit-blinka` and `adafruit-platformdetect` dependencies are now updated to their latest version, so that Python hardware controller will work on PlanktoScopes with recent (i.e. post-2021) versions of the Adafruit HAT.
 - (Application: GUI, troubleshooting) Previously, the Node-RED dashboard would often fail to display the log output from the Python backend. Now, it should always make the logs accessible (either by the links to Cockpit log viewer or by the links to the log file browser).
 - (System: networking) Previously the autohotspot script would not ignore any networks which were commented out in the `/etc/wpa_supplicant/wpa_supplicant.conf` file when checking if any networks found by scanning matched networks were specified in the `wpa_supplicant.conf` file; now it ignores them, so that commented-out networks don't incorrectly prevent the autohotspot from going into wireless AP mode.
@@ -504,20 +504,20 @@ We have changed this behavior to be configurable and more accurate. On every seg
 
 - A basic working image segmenter.
 - Direct connections over Ethernet.
-- A "Lab culture" sample type, where location is set to the South Pole, and sample collection time and date are set by default to the current time and date on the Raspberry Pi but can be changed. ([#74](https://github.com/PlanktoScope/PlanktoScope/issues/74))
+- A "Lab culture" sample type, where location is set to the South Pole, and sample collection time and date are set by default to the current time and date on the Raspberry Pi but can be changed. ([#74](https://github.com/fairscope/PlanktoScope/issues/74))
 - A "Test" sample type, where location is set to the South Pole, and sample collection time and date are always set to the current time and date on the Raspberry Pi.
-- A selector in the Node-RED dashboard for the machine hardware version ([#98](https://github.com/PlanktoScope/PlanktoScope/issues/98))
+- A selector in the Node-RED dashboard for the machine hardware version ([#98](https://github.com/fairscope/PlanktoScope/issues/98))
 
 ### Changed
 
 - Various parts of the UI (we do not have a list of specific changes).
-- Node-RED is now upgraded to v2.0 ([#97](https://github.com/PlanktoScope/PlanktoScope/issues/97))
+- Node-RED is now upgraded to v2.0 ([#97](https://github.com/fairscope/PlanktoScope/issues/97))
 - The base OS is now the 2021-12-03 release of Raspberry Pi OS Buster.
 
 ### Fixed
 
 - Various issues with accessing the Node-RED dashboard via http://planktoscope.local:1880/ui .
-- Various issues with Node-RED ([#80](https://github.com/PlanktoScope/PlanktoScope/issues/80), [#91](https://github.com/PlanktoScope/PlanktoScope/issues/91), [#87](https://github.com/PlanktoScope/PlanktoScope/issues/87), [#96](https://github.com/PlanktoScope/PlanktoScope/issues/96))
+- Various issues with Node-RED ([#80](https://github.com/fairscope/PlanktoScope/issues/80), [#91](https://github.com/fairscope/PlanktoScope/issues/91), [#87](https://github.com/fairscope/PlanktoScope/issues/87), [#96](https://github.com/fairscope/PlanktoScope/issues/96))
 
 ## v2.2.1 - 2021-05-10
 

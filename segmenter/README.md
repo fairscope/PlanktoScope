@@ -10,7 +10,7 @@ This repository contains the PlanktoScope's segmenter, which detects objects fro
 
 ### Deployment
 
-The segmenter is published for deployment as a Docker container image at [https://ghcr.io/PlanktoScope/segmenter](https://github.com/PlanktoScope/PlanktoScope/pkgs/container/segmenter). Note that the segmenter requires an MQTT broker accessible on the port 1883 of the host, as well as something to send MQTT commands to the segmenter.
+The segmenter is published for deployment as a Docker container image at [https://ghcr.io/PlanktoScope/segmenter](https://github.com/fairscope/PlanktoScope/pkgs/container/segmenter). Note that the segmenter requires an MQTT broker accessible on the port 1883 of the host, as well as something to send MQTT commands to the segmenter.
 
 ### Development
 

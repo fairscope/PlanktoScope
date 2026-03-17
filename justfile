@@ -55,7 +55,7 @@ test:
     actionlint --shellcheck="" # TODO: Enable shelcheck for actionlint
 
 developer-mode: setup-dev
-    git remote set-url origin git@github.com:PlanktoScope/PlanktoScope.git
+    git remote set-url origin git@github.com:fairscope/PlanktoScope.git
     git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
     git fetch origin
     # unshallow https://stackoverflow.com/a/17937889

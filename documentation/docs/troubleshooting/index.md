@@ -1,6 +1,6 @@
 # Troubleshooting
 
-We don't yet have complete documentation to help you troubleshoot problems with your PlanktoScope! For now, you should [sign up](https://www.planktoscope.org/join) to join the PlanktoScope community on Slack, and ask for help in the `#3-start-testing` channel on Slack; or, if you have a GitHub account, you can start a new discussion in the PlanktoScope GitHub repository's ["Help/Support" forum](https://github.com/PlanktoScope/PlanktoScope/discussions/categories/help-support). Below, we provide some guides for troubleshooting particular situations:
+We don't yet have complete documentation to help you troubleshoot problems with your PlanktoScope! For now, you should [sign up](https://www.planktoscope.org/join) to join the PlanktoScope community on Slack, and ask for help in the `#3-start-testing` channel on Slack; or, if you have a GitHub account, you can start a new discussion in the PlanktoScope GitHub repository's ["Help/Support" forum](https://github.com/fairscope/PlanktoScope/discussions/categories/help-support). Below, we provide some guides for troubleshooting particular situations:
 
 ## No internet after connecting LAN to the PlanktoScope
 

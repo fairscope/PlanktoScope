@@ -14,7 +14,7 @@ FORWARD = 1
 """"Step backward"""
 BACKWARD = 2
 
-# https://github.com/PlanktoScope/PlanktoScope/issues/691
+# https://github.com/fairscope/PlanktoScope/issues/691
 focus_steps_per_mm = 27
 # focus max speed is in mm/sec and is limited by the maximum number of pulses per second the PlanktoScope can send
 focus_max_speed = 5
@@ -148,7 +148,7 @@ async def focus(direction: str, distance: float, speed: float = focus_max_speed)
     # FIXME: We should NOT poll spi
     # instead we should configure DIAG0 or DIAG1
     # to change state when the motor is at at goal
-    # see https://github.com/PlanktoScope/PlanktoScope/issues/836
+    # see https://github.com/fairscope/PlanktoScope/issues/836
     while not await asyncio.to_thread(focus_stepper.at_goal):
         await asyncio.sleep(0.01)
 

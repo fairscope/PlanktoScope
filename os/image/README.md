@@ -4,7 +4,7 @@ This folder contains scripts and documentation to build the PlanktoScope OS imag
 
 ## Status
 
-This process was previously automated but was causing too much friction. See https://github.com/PlanktoScope/PlanktoScope/issues/730
+This process was previously automated but was causing too much friction. See https://github.com/fairscope/PlanktoScope/issues/730
 
 ## Flash Raspberry Pi OS
 
@@ -30,7 +30,7 @@ Find its IP address using your router dashboard or `nmap 123 192.168.1.0/24`.
 
 ```sh
 ssh pi@192.168.1.xxx
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/PlanktoScope/PlanktoScope/HEAD/os/setup.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/fairscope/PlanktoScope/HEAD/os/setup.sh)"
 # After the script ran succesfully
 sudo poweroff
 ```

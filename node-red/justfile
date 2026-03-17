@@ -1,5 +1,5 @@
 setup:
-    npm list -g node-red@v5.0.0-beta.3 || npm install -g node-red@v5.0.0-beta.3
+    npm list -g node-red@v5.0.0-beta.4 || npm install -g node-red@v5.0.0-beta.4
     npm ci --omit=dev
     sudo cp nodered.service /etc/systemd/system/
     sudo mkdir -p /etc/systemd/system/nodered.service.d
@@ -10,6 +10,9 @@ setup:
 
 setup-dev:
     npm install --include=dev
+    cd projects/dashboard && git remote set-url origin git@github.com:fairscope/dashboard.git
+    cd projects/dashboard && git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+    cd projects/dashboard && git fetch origin
 
 dev:
     -sudo systemctl stop nodered

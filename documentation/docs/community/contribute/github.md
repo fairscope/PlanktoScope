@@ -16,12 +16,12 @@ This repository is also a good way to get involved. Please fill in an issue if y
 
 ## How to Contribute
 
-1. Make sure that the contribution you want to make is explained or detailed in a GitHub issue! Find an [existing issue](https://github.com/PlanktoScope/PlanktoScope/issues) or [open a new one](https://github.com/PlanktoScope/PlanktoScope/issues/new/choose).
+1. Make sure that the contribution you want to make is explained or detailed in a GitHub issue! Find an [existing issue](https://github.com/fairscope/PlanktoScope/issues) or [open a new one](https://github.com/fairscope/PlanktoScope/issues/new/choose).
 2. Once done, [fork the PlanktoScope repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo) in your Github account. Ask a maintainer if you want your issue to be checked before making a PR.
 3. [Create a new Git branch](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-and-deleting-branches-within-your-repository).
 4. Review the [Development Workflow](#development-workflow) section that describes the steps to maintainer the repository.
 5. Make the changes on your branch.
-6. [Submit the branch as a PR](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request) pointing to the `main` branch of the main PlanktoScope repository. A maintainer should comment and/or review your Pull Request within a few days. Although depending on the circumstances, it may take longer. We do not enforce a naming convention for the PRs, but **please use something descriptive of your changes**, having in mind that the title of your PR will be automatically added to the next [release changelog](https://github.com/PlanktoScope/PlanktoScope/releases).
+6. [Submit the branch as a PR](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request) pointing to the `main` branch of the main PlanktoScope repository. A maintainer should comment and/or review your Pull Request within a few days. Although depending on the circumstances, it may take longer. We do not enforce a naming convention for the PRs, but **please use something descriptive of your changes**, having in mind that the title of your PR will be automatically added to the next [release changelog](https://github.com/fairscope/PlanktoScope/releases).
 
 ## Git Guidelines
 

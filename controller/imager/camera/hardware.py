@@ -207,7 +207,7 @@ def config_to_settings_values(config: dict[str, typing.Any]) -> SettingsValues:
     # TODO(ethanjli): add exposure time (previously called "shutter speed") and image gain
     # (previously called "iso" but with a different scaling factor) and auto_white_balance to the
     # hardware.json config. Maybe also add jpeg_quality? For details, refer to
-    # https://github.com/PlanktoScope/PlanktoScope/issues/290
+    # https://github.com/fairscope/PlanktoScope/issues/290
     if "red_gain" in config or "blue_gain" in config:
         try:
             red_gain = float(config["red_gain"])
