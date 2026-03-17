@@ -9,6 +9,9 @@ setup:
     rm -rf /home/pi/.node-red
 
 setup-dev:
+    git remote set-url origin git@github.com:fairscope/dashboard.git
+    git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+    git fetch origin
     npm install --include=dev
 
 dev:

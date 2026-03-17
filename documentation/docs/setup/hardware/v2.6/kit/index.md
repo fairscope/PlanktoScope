@@ -8,7 +8,7 @@ You can find a list of the components needed in the [Planktoscope V2.6 BOM](../.
 | [Planktoscope V2.6 BOM](../../../../assets/hardware/v2.6/Planktoscope V2.6 BOM.xlsx) | Bill Of Material for PlanktoScope |
 
 We tried to have the most easy-to-supply components, you still may have to adapt and research for new suppliers according to product availability and your location.
-If you find some local alternative please share your custom BOM to our GitHub Discussions thread for [v2.6 Localized Hardware BOMs](https://github.com/PlanktoScope/PlanktoScope/discussions/297), so that other members of our community can learn from your work!
+If you find some local alternative please share your custom BOM to our GitHub Discussions thread for [v2.6 Localized Hardware BOMs](https://github.com/fairscope/PlanktoScope/discussions/297), so that other members of our community can learn from your work!
 
 In the following sections we will go more in detail:
 

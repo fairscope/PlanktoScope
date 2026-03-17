@@ -22,7 +22,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://www.planktoscope.org"
-Repository = "https://github.com/PlanktoScope/PlanktoScope/tree/main/segmenter"
+Repository = "https://github.com/fairscope/PlanktoScope/tree/main/segmenter"
 Documentation = "https://docs.planktoscope.community/"
 
 [dependency-groups]

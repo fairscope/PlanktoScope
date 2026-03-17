@@ -32,7 +32,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://www.planktoscope.org"
-Repository = "https://github.com/PlanktoScope/PlanktoScope"
+Repository = "https://github.com/fairscope/PlanktoScope"
 Documentation = "https://docs.planktoscope.community"
 
 [dependency-groups]

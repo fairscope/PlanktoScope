@@ -37,7 +37,7 @@ enable_ssh: true
 Then boot into Raspberry Pi OS and type the following commands using SSH
 
 ```sh
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/PlanktoScope/PlanktoScope/HEAD/os/setup.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/FairScope/PlanktoScope/HEAD/os/setup.sh)"
 # After the script ran succesfully
 sudo reboot
 ```
@@ -175,7 +175,7 @@ https://lloydrochester.com/post/hardware/libgpiod-intro-rpi/
 
 This is a quick setup guide. See also
 
-- [documentation README](https://github.com/PlanktoScope/PlanktoScope/blob/main/documentation/README.md)
+- [documentation README](https://github.com/fairscope/PlanktoScope/blob/main/documentation/README.md)
 - [Writing Documentation](./documentation.md)
 
 Install dependencies:

@@ -17,7 +17,7 @@ sudo apt install -y git just
 if cd PlanktoScope; then
     git pull
 else
-    git clone https://github.com/PlanktoScope/PlanktoScope.git
+    git clone https://github.com/fairscope/PlanktoScope.git
     cd PlanktoScope
 fi
 git submodule update --init

@@ -58,7 +58,7 @@ If you have identified a bug in the software or hardware, please open an issue i
 
 ### Contributing to Development
 
-You can also contribute to the development effort by working on open issues. Check out the [issues labeled as good first issues](https://github.com/PlanktoScope/PlanktoScope/labels/good%20first%20issue) and let us know in the comments if you are interested in working on one. We may be able to provide guidance as you get started with the code.
+You can also contribute to the development effort by working on open issues. Check out the [issues labeled as good first issues](https://github.com/fairscope/PlanktoScope/labels/good%20first%20issue) and let us know in the comments if you are interested in working on one. We may be able to provide guidance as you get started with the code.
 
 ## License Information
 

@@ -1,6 +1,6 @@
 # Product Specifications
 
-The PlanktoScope OS includes all software which needs to run on the PlanktoScope's hardware to provide the [overall functionality of a PlanktoScope](../index.md). Product specifications for the PlanktoScope OS are listed below for ranges of software version numbers. To see software versions listed individually in chronological order, refer to the [project release notes](https://github.com/PlanktoScope/PlanktoScope/releases) or the [software changelog](./changelog.md). To understand how to interpret software version numbers, refer to our description of the PlanktoScope OS's [version numbering system](./release-process.md#version-numbering).
+The PlanktoScope OS includes all software which needs to run on the PlanktoScope's hardware to provide the [overall functionality of a PlanktoScope](../index.md). Product specifications for the PlanktoScope OS are listed below for ranges of software version numbers. To see software versions listed individually in chronological order, refer to the [project release notes](https://github.com/fairscope/PlanktoScope/releases) or the [software changelog](./changelog.md). To understand how to interpret software version numbers, refer to our description of the PlanktoScope OS's [version numbering system](./release-process.md#version-numbering).
 
 ## v2025.0.0
 

@@ -8,7 +8,7 @@ This directory contains the PlanktoScope's documentation system. Documentation s
 
 You can view the published documentation at the following URLs:
 
-- <https://docs-edge.planktoscope.community/>: this shows the "edge" (i.e. development) version of documentation on the `main` branch of the main PlanktoScope repository at https://github.com/PlanktoScope/PlanktoScope . Note that this version probably contains errors and broken content, and it is not an official release of the documentation. This version of the documentation is hosted as a way for documentation maintainers to preview changes while working together across pull requests.
+- <https://docs-edge.planktoscope.community/>: this shows the "edge" (i.e. development) version of documentation on the `main` branch of the main PlanktoScope repository at https://github.com/fairscope/PlanktoScope . Note that this version probably contains errors and broken content, and it is not an official release of the documentation. This version of the documentation is hosted as a way for documentation maintainers to preview changes while working together across pull requests.
 - <https://docs-beta.planktoscope.community/>: this shows the "beta" version of documentation on the `beta` branch of the main PlanktoScope repository. This version is shown to beta testers; it probably has problems, but it is more reliable than the "edge" version
 - <https://docs.planktoscope.community>: this shows the "stable" version of documentation on the `stable` branch of the main PlanktoScope repository. This is the up-to-date version of PlanktoScope documentation which all PlanktoScope users should refer to as the official documentation website.
 
@@ -66,4 +66,4 @@ uv run poe build
 
 #### Publishing your changes
 
-To publish your changes, make a [pull request](https://github.com/PlanktoScope/PlanktoScope/pulls) on our GitHub repository with a branch titled `feature/docs-<description of your changes>` (e.g. `feature/docs-fix-broken-link` or `feature/docs-improve-assembly-instructions`), and configure the pull request to merge the branch into the `main` branch. Once we merge the pull request, your changes will be published to the "edge" version of our documentation website (see the above "View the documentation" section of this README for the URL of the "edge" version of our documentation website).
+To publish your changes, make a [pull request](https://github.com/fairscope/PlanktoScope/pulls) on our GitHub repository with a branch titled `feature/docs-<description of your changes>` (e.g. `feature/docs-fix-broken-link` or `feature/docs-improve-assembly-instructions`), and configure the pull request to merge the branch into the `main` branch. Once we merge the pull request, your changes will be published to the "edge" version of our documentation website (see the above "View the documentation" section of this README for the URL of the "edge" version of our documentation website).

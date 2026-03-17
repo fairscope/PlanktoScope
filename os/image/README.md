@@ -4,7 +4,7 @@ This folder contains scripts and documentation to build the PlanktoScope OS imag
 
 ## Status
 
-This process was previously automated but was causing too much friction. See https://github.com/PlanktoScope/PlanktoScope/issues/730
+This process was previously automated but was causing too much friction. See https://github.com/fairscope/PlanktoScope/issues/730
 
 ## Flash Raspberry Pi OS
 
