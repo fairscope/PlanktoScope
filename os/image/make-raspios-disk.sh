@@ -43,4 +43,4 @@ cp user-data.yaml /mnt/user-data
 # unmount boot partition
 umount /dev/"${boot_partition}"
 
-echo "✅ SD card is ready."
+echo "✅ Disk is ready."

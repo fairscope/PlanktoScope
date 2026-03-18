@@ -4,7 +4,7 @@ device=$1
 name=$2
 file=$name.img
 
-# save raspios sdcard
+# save raspios
 dd bs=1M if="$device" status=progress conv=fdatasync of="$file"
 
 # shrink
