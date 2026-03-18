@@ -25,7 +25,11 @@ await DeviceWireless.subscribe("AccessPointRemoved", (/*access_point*/) => {
 })
 
 await procedure("config/wifis/scan", async () => {
-  await scan()
+  try {
+    await scan()
+  } catch (err) {
+    console.error(err)
+  }
 })
 
 await procedure("config/wifis/connect", async (data) => {

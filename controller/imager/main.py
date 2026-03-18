@@ -370,7 +370,13 @@ class ImageAcquisitionRoutine(threading.Thread):
 # pump and the imager as threads in the same process, rather than launching them as separate
 # processes.
 class _PumpClient:
-    """Thread-safe RPC stub for remotely controlling the pump over MQTT."""
+    """Thread-safe RPC stub for remotely controlling the pump over MQTT.
+
+    Uses a callback-driven state machine to coordinate with the pump process over MQTT.
+    The state machine requires seeing a "Started" status before accepting a "Done" or
+    "Interrupted" status, which prevents stale or retained MQTT messages from causing
+    premature completion of run_discrete() calls.
+    """
 
     def __init__(self) -> None:
         """Initialize the stub."""
@@ -378,46 +384,62 @@ class _PumpClient:
         # from a separate thread, and currently the MQTT client isn't thread-safe (it deadlocks
         # if we don't have a separate MQTT client):
         self._mqtt: typing.Optional[mqtt.MQTT_Client] = None
-        self._mqtt_receiver_thread: typing.Optional[threading.Thread] = None
-        self._stop_receiving_mqtt = threading.Event()  # close() was called
         self._done = threading.Event()  # run_discrete() finished or stop() was called
         self._discrete_run = threading.Lock()  # mutex on starting the pump
+        # State machine: when True, we must see "Started" before accepting "Done"/"Interrupted".
+        # Initialized to True so that any retained messages received at subscribe time are ignored.
+        self._awaiting_start = True
+        self._state_lock = threading.Lock()  # protects _awaiting_start
 
     def open(self) -> None:
         """Start the pump MQTT client.
 
-        Launches a thread to listen for MQTT updates from the pump. After this method is called,
-        the `run_discrete()` and `stop()` methods can be called.
+        Subscribes to pump status updates and installs a callback-driven message handler.
+        After this method is called, the `run_discrete()` and `stop()` methods can be called.
         """
         if self._mqtt is not None:
             return
 
         self._mqtt = mqtt.MQTT_Client(topic="status/pump", name="imager_pump_client")
-        self._mqtt_receiver_thread = threading.Thread(target=self._receive_messages)
-        self._mqtt_receiver_thread.start()
+        # Override the default polling-based on_message with our callback-driven handler.
+        # This ensures every message is processed immediately — no polling delay, no dropped
+        # messages from the single-slot buffer.
+        self._mqtt.client.on_message = self._on_pump_status
 
-    def _receive_messages(self) -> None:
-        """Update internal state based on pump status updates received over MQTT."""
-        assert self._mqtt is not None
+    def _on_pump_status(self, client: typing.Any, userdata: typing.Any, msg: typing.Any) -> None:
+        """Handle pump status messages directly on paho's network thread.
 
-        while not self._stop_receiving_mqtt.is_set():
-            if not self._mqtt.new_message_received():
-                time.sleep(0.1)
-                continue
-            if self._mqtt.msg is None or self._mqtt.msg["topic"] != "status/pump":
-                continue
+        This replaces the old polling-based _receive_messages thread. By handling messages
+        in the paho callback, we guarantee no messages are lost due to the single-slot buffer
+        or polling interval.
+        """
+        if msg.topic != "status/pump":
+            return
 
-            if self._mqtt.msg["payload"]["status"] not in {"Done", "Interrupted"}:
-                loguru.logger.debug(f"Ignoring pump status update: {self._mqtt.msg['payload']}")
-                self._mqtt.read_message()
-                continue
+        try:
+            payload = json.loads(msg.payload.decode())
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            loguru.logger.warning(f"Could not decode pump status message: {msg.payload}")
+            return
 
-            loguru.logger.debug(f"The pump has stopped: {self._mqtt.msg['payload']}")
-            self._mqtt.client.unsubscribe("status/pump")
-            self._mqtt.read_message()
-            self._done.set()
-            if self._discrete_run.locked():
-                self._discrete_run.release()
+        status = payload.get("status")
+        loguru.logger.debug(f"Pump status update: {payload}")
+
+        with self._state_lock:
+            if status == "Started":
+                # The pump has acknowledged our command and begun moving.
+                self._awaiting_start = False
+            elif status in ("Done", "Interrupted"):
+                if self._awaiting_start:
+                    # This is a stale or retained message from a previous pump run — ignore it.
+                    loguru.logger.debug(
+                        f"Ignoring stale pump status (no 'Started' seen yet): {payload}"
+                    )
+                    return
+                # The pump has finished. Reset state for the next run and unblock run_discrete().
+                self._awaiting_start = True
+                loguru.logger.debug(f"Pump has stopped: {payload}")
+                self._done.set()
 
     def run_discrete(self, settings: stopflow.DiscretePumpSettings) -> None:
         """Run the pump for a discrete volume at the specified flow rate and direction.
@@ -433,53 +455,43 @@ class _PumpClient:
         if self._mqtt is None:
             raise RuntimeError("MQTT client was not initialized yet!")
 
-        # We ignore the pylint error here because the lock can only be released from a different
-        # thread (the thread which calls the `handle_status_update()` method):
-        self._discrete_run.acquire()  # pylint: disable=consider-using-with
-        self._done.clear()
-        self._mqtt.client.subscribe("status/pump")
-        self._mqtt.client.publish(
-            "actuator/pump",
-            json.dumps(
-                {
-                    "action": "move",
-                    "direction": settings.direction.value,
-                    "flowrate": settings.flowrate,
-                    "volume": settings.volume,
-                }
-            ),
-        )
-        self._done.wait()
+        with self._discrete_run:
+            self._done.clear()
+            with self._state_lock:
+                self._awaiting_start = True
+
+            self._mqtt.client.publish(
+                "actuator/pump",
+                json.dumps(
+                    {
+                        "action": "move",
+                        "direction": settings.direction.value,
+                        "flowrate": settings.flowrate,
+                        "volume": settings.volume,
+                    }
+                ),
+            )
+            self._done.wait()
 
     def stop(self) -> None:
         """Stop the pump."""
         if self._mqtt is None:
             raise RuntimeError("MQTT client was not initialized yet!")
 
-        self._mqtt.client.subscribe("status/pump")
         self._mqtt.client.publish("actuator/pump", '{"action": "stop"}')
 
     def close(self) -> None:
         """Close the pump MQTT client, if it's currently open.
 
-        Stops the MQTT receiver thread and blocks until it finishes. After this method is called,
-        no methods are allowed to be called.
+        After this method is called, no methods are allowed to be called.
         """
         if self._mqtt is None:
             return
 
-        self._stop_receiving_mqtt.set()
-        if self._mqtt_receiver_thread is not None:
-            self._mqtt_receiver_thread.join()
-        self._mqtt_receiver_thread = None
+        # Unblock any waiting run_discrete() call to prevent deadlocks during shutdown:
+        self._done.set()
         self._mqtt.shutdown()
         self._mqtt = None
-
-        # We don't know if the run is done (or if it'll ever finish), but we'll release the lock to
-        # prevent deadlocks:
-        if not self._discrete_run.locked():
-            return
-        self._discrete_run.release()
 
 
 def read_config() -> typing.Any:

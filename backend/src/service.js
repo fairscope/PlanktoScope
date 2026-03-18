@@ -53,3 +53,7 @@ app.get("/{*splat}", (req, res) => {
 })
 
 app.listen(4000)
+
+process.on('unhandledRejection', (reason, p) => {
+  console.error('Unhandled Rejection at: Promise', p, 'reason:', reason);
+});

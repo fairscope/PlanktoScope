@@ -20,6 +20,12 @@ import cv2
 from loguru import logger
 
 __mask_to_remove = None
+__last_threshold_value = None
+
+
+def get_last_threshold_value():
+    """Return the threshold value from the most recent simple_threshold() call."""
+    return __last_threshold_value
 
 
 def adaptative_threshold(img):
@@ -65,16 +71,13 @@ def simple_threshold(img):
     Returns:
         cv2 img: binary mask
     """
-    # start = time.monotonic()
-    # logger.debug(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+    global __last_threshold_value
 
     logger.debug("Simple threshold calc")
-    # img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     ret, mask = cv2.threshold(img_gray, 127, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_TRIANGLE)
 
-    # logger.debug(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
-    # logger.debug(time.monotonic() - start)
+    __last_threshold_value = float(ret)
     logger.info(f"Threshold value used was {ret}")
     logger.success("Simple threshold is done")
     return mask
