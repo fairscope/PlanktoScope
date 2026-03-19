@@ -458,9 +458,7 @@ class SegmenterProcess(multiprocessing.Process):
         )
 
         regionprops_filtered = [
-            region
-            for region in regionprops
-            if region.equivalent_diameter_area >= min_esd_pixels
+            region for region in regionprops if region.equivalent_diameter_area >= min_esd_pixels
         ]
         object_number = len(regionprops_filtered)
         logger.debug(f"Found {nlabels} labels, or {object_number} after size filtering")
@@ -483,10 +481,14 @@ class SegmenterProcess(multiprocessing.Process):
                 try:
                     pixel_size_um = float(pixel_size_um)
                 except (ValueError, TypeError):
-                    logger.warning(f"Invalid process_pixel value: {pixel_size_um}, measurements will be in pixels")
+                    logger.warning(
+                        f"Invalid process_pixel value: {pixel_size_um}, measurements will be in pixels"
+                    )
                     pixel_size_um = None
             if pixel_size_um is None or pixel_size_um <= 0:
-                logger.warning("No valid process_pixel calibration found — measurements will be in pixel units")
+                logger.warning(
+                    "No valid process_pixel calibration found — measurements will be in pixel units"
+                )
                 pixel_size_um = None
             else:
                 # Flag that physical unit conversion was applied (for downstream consumers)
@@ -803,7 +805,9 @@ class SegmenterProcess(multiprocessing.Process):
         # Remove all the key,value pairs that don't start with acq, sample, object, process, or calibration (for Ecotaxa)
         self.__global_metadata = dict(
             filter(
-                lambda item: item[0].startswith(("acq", "sample", "object", "process", "calibration")),
+                lambda item: item[0].startswith(
+                    ("acq", "sample", "object", "process", "calibration")
+                ),
                 self.__global_metadata.items(),
             )
         )
