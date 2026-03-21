@@ -251,10 +251,12 @@ def ecotaxa_export(archive_filepath, metadata, image_base_path, keep_files=False
             tsv_line["object_id"] = roi["name"]
 
             # Ensure EcoTaxa-compatible date/time formats (YYYYMMDD / HHMMSS)
-            if "object_date" in tsv_line and isinstance(tsv_line["object_date"], str):
-                tsv_line["object_date"] = tsv_line["object_date"].replace("-", "")
-            if "object_time" in tsv_line and isinstance(tsv_line["object_time"], str):
-                tsv_line["object_time"] = tsv_line["object_time"].replace(":", "")
+            for date_col in ("object_date", "object_date_end"):
+                if date_col in tsv_line and isinstance(tsv_line[date_col], str):
+                    tsv_line[date_col] = tsv_line[date_col].replace("-", "")
+            for time_col in ("object_time", "object_time_end"):
+                if time_col in tsv_line and isinstance(tsv_line[time_col], str):
+                    tsv_line[time_col] = tsv_line[time_col].replace(":", "")
 
             filename = roi["name"] + ".jpg"
 
@@ -271,7 +273,7 @@ def ecotaxa_export(archive_filepath, metadata, image_base_path, keep_files=False
         tsv_content = pandas.DataFrame(tsv_content)
 
         # Force EcoTaxa-required numeric types for date/time
-        for col in ("object_date", "object_time"):
+        for col in ("object_date", "object_time", "object_date_end", "object_time_end"):
             if col in tsv_content.columns:
                 tsv_content[col] = pandas.to_numeric(tsv_content[col], errors="coerce")
 
