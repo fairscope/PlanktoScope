@@ -413,7 +413,6 @@ class _PumpClient:
                 continue
 
             loguru.logger.debug(f"The pump has stopped: {self._mqtt.msg['payload']}")
-            self._mqtt.client.unsubscribe("status/pump")
             self._mqtt.read_message()
             self._done.set()
             if self._discrete_run.locked():
@@ -437,7 +436,6 @@ class _PumpClient:
         # thread (the thread which calls the `handle_status_update()` method):
         self._discrete_run.acquire()  # pylint: disable=consider-using-with
         self._done.clear()
-        self._mqtt.client.subscribe("status/pump")
         self._mqtt.client.publish(
             "actuator/pump",
             json.dumps(
@@ -456,7 +454,6 @@ class _PumpClient:
         if self._mqtt is None:
             raise RuntimeError("MQTT client was not initialized yet!")
 
-        self._mqtt.client.subscribe("status/pump")
         self._mqtt.client.publish("actuator/pump", '{"action": "stop"}')
 
     def close(self) -> None:
