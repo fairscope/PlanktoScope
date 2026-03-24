@@ -38,10 +38,10 @@ sgdisk --new "${device}"
 sgdisk --new=1:0:+8M --typecode=1:0700 --change-name=1:"AUTOBOOT" "${device}"
 
 # Partition 2: 512MB FAT32 "BOOTFS A"
-sgdisk --new=2:0:+512M --typecode=2:0C01 --change-name=2:"BOOTFS A" "${device}"
+sgdisk --new=2:0:+512M --typecode=2:0700 --change-name=2:"BOOTFS A" "${device}"
 
 # Partition 3: 512MB FAT32 "BOOTFS B"
-sgdisk --new=3:0:+512M --typecode=3:0C01 --change-name=3:"BOOTFS B" "${device}"
+sgdisk --new=3:0:+512M --typecode=3:0700 --change-name=3:"BOOTFS B" "${device}"
 
 # Partition 4: 12GB EXT4 "ROOTFS A"
 sgdisk --new=4:0:+12G --typecode=4:8300 --change-name=4:"ROOTFS A" "${device}"
