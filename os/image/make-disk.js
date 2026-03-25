@@ -9,6 +9,8 @@ import { readFile, writeFile, rename } from "node:fs/promises"
 import { join } from "path"
 import { stringify, parse } from "ini"
 import { fileURLToPath } from "url"
+import crypto from "crypto"
+import { setTimeout } from "node:timers/promises"
 
 async function mountRaspiOS(path) {
   // read image file as block device
@@ -16,13 +18,15 @@ async function mountRaspiOS(path) {
     await $`losetup --find --partscan --show ${path}`
   assert.ok(rpios_device)
 
-  // mount bootfs
-  const { stdout: mpbootfs } = await $`mktemp -d`
-  await $`mount ${rpios_device}p1 ${mpbootfs}`
+  // // mount bootfs
+  // const { stdout: mpbootfs } = await $`mktemp -d`
+  // await $`mount ${rpios_device}p1 ${mpbootfs}`
 
-  // mount rootfs
-  const { stdout: mprootfs } = await $`mktemp -d`
-  await $`mount ${rpios_device}p2 ${mprootfs}`
+  // // mount rootfs
+  // const { stdout: mprootfs } = await $`mktemp -d`
+  // await $`mount ${rpios_device}p2 ${mprootfs}`
+
+  // await $`partprobe ${path}`
 
   return rpios_device
 }
@@ -65,7 +69,7 @@ async function createPartitionTable(device) {
   // See https://en.wikipedia.org/wiki/GUID_Partition_Table#Partition_entries_(LBA_2%E2%80%9333)
 
   // # Partition 1: 8MB FAT12 "AUTOBOOT"
-  await $`sgdisk --new=1:0:+8M --typecode=1:0700 -A 1:set:0 -A 1:set:1 -A 1:set:62 -A 1:set:63 --change-name=1:"AUTOBOOT" ${device}`
+  await $`sgdisk --new=1:0:+8M --typecode=1:0700 -A 1:set:0 -A 1:set:1 -A 1:set:62 -A 1:set:63 --change-name=1:AUTOBOOT ${device}`
   // # Partition 2: 512MB FAT32 "BOOTFS A"
   await $`sgdisk --new=2:0:+512M --typecode=2:0700 -A 2:set:0 -A 2:set:1 -A 2:set:62 -A 2:set:63 --change-name=2:${"BOOTFS A"} ${device}`
   // # Partition 3: 512MB FAT32 "BOOTFS B"
@@ -100,12 +104,41 @@ async function create_bootfs(device, AB, rpios_partitions) {
   const path = device + (AB === "A" ? "2" : "3")
   const { stdout: mountpoint } = await $`mktemp -d`
   await $`wipefs -a ${path}`
-  await $`mkfs.vfat -F32 ${path} -n ${label}`
+
+  await $`partclone.${rpios_partitions.bootfs.fstype} --dev-to-dev --source ${rpios_partitions.bootfs.path} --overwrite ${path} --quiet`
+  // alternative with dd - slower
+  // await $`dd if=${rpios_partitions.bootfs.path} of=${path} bs=1M`
+
+  // update the filesystem UUID so it's not the same as RPI OS
+  const serial = "0x" + crypto.randomBytes(4).toString("hex").toUpperCase()
+  // update the filesystem UUID so it's not the same as RPI OS
+  // set filesystem label
+  await $`mlabel -i ${path} -N ${serial} ::${label}`
+  // await $`fsck.vfat -n ${path}` // check filesystem
+  // await $`fatresize -s max ${path}` // resize to take remaining space
+  // await $`fsck.vfat -n ${path}` // check filesystem
   await $`mount ${path} ${mountpoint}`
-  await $`rsync -a ${rpios_partitions["bootfs"].mountpoint}/ ${mountpoint}/`
   await $`mv ${mountpoint}/user-data ${mountpoint}/user-data.orig`
   await $`cp user-data.yaml ${mountpoint}/user-data`
 }
+
+/*
+  create_bootfs with rsync
+  alternative implementation, left here in case it proves useful in the future
+*/
+// async function create_bootfs_with_rsync(device, AB, rpios_partitions) {
+//   AB = AB.toUpperCase()
+//   if (!["A", "B"].includes(AB)) throw new Error("Unknown AB")
+//   const label = `BOOTFS ${AB}`
+//   const path = device + (AB === "A" ? "2" : "3")
+//   const { stdout: mountpoint } = await $`mktemp -d`
+//   await $`wipefs -a ${path}`
+//   await $`mkfs.vfat -F32 ${path} -n ${label}`
+//   await $`mount ${path} ${mountpoint}`
+//   await $`rsync -a ${rpios_partitions["bootfs"].mountpoint}/ ${mountpoint}/`
+//   await $`mv ${mountpoint}/user-data ${mountpoint}/user-data.orig`
+//   await $`cp user-data.yaml ${mountpoint}/user-data`
+// }
 
 async function create_rootfs(device, AB, rpios_partitions) {
   AB = AB.toUpperCase()
@@ -114,10 +147,32 @@ async function create_rootfs(device, AB, rpios_partitions) {
   const path = device + (AB === "A" ? "4" : "5")
   const { stdout: mountpoint } = await $`mktemp -d`
   await $`wipefs -a ${path}`
-  await $`mkfs.ext4 -q -L ${label} ${path}`
+
+  await $`partclone.${rpios_partitions.rootfs.fstype} --dev-to-dev --source ${rpios_partitions.rootfs.path} --overwrite ${path} --quiet`
+  // alternative with dd - slower
+  // await $`dd if=${rpios_partitions.rootfs.path} of=${path} bs=1M`
+
+  await $`tune2fs -U ${crypto.randomUUID()} ${path}` // update the filesystem UUID so it's not the same as RPI OS
+  await $`e2label ${path} ${label}` // set filesystem label
+  await $`e2fsck -y -f ${path}` // check filesystem
+  await $`resize2fs ${path}` // resize to take remaining space
   await $`mount ${path} ${mountpoint}`
-  await $`rsync -axHAXES --filter=${"-x security.selinux"} ${rpios_partitions["rootfs"].mountpoint}/ ${mountpoint}/`
 }
+
+/*
+  create_rootfs with rsync
+  alternative implementation, left here in case it proves useful in the future
+*/
+// async function create_rootfs_with_rsync(device, AB, rpios_partitions) {
+//   AB = AB.toUpperCase()
+//   if (!["A", "B"].includes(AB)) throw new Error("Unknown AB")
+//   const label = `ROOTFS ${AB}`
+//   const path = device + (AB === "A" ? "4" : "5")
+//   const { stdout: mountpoint } = await $`mktemp -d`
+//   await $`wipefs -a ${path}`
+//   await $`mkfs.ext4 -q -L ${label} ${path}`
+//   await $`mount ${path} ${mountpoint}`
+// }
 
 async function create_datafs(device) {
   const label = `DATA`
@@ -260,15 +315,29 @@ if (import.meta.main) {
 
   await umount(device)
 
-  const rpios_device = await mountRaspiOS(
-    fileURLToPath(
+  const { stdout: rpios_device } =
+    await $`losetup --find --partscan --show ${fileURLToPath(
       import.meta.resolve("./2025-12-04-raspios-trixie-arm64-lite.img"),
-    ),
-  )
+    )}`
+  await $`partprobe ${rpios_device}`
+  await setTimeout(1000)
   const rpios_partitions = await getRaspberryPiOSPartitions(rpios_device)
 
+  console.time("create partitions")
   await createPartitions(device, rpios_partitions)
+  console.timeEnd("create partitions")
+
+  // mount bootfs
+  const { stdout: mpbootfs } = await $`mktemp -d`
+  await $`mount ${rpios_device}p1 ${mpbootfs}`
+
+  // mount rootfs
+  const { stdout: mprootfs } = await $`mktemp -d`
+  await $`mount ${rpios_device}p2 ${mprootfs}`
+
+  console.time("update mountpoints")
   await updateMountpoints(device, rpios_partitions)
+  console.timeEnd("update mountpoints")
 
   await $`sync`
   await umount(device)
