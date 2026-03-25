@@ -24,8 +24,7 @@ head -c 64 "${file}.sha256"| grep -qx "${sha256}"
 sha256sum --check "${file}.sha256"
 
 # unmount
-umount -q "${device}"? || true
-umount -q "${device}" || true
+./umount.js "${device}"
 
 # new empty dos partition table
 echo 'label: dos' | sfdisk "$device"

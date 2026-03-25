@@ -25,8 +25,7 @@ head -c 64 "${file}.sha256"| grep -qx "${sha256}"
 sha256sum --check "${file}.sha256"
 
 # unmount
-umount -q "${device}"? || true
-umount -q "${device}" || true
+./umount.js "${device}"
 
 # Removes existing GPT/MBR data.
 sgdisk --zap-all "${device}"
@@ -128,10 +127,8 @@ mount "${device}6" "${mp6}"
 
 sync
 
-umount -q "${device}"? || true
-umount -q "${device}" || true
+./umount.js "${device}"
 
 # undo
-umount "${LOOPDEV}p1"
-umount "${LOOPDEV}p2"
+./umount.js "${LOOPDEV}"
 losetup --detach "${LOOPDEV}"

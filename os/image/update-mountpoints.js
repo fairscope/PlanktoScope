@@ -2,12 +2,10 @@
 
 import { readFile, writeFile, rename } from "node:fs/promises"
 import assert from "node:assert"
-import { $ } from "execa"
 import { join } from "path"
 import { stringify, parse } from "ini"
 import { fileURLToPath } from "url"
-
-const [, , rpios_device, device] = process.argv
+import { getBlockDevices } from "./lib.js"
 
 async function process_cmdline(rpios_partitions, partitions, AB) {
   const rootfs = partitions[`ROOTFS ${AB.toUpperCase()}`]
@@ -79,22 +77,6 @@ function assertReplace(str, a, b) {
   return new_str
 }
 
-async function getBlockDevices(device) {
-  const { stdout } =
-    await $`lsblk --json --output=PATH,PARTUUID,LABEL,MOUNTPOINT,FSTYPE,PARTN ${device}`
-
-  const { blockdevices } = JSON.parse(stdout)
-
-  const devs = Object.create(null)
-
-  for (const dev of blockdevices) {
-    if (!dev.partuuid) continue
-    devs[dev.label] = dev
-  }
-
-  return devs
-}
-
 // device should be a loop device such as /dev/loop1
 async function getRaspberryPiOSPartitions(device) {
   const partitions = await getBlockDevices(device)
@@ -129,11 +111,17 @@ async function process_automount(partitions) {
   )
 }
 
-const rpios_partitions = await getRaspberryPiOSPartitions(rpios_device)
-const partitions = await getPartitions(device)
+if (import.meta.main) {
+  const [, , rpios_device, device] = process.argv
+  assert.ok(rpios_device)
+  assert.ok(device)
 
-await process_fstab(rpios_partitions, partitions, "A")
-await process_fstab(rpios_partitions, partitions, "B")
-await process_cmdline(rpios_partitions, partitions, "A")
-await process_cmdline(rpios_partitions, partitions, "B")
-await process_automount(partitions)
+  const rpios_partitions = await getRaspberryPiOSPartitions(rpios_device)
+  const partitions = await getPartitions(device)
+
+  await process_fstab(rpios_partitions, partitions, "A")
+  await process_fstab(rpios_partitions, partitions, "B")
+  await process_cmdline(rpios_partitions, partitions, "A")
+  await process_cmdline(rpios_partitions, partitions, "B")
+  await process_automount(partitions)
+}
