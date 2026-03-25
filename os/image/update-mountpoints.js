@@ -4,6 +4,8 @@ import { readFile, writeFile, rename } from "node:fs/promises"
 import assert from "node:assert"
 import { $ } from "execa"
 import { join } from "path"
+import { stringify, parse } from "ini"
+import { fileURLToPath } from "url"
 
 const [, , rpios_device, device] = process.argv
 
@@ -79,7 +81,7 @@ function assertReplace(str, a, b) {
 
 async function getBlockDevices(device) {
   const { stdout } =
-    await $`lsblk --json --output=PATH,PARTUUID,LABEL,MOUNTPOINT,FSTYPE ${device}`
+    await $`lsblk --json --output=PATH,PARTUUID,LABEL,MOUNTPOINT,FSTYPE,PARTN ${device}`
 
   const { blockdevices } = JSON.parse(stdout)
 
@@ -109,6 +111,24 @@ async function getPartitions(device) {
   return partitions
 }
 
+async function process_automount(partitions) {
+  const autobootfs = partitions["AUTOBOOT"]
+  const bootfs_a = partitions["BOOTFS A"]
+  // const bootfs_b = partitions["BOOTFS B"]
+
+  let content = await readFile(
+    fileURLToPath(import.meta.resolve("./autoboot.ini")),
+    "utf-8",
+  )
+  const config = parse(content)
+  config.all.boot_partition = bootfs_a.partn
+
+  await writeFile(
+    join(autobootfs.mountpoint, "autoboot.txt"),
+    stringify(config),
+  )
+}
+
 const rpios_partitions = await getRaspberryPiOSPartitions(rpios_device)
 const partitions = await getPartitions(device)
 
@@ -116,3 +136,4 @@ await process_fstab(rpios_partitions, partitions, "A")
 await process_fstab(rpios_partitions, partitions, "B")
 await process_cmdline(rpios_partitions, partitions, "A")
 await process_cmdline(rpios_partitions, partitions, "B")
+await process_automount(partitions)

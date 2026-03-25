@@ -2,6 +2,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "execa": "^9.6.1"
+    "execa": "^9.6.1",
+    "ini": "^6.0.0"
   }
 }
