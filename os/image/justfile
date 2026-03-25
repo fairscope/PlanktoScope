@@ -1,3 +1,6 @@
+setup:
+    npm ci --omit=dev
+
 test:
     validator user-data.yaml
     validator autoboot.ini

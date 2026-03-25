@@ -91,46 +91,45 @@ mount "${LOOPDEV}p1" "${mpbootfs}"
 mprootfs=$(mktemp -d)
 mount "${LOOPDEV}p2" "${mprootfs}"
 
-# mount part 1 AUTOBOOT
+# part 1 AUTOBOOT
 mp1=$(mktemp -d)
 mount "${device}1" "$mp1"
 cp autoboot.ini "$mp1/autoboot.txt"
-umount "${device}1"
 
-# mount part 2 BOOTFS A
+# part 2 BOOTFS A
 mp2=$(mktemp -d)
 mount "${device}2" "$mp2"
 rsync -a --info=progress2 "${mpbootfs}/" "${mp2}/"
 mv "${mp2}/user-data" "${mp2}/user-data.orig"
 cp user-data.yaml "${mp2}/user-data"
-umount "${device}2"
 
-# mount part 3 BOOTFS B
+# part 3 BOOTFS B
 mp3=$(mktemp -d)
 mount "${device}3" "$mp3"
 rsync -a --info=progress2 "${mpbootfs}/" "${mp3}/"
 mv "${mp3}/user-data" "${mp3}/user-data.orig"
 cp user-data.yaml "${mp3}/user-data"
-umount "${device}3"
 
-# mount part 4 ROOTFS A
+# part 4 ROOTFS A
 mp4=$(mktemp -d)
 mount "${device}4" "$mp4"
 rsync -aHAX --filter='-x security.selinux' --info=progress2 "${mprootfs}/" "${mp4}/"
-umount "${device}4"
 
-# mount part 5 ROOTFS B
+# part 5 ROOTFS B
 mp5=$(mktemp -d)
 mount "${device}5" "$mp5"
 rsync -aHAX --filter='-x security.selinux' --info=progress2 "${mprootfs}/" "${mp5}/"
-umount "${device}5"
 
 # mount part 6 DATA
 mp6=$(mktemp -d)
 mount "${device}6" "${mp6}"
-umount "${device}6"
+
+./update-mountpoints.js "${LOOPDEV}" "${device}"
 
 sync
+
+umount -q "${device}"? || true
+umount -q "${device}" || true
 
 # undo
 umount "${LOOPDEV}p1"
