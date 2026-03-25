@@ -33,26 +33,29 @@ sgdisk --zap-all "${device}"
 # Create a new partition table
 sgdisk --new "${device}"
 
-# 1:set:0 -A 1:set:1
-# sets hidden and firmware GPT flags
+# 0 is "Platform required"
+# 1 is "EFI firmware should ignore the content"
+# 62 is "Hidden"
+# 63 is "No drive letter (i.e. do not automount) "
+# See https://en.wikipedia.org/wiki/GUID_Partition_Table#Partition_entries_(LBA_2%E2%80%9333)
 
 # Partition 1: 8MB FAT12 "AUTOBOOT"
-sgdisk --new=1:0:+8M --typecode=1:0700 -A 1:set:0 -A 1:set:1 --change-name=1:"AUTOBOOT" "${device}"
+sgdisk --new=1:0:+8M --typecode=1:0700 -A 1:set:0 -A 1:set:1 -A 1:set:62 -A 1:set:63 --change-name=1:"AUTOBOOT" "${device}"
 
 # Partition 2: 512MB FAT32 "BOOTFS A"
-sgdisk --new=2:0:+512M --typecode=2:0700 -A 2:set:0 -A 2:set:1 --change-name=2:"BOOTFS A" "${device}"
+sgdisk --new=2:0:+512M --typecode=2:0700 -A 2:set:0 -A 2:set:1 -A 2:set:62 -A 2:set:63 --change-name=2:"BOOTFS A" "${device}"
 
 # Partition 3: 512MB FAT32 "BOOTFS B"
-sgdisk --new=3:0:+512M --typecode=3:0700 -A 3:set:0 -A 3:set:1 --change-name=3:"BOOTFS B" "${device}"
+sgdisk --new=3:0:+512M --typecode=3:0700 -A 3:set:0 -A 3:set:1 -A 3:set:62 -A 3:set:63 --change-name=3:"BOOTFS B" "${device}"
 
 # Partition 4: 12GB EXT4 "ROOTFS A"
-sgdisk --new=4:0:+12G --typecode=4:8300 -A 4:set:0 -A 4:set:1 --change-name=4:"ROOTFS A" "${device}"
+sgdisk --new=4:0:+12G --typecode=4:8300 -A 4:set:0 -A 4:set:1 -A 4:set:62 -A 4:set:63 --change-name=4:"ROOTFS A" "${device}"
 
 # Partition 5: 12GB EXT4 "ROOTFS B"
-sgdisk --new=5:0:+12G --typecode=5:8300 -A 5:set:0 -A 5:set:1 --change-name=5:"ROOTFS B" "${device}"
+sgdisk --new=5:0:+12G --typecode=5:8300 -A 5:set:0 -A 5:set:1 -A 5:set:62 -A 5:set:63 --change-name=5:"ROOTFS B" "${device}"
 
 # Partition 6: Remaining space EXT4 "DATA"
-sgdisk --new=6:0:0 --typecode=6:8300 -A 6:set:0 -A 6:set:1 --change-name=6:"DATA" "${device}"
+sgdisk --new=6:0:0 --typecode=6:8300 -A 6:set:0 -A 6:set:1  -A 6:set:62 -A 6:set:63--change-name=6:"DATA" "${device}"
 
 sgdisk --verify "${device}"
 
@@ -112,12 +115,12 @@ cp user-data.yaml "${mp3}/user-data"
 # part 4 ROOTFS A
 mp4=$(mktemp -d)
 mount "${device}4" "$mp4"
-rsync -aHAX --filter='-x security.selinux' --info=progress2 "${mprootfs}/" "${mp4}/"
+rsync -axHAXES --filter='-x security.selinux' --info=progress2 "${mprootfs}/" "${mp4}/"
 
 # part 5 ROOTFS B
 mp5=$(mktemp -d)
 mount "${device}5" "$mp5"
-rsync -aHAX --filter='-x security.selinux' --info=progress2 "${mprootfs}/" "${mp5}/"
+rsync -axHAXES --filter='-x security.selinux' --info=progress2 "${mprootfs}/" "${mp5}/"
 
 # mount part 6 DATA
 mp6=$(mktemp -d)
