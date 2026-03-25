@@ -114,7 +114,7 @@ async function create_rootfs(device, AB, rpios_partitions) {
   const path = device + (AB === "A" ? "4" : "5")
   const { stdout: mountpoint } = await $`mktemp -d`
   await $`wipefs -a ${path}`
-  await $`mkfs.ext4 --quiet -L ${label} ${path}`
+  await $`mkfs.ext4 -q -L ${label} ${path}`
   await $`mount ${path} ${mountpoint}`
   await $`rsync -axHAXES --filter=${"-x security.selinux"} ${rpios_partitions["rootfs"].mountpoint}/ ${mountpoint}/`
 }
@@ -124,7 +124,7 @@ async function create_datafs(device) {
   const path = `${device}6`
   const { stdout: mountpoint } = await $`mktemp -d`
   await $`wipefs -a ${path}`
-  await $`mkfs.ext4 --quiet -L ${label} ${path}`
+  await $`mkfs.ext4 -q -L ${label} ${path}`
   await $`mount ${path} ${mountpoint}`
 }
 
