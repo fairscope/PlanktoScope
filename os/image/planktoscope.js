@@ -13,16 +13,19 @@ export async function createPartitions(device, rpios_partitions) {
   // until next partition - for example with resize2fs
   await createPartitionTable(device)
 
-  await create_autobootfs(device)
+  const partitions = await getPartitions(device)
 
-  // 11s not in parallel
-  await create_bootfs(device, "A", rpios_partitions)
-  await create_bootfs(device, "B", rpios_partitions)
+  await create_autobootfs(partitions["AUTOBOOT"])
 
-  // 2m55 with dd
-  await create_rootfs(device, "A", rpios_partitions)
-  await create_rootfs(device, "B", rpios_partitions)
-  await create_datafs(device)
+  const rpios_bootfs = rpios_partitions['bootfs']
+  await create_bootfs(partitions["BOOTFS A"], rpios_bootfs)
+  await create_bootfs(partitions["BOOTFS B"], rpios_bootfs)
+
+  const rpios_rootfs = rpios_partitions['rootfs']
+  await create_rootfs(partitions["ROOTFS A"], rpios_rootfs)
+  await create_rootfs(partitions["ROOTFS B"], rpios_rootfs)
+
+  await create_datafs(partitions["DATA"])
 }
 
 export async function updateMountpoints(device, rpios_partitions) {
@@ -59,43 +62,41 @@ async function createPartitionTable(device) {
   // # Partition 5: 12GB EXT4 "ROOTFS B"
   await $`sgdisk --new=5:0:+12G --typecode=5:8300 -A 5:set:0 -A 5:set:1 -A 5:set:62 -A 5:set:63 --change-name=5:${"ROOTFS B"} ${device}`
   // # Partition 6: Remaining space EXT4 "DATA"
-  await $`sgdisk --new=6:0:0 --typecode=6:8300 -A 6:set:0 -A 6:set:1  -A 6:set:62 -A 6:set:63--change-name=6:"DATA" ${device}`
+  await $`sgdisk --new=6:0:0 --typecode=6:8300 -A 6:set:0 -A 6:set:1  -A 6:set:62 -A 6:set:63 --change-name=6:DATA ${device}`
 
   await $`sgdisk --verify ${device}`
 
   // Inform kernel of partition table changes
   await $`partprobe ${device}`
+  // Inform userspace of partition table changes
+  await $`udevadm settle`
 }
 
-async function create_autobootfs(device) {
-  const label = "AUTOBOOT"
-  const path = `${device}1`
+async function create_autobootfs({partlabel, path}) {
   const { stdout: mountpoint } = await $`mktemp -d`
   await $`wipefs -a ${path}`
-  await $`mkfs.vfat -F12 ${path} -n ${label}`
+  await $`mkfs.vfat -F12 ${path} -n ${partlabel}`
   await $`mount ${path} ${mountpoint}`
   await $`cp autoboot.ini ${join(mountpoint, "autoboot.txt")}`
 }
 
-async function create_bootfs(device, AB, rpios_partitions) {
-  AB = AB.toUpperCase()
-  if (!["A", "B"].includes(AB)) throw new Error("Unknown AB")
-  const label = `BOOTFS ${AB}`
-  const path = device + (AB === "A" ? "2" : "3")
+async function create_bootfs({path, partlabel}, rpios_bootfs) {
   const { stdout: mountpoint } = await $`mktemp -d`
   await $`wipefs -a ${path}`
 
-  await $`partclone.${rpios_partitions.bootfs.fstype} --dev-to-dev --source ${rpios_partitions.bootfs.path} --overwrite ${path} --quiet`
+  await $`partclone.${rpios_bootfs.fstype} --dev-to-dev --source ${rpios_bootfs.path} --overwrite ${path} --quiet`
   // alternative with dd - slower
   // await $`dd if=${rpios_partitions.bootfs.path} of=${path} bs=1M`
 
   // update the filesystem UUID so it's not the same as RPI OS
-  const serial = "0x" + crypto.randomBytes(4).toString("hex").toUpperCase()
-  // update the filesystem UUID so it's not the same as RPI OS
+  const serial = crypto.randomBytes(4).toString("hex").toUpperCase()
+  await $`fatlabel -i ${path} ${serial}`
+
   // set filesystem label
-  // TODO: investigatee why it displays "Hidden (2560) does not match sectors (63)"
-  await $`mlabel -i ${path} -N ${serial} ::${label}`
-  // await $`fsck.vfat -n ${path}` // check filesystem
+  await $`fatlabel ${path} ${partlabel}`
+
+  await $`fsck.vfat -n ${path}` // check filesystem
+  // TODO: figure this out
   // await $`fatresize -s max ${path}` // resize to take remaining space
   // await $`fsck.vfat -n ${path}` // check filesystem
   await $`mount ${path} ${mountpoint}`
@@ -110,36 +111,31 @@ async function create_bootfs(device, AB, rpios_partitions) {
   create_bootfs with rsync
   alternative implementation, left here in case it proves useful in the future
 */
-// async function create_bootfs_with_rsync(device, AB, rpios_partitions) {
-//   AB = AB.toUpperCase()
-//   if (!["A", "B"].includes(AB)) throw new Error("Unknown AB")
-//   const label = `BOOTFS ${AB}`
-//   const path = device + (AB === "A" ? "2" : "3")
+// async function create_bootfs_with_rsync({path, partlabel}, rpios_bootfs) {
 //   const { stdout: mountpoint } = await $`mktemp -d`
 //   await $`wipefs -a ${path}`
-//   await $`mkfs.vfat -F32 ${path} -n ${label}`
+//   await $`mkfs.vfat -F32 ${path} -n ${partlabel}`
 //   await $`mount ${path} ${mountpoint}`
-//   await $`rsync -a ${rpios_partitions["bootfs"].mountpoint}/ ${mountpoint}/`
+//   await $`rsync -a ${rpios_bootfs.mountpoint}/ ${mountpoint}/`
 //   await $`mv ${mountpoint}/user-data ${mountpoint}/user-data.orig`
 //   await $`cp user-data.yaml ${mountpoint}/user-data`
 // }
 
-async function create_rootfs(device, AB, rpios_partitions) {
-  AB = AB.toUpperCase()
-  if (!["A", "B"].includes(AB)) throw new Error("Unknown AB")
-  const label = `ROOTFS ${AB}`
-  const path = device + (AB === "A" ? "4" : "5")
+async function create_rootfs({path, partlabel}, rpios_rootfs) {
   const { stdout: mountpoint } = await $`mktemp -d`
   await $`wipefs -a ${path}`
 
-  await $`partclone.${rpios_partitions.rootfs.fstype} --dev-to-dev --source ${rpios_partitions.rootfs.path} --overwrite ${path} --quiet`
+  await $`partclone.${rpios_rootfs.fstype} --dev-to-dev --source ${rpios_rootfs.path} --overwrite ${path} --quiet`
   // alternative with dd - slower
-  // await $`dd if=${rpios_partitions.rootfs.path} of=${path} bs=1M`
-  // TODO: Look into https://github.com/yoctoproject/bmaptool
+  // await $`dd if=${rpios_rootfs.path} of=${path} bs=1M`
 
-  await $`tune2fs -U ${crypto.randomUUID()} ${path}` // update the filesystem UUID so it's not the same as RPI OS
-  await $`e2label ${path} ${label}` // set filesystem label
-  await $`e2fsck -y -f ${path}` // check filesystem
+  // update the filesystem UUID so it's not the same as RPI OS
+  await $`tune2fs -U ${crypto.randomUUID()} ${path}`
+
+  // set filesystem label
+  await $`e2label ${path} ${partlabel}` 
+
+  await $`e2fsck -y -f ${path}` // check filesystem - required by resize2fs
   await $`resize2fs ${path}` // resize to take remaining space
   await $`mount ${path} ${mountpoint}`
 }
@@ -149,24 +145,18 @@ async function create_rootfs(device, AB, rpios_partitions) {
   alternative implementation, left here in case it proves useful in the future
   it is actually faster but less exact
 */
-// async function create_rootfs_with_rsync(device, AB, rpios_partitions) {
-//   AB = AB.toUpperCase()
-//   if (!["A", "B"].includes(AB)) throw new Error("Unknown AB")
-//   const label = `ROOTFS ${AB}`
-//   const path = device + (AB === "A" ? "4" : "5")
+// async function create_rootfs_with_rsync({path, partlabel}, rpios_rootfs) {
 //   const { stdout: mountpoint } = await $`mktemp -d`
 //   await $`wipefs -a ${path}`
-//   await $`mkfs.ext4 -q -L ${label} ${path}`
+//   await $`mkfs.ext4 -q -L ${partlabel} ${path}`
 //   await $`mount ${path} ${mountpoint}`
-//   await $`rsync -axHAXES --filter=${"-x security.selinux"} ${rpios_partitions["rootfs"].mountpoint}/ ${mountpoint}/`
+//   await $`rsync -axHAXES --filter=${"-x security.selinux"} ${rpios_rootfs.mountpoint}/ ${mountpoint}/`
 // }
 
-async function create_datafs(device) {
-  const label = `DATA`
-  const path = `${device}6`
+async function create_datafs({path, partlabel}) {
   const { stdout: mountpoint } = await $`mktemp -d`
   await $`wipefs -a ${path}`
-  await $`mkfs.ext4 -q -L ${label} ${path}`
+  await $`mkfs.ext4 -q -L ${partlabel} ${path}`
   await $`mount ${path} ${mountpoint}`
 }
 
@@ -222,10 +212,20 @@ async function process_fstab(rpios_partitions, partitions, AB) {
   await backupAndReplace(path, content)
 }
 
-// device should be a disk device such as /dev/sdb
 async function getPartitions(device) {
-  const partitions = await getBlockDevices(device)
+  const devices = await getBlockDevices(device)
+  const partitions = Object.create(null)
+  for (const dev of devices) {
+    if (!dev.partuuid) continue
+    partitions[dev.partlabel] = dev
+  }
   assert.equal(Object.keys(partitions).length, 6)
+  assert.ok(partitions["AUTOBOOT"])
+  assert.ok(partitions["BOOTFS A"])
+  assert.ok(partitions["BOOTFS B"])
+  assert.ok(partitions["ROOTFS A"])
+  assert.ok(partitions["ROOTFS A"])
+  assert.ok(partitions["DATA"])
   return partitions
 }
 

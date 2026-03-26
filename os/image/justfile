@@ -1,4 +1,5 @@
 setup:
+    sudo apt install -y partclone
     npm ci --omit=dev
 
 test:

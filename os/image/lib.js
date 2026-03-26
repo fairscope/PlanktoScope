@@ -5,18 +5,9 @@ import { writeFile, rename } from "node:fs/promises"
 
 export async function getBlockDevices(device) {
   const { stdout } =
-    await $`lsblk --json --output=PATH,PARTUUID,LABEL,MOUNTPOINT,FSTYPE,PARTN ${device}`
-
+    await $`lsblk --json --output=PATH,PARTUUID,LABEL,PARTLABEL,MOUNTPOINT,FSTYPE,PARTN ${device}`
   const { blockdevices } = JSON.parse(stdout)
-
-  const devs = Object.create(null)
-
-  for (const dev of blockdevices) {
-    if (!dev.partuuid) continue
-    devs[dev.label] = dev
-  }
-
-  return devs
+  return blockdevices
 }
 
 export async function umount(device) {

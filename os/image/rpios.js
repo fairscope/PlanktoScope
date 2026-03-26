@@ -2,6 +2,7 @@ import assert from "node:assert"
 import { getBlockDevices, umount } from "./lib.js"
 import { $ } from "execa"
 import { fileURLToPath } from "url"
+import { access } from "fs/promises"
 
 export async function setupRaspberryPiOSDevice() {
   const path = await downloadRaspberryPiOS()
@@ -48,14 +49,24 @@ async function downloadRaspberryPiOS() {
   await $`head -c 64 ${file}.sha256`.pipe`grep -qx ${sha256}`
   // verify signature
   await $`sha256sum --check ${file}.sha256`
+
   // decompress
-  await $`unxz --force --keep ${file}`
+  try {
+    await access(img)
+  } catch {
+    await $`unxz --keep ${file}`
+  }
 
   return fileURLToPath(import.meta.resolve(`./${img}`))
 }
 
 async function getRaspberryPiOSPartitions(device) {
-  const partitions = await getBlockDevices(device)
+  const devices = await getBlockDevices(device)
+  const partitions = Object.create(null)
+  for (const dev of devices) {
+    if (!dev.partuuid) continue
+    partitions[dev.label] = dev
+  }
   assert.equal(Object.keys(partitions).length, 2)
   assert.ok(partitions.bootfs)
   assert.ok(partitions.rootfs)

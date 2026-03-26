@@ -34,8 +34,8 @@ if (import.meta.main) {
     await updateMountpoints(device, rpios_partitions)
     console.log("✅ Disk is ready.")
   } finally {
-    await $`sync`
-    await umount(device)
-    await teardownRaspberryPiOSDevice(rpios_device)
+    // await $`sync`
+    // await umount(device)
+    // await teardownRaspberryPiOSDevice(rpios_device)
   }
 }
