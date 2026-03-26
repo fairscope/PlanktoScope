@@ -147,6 +147,7 @@ async function create_rootfs(device, AB, rpios_partitions) {
 /*
   create_rootfs with rsync
   alternative implementation, left here in case it proves useful in the future
+  it is actually faster but less exact
 */
 // async function create_rootfs_with_rsync(device, AB, rpios_partitions) {
 //   AB = AB.toUpperCase()
@@ -157,6 +158,7 @@ async function create_rootfs(device, AB, rpios_partitions) {
 //   await $`wipefs -a ${path}`
 //   await $`mkfs.ext4 -q -L ${label} ${path}`
 //   await $`mount ${path} ${mountpoint}`
+//   await $`rsync -axHAXES --filter=${"-x security.selinux"} ${rpios_partitions["rootfs"].mountpoint}/ ${mountpoint}/`
 // }
 
 async function create_datafs(device) {
