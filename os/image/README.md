@@ -2,6 +2,10 @@
 
 This folder contains scripts and documentation to build the PlanktoScope OS image.
 
+The scripts should work on standard Linux installations, in case of doubt use Raspberry Pi OS.
+
+Make sure to run `just` first.
+
 ## Status
 
 This process was previously automated but was causing too much friction. See https://github.com/fairscope/PlanktoScope/issues/730
