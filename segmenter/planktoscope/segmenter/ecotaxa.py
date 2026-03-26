@@ -19,8 +19,7 @@
 from loguru import logger
 
 
-import numpy
-import pandas  # FIXME: just use python's csv library, to shave off pandas's 60 MB of unnecessary disk space usage
+import csv
 import zipfile
 import os
 import io
@@ -202,18 +201,10 @@ The metadata and data for each image is organised in various levels (image, obje
 """
 
 
-def dtype_to_ecotaxa(dtype):
-    """Determines the EcoTaxa header field type annotation for the dtype"""
-    # Note: this code was copied from the MIT-licensed MorphoCut library at
-    # https://github.com/morphocut/morphocut/blob/0.1.2/src/morphocut/contrib/ecotaxa.py .
-    # The MorphoCut library is copyright 2019 Simon-Martin Schroeder and others.
-    try:
-        if numpy.issubdtype(dtype, numpy.number):
-            return "[f]"
-    except TypeError:  # pragma: no cover
-        print(type(dtype))
-        raise
-
+def _infer_ecotaxa_type(value) -> str:
+    """Infer EcoTaxa type annotation [f] or [t] from a Python value."""
+    if isinstance(value, (int, float)):
+        return "[f]"
     return "[t]"
 
 
@@ -228,9 +219,6 @@ def ecotaxa_export(archive_filepath, metadata, image_base_path, keep_files=False
     """
     logger.info("Starting the ecotaxa archive export")
     with zipfile.ZipFile(archive_filepath, "w") as archive:
-        # empty table, one line per object
-        tsv_content = []
-
         if "objects" in metadata:
             object_list = metadata.pop("objects")
         else:
@@ -238,49 +226,59 @@ def ecotaxa_export(archive_filepath, metadata, image_base_path, keep_files=False
             return 0
 
         # sometimes the camera resolution is not exported as string
-        if not isinstance(metadata["acq_camera_resolution"], str):
-            metadata["acq_camera_resolution"] = (
-                f"{metadata['acq_camera_resolution'][0]}x{metadata['acq_camera_resolution'][1]}"
-            )
+        if not isinstance(metadata.get("acq_camera_resolution", ""), str):
+            res = metadata["acq_camera_resolution"]
+            metadata["acq_camera_resolution"] = f"{res[0]}x{res[1]}"
 
-        # let's go!
+        # Build rows, determine columns from first object
+        rows = []
+        columns = None
         for rank, roi in enumerate(object_list, start=1):
-            tsv_line = {}
-            tsv_line.update(metadata)
-            tsv_line.update(("object_" + k, v) for k, v in roi["metadata"].items())
-            tsv_line["object_id"] = roi["name"]
+            row = {}
+            row.update(metadata)
+            row.update(("object_" + k, v) for k, v in roi["metadata"].items())
+            row["object_id"] = roi["name"]
 
             filename = roi["name"] + ".jpg"
+            row["img_file_name"] = filename
+            row["img_rank"] = 1
 
-            tsv_line.update({"img_file_name": filename, "img_rank": 1})
-            tsv_content.append(tsv_line)
+            if columns is None:
+                columns = list(row.keys())
+            rows.append(row)
 
             image_path = os.path.join(image_base_path, filename)
-
             archive.write(image_path, arcname=filename)
             if not keep_files:
                 # we remove the image file if we don't want to keep it!
                 os.remove(image_path)
 
-        tsv_content = pandas.DataFrame(tsv_content)
+        if not rows:
+            logger.error("No objects to export")
+            return 0
 
-        tsv_type_header = [dtype_to_ecotaxa(dt) for dt in tsv_content.dtypes]
-        tsv_content.columns = pandas.MultiIndex.from_tuples(
-            list(zip(tsv_content.columns, tsv_type_header))
-        )
+        # Determine type annotations from first row values
+        type_row = [_infer_ecotaxa_type(rows[0].get(col)) for col in columns]
+
+        # Write TSV to string buffer
+        buf = io.StringIO()
+        writer = csv.writer(buf, delimiter="\t", lineterminator="\n")
+        writer.writerow(columns)
+        writer.writerow(type_row)
+        for row in rows:
+            writer.writerow([row.get(col, "") for col in columns])
+
+        tsv_content = buf.getvalue()
 
         # create the filename with the acquisition ID
-        acquisition_id = metadata.get("acq_id")
-        acquisition_id = acquisition_id.replace(" ", "_")
+        acquisition_id = metadata.get("acq_id", "unknown").replace(" ", "_")
         tsv_filename = f"ecotaxa_{acquisition_id}.tsv"
 
         # add the tsv to the archive
-        archive.writestr(
-            tsv_filename,
-            io.BytesIO(tsv_content.to_csv(sep="\t", encoding="utf-8", index=False).encode()).read(),
-        )
+        archive.writestr(tsv_filename, tsv_content.encode("utf-8"))
         if keep_files:
             tsv_file = os.path.join(image_base_path, tsv_filename)
-            tsv_content.to_csv(path_or_buf=tsv_file, sep="\t", encoding="utf-8", index=False)
+            with open(tsv_file, "w", encoding="utf-8") as f:
+                f.write(tsv_content)
     logger.success("Ecotaxa archive is ready!")
     return 1
