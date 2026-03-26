@@ -137,26 +137,36 @@ def run_segmentation(data_path, acq_path, worker_count=None):
     rss_before = get_peak_rss_mb()
     start_time = time.monotonic()
 
-    seg.segment_path(acq_path, ecotaxa_export=True)
+    # Run without ecotaxa export first so we can count objects before pop()
+    seg.segment_path(acq_path, ecotaxa_export=False)
 
     elapsed = time.monotonic() - start_time
     rss_after = get_peak_rss_mb()
 
-    # Count results
+    # Count results (must read before ecotaxa_export pops "objects")
     objects = seg._SegmenterProcess__global_metadata.get("objects", [])
     object_count = len(objects)
+    object_names = sorted([obj["name"] for obj in objects])
+
+    # Now run ecotaxa export separately
+    obj_path = seg._SegmenterProcess__working_obj_path
+    archive_path = seg._SegmenterProcess__archive_fn
+    import planktoscope.segmenter.ecotaxa
+    archive_dir = os.path.dirname(archive_path)
+    os.makedirs(archive_dir, exist_ok=True)
+    planktoscope.segmenter.ecotaxa.ecotaxa_export(
+        archive_path,
+        seg._SegmenterProcess__global_metadata,
+        obj_path,
+        keep_files=True,
+    )
 
     # Count output files
-    obj_path = seg._SegmenterProcess__working_obj_path
     obj_images = len([f for f in os.listdir(obj_path) if f.endswith(".jpg")]) if os.path.exists(obj_path) else 0
 
     # Check for ecotaxa archive
-    archive_path = seg._SegmenterProcess__archive_fn
     archive_exists = os.path.exists(archive_path)
     archive_size_mb = os.path.getsize(archive_path) / (1024 * 1024) if archive_exists else 0
-
-    # Extract object names for validation
-    object_names = sorted([obj["name"] for obj in objects])
 
     return {
         "elapsed_seconds": round(elapsed, 2),
