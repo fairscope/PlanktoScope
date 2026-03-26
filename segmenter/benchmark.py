@@ -127,6 +127,12 @@ def run_segmentation(data_path, acq_path, worker_count=None):
 
     seg.segmenter_client = MockSegmenterClient()
 
+    # Set up state that segment_list() normally initializes before calling segment_path()
+    from uuid import uuid4
+    seg._SegmenterProcess__process_uuid = str(uuid4())
+    if seg._SegmenterProcess__process_id == "":
+        seg._SegmenterProcess__process_id = seg._SegmenterProcess__process_uuid
+
     # Measure
     rss_before = get_peak_rss_mb()
     start_time = time.monotonic()
