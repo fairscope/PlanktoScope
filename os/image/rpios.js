@@ -49,7 +49,7 @@ async function downloadRaspberryPiOS() {
   // verify signature
   await $`sha256sum --check ${file}.sha256`
   // decompress
-  await $`unxz --test --force ${file}`
+  await $`unxz --force --keep ${file}`
 
   return fileURLToPath(import.meta.resolve(`./${img}`))
 }
