@@ -225,12 +225,6 @@ def main():
         default=None,
         help="Save result JSON to this path (for use as --validate reference)",
     )
-    parser.add_argument(
-        "--data-path",
-        type=str,
-        default=None,
-        help="Root data directory (default: inferred as 3 levels up from acquisition_path)",
-    )
     args = parser.parse_args()
 
     acq_path = os.path.abspath(args.acquisition_path)
@@ -243,22 +237,11 @@ def main():
         print(f"ERROR: No images found in {acq_path}")
         sys.exit(1)
 
-    # Infer data_path: acquisition is at data/img/DATE/SAMPLE/ACQ
-    # so data_path is 4 levels up (img/ is one level)
-    if args.data_path:
-        data_path = os.path.abspath(args.data_path)
-    else:
-        # Try to find the img/ ancestor
-        parts = acq_path.split(os.sep)
-        try:
-            img_idx = len(parts) - 1 - parts[::-1].index("img")
-            data_path = os.sep.join(parts[:img_idx])
-        except ValueError:
-            print(
-                "WARNING: Could not infer data_path from acquisition_path. "
-                "Using /tmp/benchmark_data"
-            )
-            data_path = "/tmp/benchmark_data"
+    # SAFETY: Always use an isolated temp directory as the data root.
+    # The segmenter writes to data_path/objects/, data_path/export/, data_path/clean/.
+    # We must NEVER point data_path at the real /home/pi/data/ to avoid destroying
+    # previously segmented results.
+    data_path = os.path.join("/tmp", "benchmark_data")
 
     # Detect branch
     try:
@@ -288,32 +271,20 @@ def main():
     for run_num in range(1, args.runs + 1):
         print(f"\n--- Run {run_num}/{args.runs} ---")
 
-        # Prepare clean working copy
-        work_dir = os.path.join("/tmp", "benchmark_acq")
+        # Clean the entire temp data root between runs for isolation
+        if os.path.exists(data_path):
+            shutil.rmtree(data_path)
+
+        # Prepare clean working copy of acquisition images
+        # Build the img/ subdirectory structure the segmenter expects
+        # e.g., /tmp/benchmark_data/img/DATE/SAMPLE/ACQ/
+        img_root = os.path.join(data_path, "img")
+        work_dir = os.path.join(img_root, "benchmark_date", "benchmark_sample", "benchmark_acq")
         prepare_test_folder(acq_path, work_dir)
 
-        # Also clean output directories that the segmenter will write to
+        # Create the output directories the segmenter needs
         for subdir in ["objects", "export", "clean"]:
-            out = os.path.join(data_path, subdir)
-            if os.path.exists(out):
-                shutil.rmtree(out)
-            os.makedirs(out, exist_ok=True)
-
-        # Ensure img path structure exists for the segmenter
-        img_root = os.path.join(data_path, "img")
-        os.makedirs(img_root, exist_ok=True)
-
-        # Create symlink so segmenter can find the working copy under img/
-        rel_path = os.path.relpath(acq_path, os.path.join(data_path, "img"))
-        link_dir = os.path.join(img_root, os.path.dirname(rel_path))
-        os.makedirs(link_dir, exist_ok=True)
-        link_path = os.path.join(img_root, rel_path)
-        if os.path.exists(link_path):
-            if os.path.islink(link_path):
-                os.unlink(link_path)
-            else:
-                shutil.rmtree(link_path)
-        os.symlink(work_dir, link_path)
+            os.makedirs(os.path.join(data_path, subdir), exist_ok=True)
 
         try:
             result = run_segmentation(data_path, work_dir, args.workers)
@@ -335,9 +306,7 @@ def main():
             traceback.print_exc()
             all_results.append({"error": str(e)})
         finally:
-            # Cleanup symlink
-            if os.path.islink(link_path):
-                os.unlink(link_path)
+            pass
 
     # Summary
     successful = [r for r in all_results if "error" not in r]
