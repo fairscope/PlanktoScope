@@ -3,9 +3,11 @@
 import datetime
 import json
 import os
+import sys
 import threading
 import time
 import typing
+from concurrent.futures import ProcessPoolExecutor
 from uuid import uuid4
 
 import cv2
@@ -18,6 +20,11 @@ from imager.camera.hardware import ISO_CALIBRATION
 
 from . import stopflow
 from .camera import mqtt as camera
+
+# Add segmenter to path so the pool workers can import segment_worker
+_segmenter_path = os.path.join(os.path.dirname(__file__), "..", "..", "segmenter")
+if _segmenter_path not in sys.path:
+    sys.path.insert(0, os.path.abspath(_segmenter_path))
 
 
 # Flat field configuration
@@ -209,9 +216,13 @@ class Imager:
         if output_path is None:
             return
 
+        live_seg_enabled = bool(latest_message.get("live_segmentation", False))
+
         self._active_routine = ImageAcquisitionRoutine(
             stopflow.Routine(output_path, acquisition_settings, self._pump, self._camera.camera),
             self._mqtt,
+            metadata=metadata,
+            live_segmentation=live_seg_enabled,
         )
         self._active_routine.start()
 
@@ -284,11 +295,24 @@ def _initialize_acquisition_directory(
 class ImageAcquisitionRoutine(threading.Thread):
     """A thread to run a single image acquisition routine to completion, with MQTT updates."""
 
-    def __init__(self, routine: stopflow.Routine, mqtt_client: mqtt.MQTT_Client) -> None:
+    # Number of pool workers for live segmentation (RPi5 has 4 cores, reserve 1 for acquisition)
+    POOL_WORKERS = 3
+
+    def __init__(
+        self,
+        routine: stopflow.Routine,
+        mqtt_client: mqtt.MQTT_Client,
+        metadata: typing.Optional[dict] = None,
+        live_segmentation: bool = False,
+    ) -> None:
         super().__init__()
         self._routine = routine
         self._mqtt_client = mqtt_client.client
         self._interrupted = threading.Event()
+        self._metadata = metadata or {}
+        self._live_segmentation = live_segmentation
+        self._pool: typing.Optional[ProcessPoolExecutor] = None
+        self._object_id_offset = 0
 
     def _capture_pre_acquisition_frame(self, index: int) -> typing.Optional[str]:
         """Capture a single pre-acquisition frame for flat field calculation.
@@ -372,6 +396,73 @@ class ImageAcquisitionRoutine(threading.Thread):
             loguru.logger.warning("Failed to calculate flat field reference")
             return False
 
+    def _setup_live_segmentation(self) -> None:
+        """Set up ProcessPoolExecutor and wire the segmentation callback into the routine."""
+        if not self._live_segmentation:
+            return
+
+        loguru.logger.info(f"Starting live segmentation pool with {self.POOL_WORKERS} workers")
+        self._pool = ProcessPoolExecutor(max_workers=self.POOL_WORKERS)
+
+        # Determine flat field reference path (from pre-acquisition phase)
+        flat_ref_path = os.path.join(self._routine.output_path, ".flatfield_ref.npy")
+        if not os.path.exists(flat_ref_path):
+            flat_ref_path = None
+
+        # Build the objects output directory (mirrors img path structure under /home/pi/data/objects/)
+        img_base = "/home/pi/data/img"
+        objects_base = "/home/pi/data/objects"
+        if self._routine.output_path.startswith(img_base):
+            rel_path = os.path.relpath(self._routine.output_path, img_base)
+            objects_dir = os.path.join(objects_base, rel_path)
+        else:
+            objects_dir = os.path.join(self._routine.output_path, "objects")
+
+        min_esd = float(self._metadata.get("process_min_esd", 20.0))
+        # Pre-allocate 10000 object IDs per frame to avoid collisions between
+        # concurrent workers. Frame 0 gets IDs 0-9999, frame 1 gets 10000-19999, etc.
+        objects_per_frame_block = 10000
+
+        def submit_frame(image_path: str, frame_index: int):
+            from segment_worker import segment_frame
+            return self._pool.submit(
+                segment_frame,
+                image_path=image_path,
+                objects_dir=objects_dir,
+                flat_ref_path=flat_ref_path,
+                metadata=self._metadata,
+                frame_index=frame_index,
+                object_id_offset=frame_index * objects_per_frame_block,
+                min_esd_um=min_esd,
+            )
+
+        self._routine._on_frame_captured = submit_frame
+
+    def _teardown_live_segmentation(self, interrupted: bool = False) -> None:
+        """Drain or cancel pending segmentation and shut down the pool."""
+        if self._pool is None:
+            return
+
+        if interrupted:
+            loguru.logger.info("Cancelling pending live segmentation tasks...")
+            self._routine.cancel_segmentation()
+        else:
+            loguru.logger.info("Draining remaining live segmentation tasks...")
+            self._mqtt_client.publish(
+                "status/imager",
+                '{"status":"Finishing segmentation..."}',
+            )
+            results = self._routine.drain_segmentation(timeout=120.0)
+            total_objects = sum(r.get("objects_saved", 0) for r in results)
+            errors = [r for r in results if r.get("error")]
+            loguru.logger.info(
+                f"Live segmentation complete: {total_objects} objects from "
+                f"{len(results)} frames, {len(errors)} errors"
+            )
+
+        self._pool.shutdown(wait=not interrupted, cancel_futures=interrupted)
+        self._pool = None
+
     def run(self) -> None:
         """Run a stop-flow image-acquisition routine until completion or interruption."""
 
@@ -383,52 +474,63 @@ class ImageAcquisitionRoutine(threading.Thread):
             # Continue anyway even if flat field calculation failed
             loguru.logger.warning("Continuing without pre-acquisition flat field")
 
-        # Phase 2: Main acquisition
-        self._mqtt_client.publish("status/imager", '{"status":"Started"}')
+        # Phase 2: Set up live segmentation pool (if enabled)
+        self._setup_live_segmentation()
 
-        while True:
-            if (result := self._routine.run_step()) is None:
-                if self._routine.interrupted or self._interrupted.is_set():
-                    loguru.logger.debug("Image-acquisition routine was interrupted!")
-                    self._mqtt_client.publish("status/imager", '{"status":"Interrupted"}')
+        # Phase 3: Main acquisition loop
+        self._mqtt_client.publish("status/imager", '{"status":"Started"}')
+        was_interrupted = False
+
+        try:
+            while True:
+                if (result := self._routine.run_step()) is None:
+                    if self._routine.interrupted or self._interrupted.is_set():
+                        loguru.logger.debug("Image-acquisition routine was interrupted!")
+                        self._mqtt_client.publish("status/imager", '{"status":"Interrupted"}')
+                        was_interrupted = True
+                        break
+                    loguru.logger.debug("Image-acquisition routine ran to completion!")
                     break
-                loguru.logger.debug("Image-acquisition routine ran to completion!")
+
+                index, filename = result
+                path = os.path.join(self._routine.output_path, filename)
+                try:
+                    integrity.append_to_integrity_file(path)
+                except FileNotFoundError:
+                    self._mqtt_client.publish(
+                        "status/imager",
+                        f'{{"status":"Image {index + 1}/{self._routine.settings.total_images} '
+                        + 'WAS NOT CAPTURED! STOPPING THE PROCESS!"}}',
+                    )
+                    break
+
+                self._mqtt_client.publish(
+                    "status/imager",
+                    f'{{"status":"Image {index + 1}/{self._routine.settings.total_images} '
+                    + f'saved to {filename}"}}',
+                )
                 self._mqtt_client.publish(
                     "status/imager",
                     json.dumps(
                         {
-                            "status": "Done",
-                            "path": self._routine.output_path,
+                            "type": "progress",
+                            "path": path,
+                            "current": index + 1,
+                            "total": self._routine.settings.total_images,
                         }
                     ),
                 )
-                break
+        finally:
+            # Phase 4: Drain or cancel live segmentation
+            self._teardown_live_segmentation(interrupted=was_interrupted)
 
-            index, filename = result
-            path = os.path.join(self._routine.output_path, filename)
-            try:
-                integrity.append_to_integrity_file(path)
-            except FileNotFoundError:
-                self._mqtt_client.publish(
-                    "status/imager",
-                    f'{{"status":"Image {index + 1}/{self._routine.settings.total_images} '
-                    + 'WAS NOT CAPTURED! STOPPING THE PROCESS!"}}',
-                )
-                break
-
-            self._mqtt_client.publish(
-                "status/imager",
-                f'{{"status":"Image {index + 1}/{self._routine.settings.total_images} '
-                + f'saved to {filename}"}}',
-            )
+        if not was_interrupted:
             self._mqtt_client.publish(
                 "status/imager",
                 json.dumps(
                     {
-                        "type": "progress",
-                        "path": path,
-                        "current": index + 1,
-                        "total": self._routine.settings.total_images,
+                        "status": "Done",
+                        "path": self._routine.output_path,
                     }
                 ),
             )

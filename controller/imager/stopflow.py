@@ -7,11 +7,11 @@ which we can run without a PlanktoScope.
 """
 
 import datetime as dt
-import subprocess
 import enum
 import os
 import threading
 import typing
+from concurrent.futures import Future
 
 import loguru
 import typing_extensions
@@ -63,6 +63,21 @@ class Settings(typing.NamedTuple):
     pump: DiscretePumpSettings
 
 
+class SegmentationCallback(typing_extensions.Protocol):
+    """Interface for submitting a frame to live segmentation."""
+
+    def __call__(self, image_path: str, frame_index: int) -> typing.Optional[Future]:
+        """Submit a frame for segmentation.
+
+        Args:
+            image_path: path to the captured frame.
+            frame_index: 0-based index of this frame.
+
+        Returns:
+            A Future representing the pending segmentation, or None if segmentation is disabled.
+        """
+
+
 class Routine:
     """A thread-safe stop-flow image acquisition routine.
 
@@ -80,6 +95,7 @@ class Routine:
         settings: Settings,
         pump: PumpRunner,
         camera: FileCapturer,
+        on_frame_captured: typing.Optional[SegmentationCallback] = None,
     ) -> None:
         """Initialize the image-acquisition routine.
 
@@ -89,6 +105,7 @@ class Routine:
             settings: stop-flow routine settings.
             pump: the sample pump.
             camera: the camera.
+            on_frame_captured: optional callback to submit each frame for live segmentation.
         """
         # Parameters
         self.output_path: typing.Final[str] = output_path
@@ -98,10 +115,14 @@ class Routine:
         self._pump = pump
         self._camera = camera
 
+        # Live segmentation callback
+        self._on_frame_captured = on_frame_captured
+
         # Routine state
         self._interrupted = threading.Event()  # routine interrupted before completion
         self._progress = 0  # the number of images acquired so far
         self._progress_lock = threading.Lock()
+        self._seg_futures: list[Future] = []  # pending segmentation futures
 
     def run_step(self) -> typing.Optional[tuple[int, str]]:
         """Run a single step of the stop-flow imaging routine.
@@ -135,15 +156,14 @@ class Routine:
             )
             self._camera.capture_file(capture_path)
 
-            # Run live segmentation in background (non-blocking)
-            try:
-                subprocess.Popen(
-                    ["/home/pi/PlanktoScope/segmenter/run_segment_live.sh", capture_path],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-            except Exception as e:
-                loguru.logger.warning(f"Live segmentation failed to start: {e}")
+            # Submit frame to live segmentation pool (non-blocking)
+            if self._on_frame_captured is not None:
+                try:
+                    future = self._on_frame_captured(capture_path, self._progress)
+                    if future is not None:
+                        self._seg_futures.append(future)
+                except Exception as e:
+                    loguru.logger.warning(f"Live segmentation submit failed: {e}")
 
             # Note(ethanjli): updating the integrity file is the responsibility of the code which
             # calls this `run_step()` method.
@@ -161,6 +181,32 @@ class Routine:
             self._interrupted.set()
             self._pump.stop()
             loguru.logger.info("The image-acquisition routine has been interrupted!")
+
+    def drain_segmentation(self, timeout: float = 120.0) -> list[dict]:
+        """Wait for all pending segmentation futures to complete.
+
+        Args:
+            timeout: maximum seconds to wait for all futures.
+
+        Returns:
+            List of result dicts from completed segmentation workers.
+        """
+        results = []
+        for future in self._seg_futures:
+            try:
+                result = future.result(timeout=timeout)
+                results.append(result)
+            except Exception as e:
+                loguru.logger.warning(f"Segmentation future failed: {e}")
+                results.append({"error": str(e)})
+        self._seg_futures.clear()
+        return results
+
+    def cancel_segmentation(self) -> None:
+        """Cancel all pending segmentation futures."""
+        for future in self._seg_futures:
+            future.cancel()
+        self._seg_futures.clear()
 
     @property
     def interrupted(self) -> bool:
