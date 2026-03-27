@@ -7,6 +7,7 @@ which we can run without a PlanktoScope.
 """
 
 import datetime as dt
+import subprocess
 import enum
 import os
 import threading
@@ -133,6 +134,16 @@ class Routine:
                 + f"{capture_path}...",
             )
             self._camera.capture_file(capture_path)
+
+            # Run live segmentation in background (non-blocking)
+            try:
+                subprocess.Popen(
+                    ["/home/pi/PlanktoScope/segmenter/run_segment_live.sh", capture_path],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            except Exception as e:
+                loguru.logger.warning(f"Live segmentation failed to start: {e}")
 
             # Note(ethanjli): updating the integrity file is the responsibility of the code which
             # calls this `run_step()` method.

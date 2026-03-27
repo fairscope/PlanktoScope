@@ -8,7 +8,9 @@ import time
 import typing
 from uuid import uuid4
 
+import cv2
 import loguru
+import numpy as np
 
 import integrity
 import mqtt
@@ -16,6 +18,42 @@ from imager.camera.hardware import ISO_CALIBRATION
 
 from . import stopflow
 from .camera import mqtt as camera
+
+
+# Flat field configuration
+FLATFIELD_PRE_FRAMES = 3  # Number of frames to capture before acquisition for flat field
+
+
+def calculate_flatfield_reference(frame_paths: list[str]) -> typing.Optional[np.ndarray]:
+    """Calculate flat field reference from multiple frames using median.
+
+    Args:
+        frame_paths: List of paths to reference frames
+
+    Returns:
+        Flat field reference array (float32), or None if calculation failed
+    """
+    if len(frame_paths) < FLATFIELD_PRE_FRAMES:
+        return None
+
+    frames = []
+    for path in frame_paths:
+        img = cv2.imread(path)
+        if img is not None:
+            frames.append(img.astype(np.float32))
+
+    if len(frames) < FLATFIELD_PRE_FRAMES:
+        return None
+
+    # Stack and compute median
+    stacked = np.stack(frames, axis=0)
+    flat_ref = np.median(stacked, axis=0)
+
+    # Normalize to mean intensity and clip to avoid division issues
+    flat_ref = flat_ref / flat_ref.mean() * 128
+    flat_ref = np.clip(flat_ref, 1, 255)
+
+    return flat_ref.astype(np.float32)
 
 
 class Imager:
@@ -34,9 +72,6 @@ class Imager:
         # I/O
         self._mqtt: typing.Optional[mqtt.MQTT_Client] = None
         self._pump: typing.Optional[_PumpClient] = None
-        # TODO(ethanjli): instead of having the ImagerWorker start the camera worker, this should
-        # be started from the main script; and then the camera object should be passed into the
-        # constructor.
         self._camera: typing.Optional[camera.Worker] = None
 
         self.configuration = configuration
@@ -59,7 +94,6 @@ class Imager:
         self._camera.start()
         if self._camera.camera is None:
             loguru.logger.error("Missing camera - maybe it's disconnected or it never started?")
-            # TODO(ethanjli): officially add this error status to the MQTT API!
             self._mqtt.client.publish("status/imager", '{"status": "Error: missing camera"}')
             self._cleanup()
             return
@@ -69,8 +103,6 @@ class Imager:
         try:
             while True:
                 if self._active_routine is not None and not self._active_routine.is_alive():
-                    # Garbage-collect any finished image-acquisition routine threads so that we're
-                    # ready for the next configuration update command which arrives:
                     self._active_routine.stop()
                     self._active_routine = None
 
@@ -85,7 +117,6 @@ class Imager:
             loguru.logger.success("Imager process shut down!")
 
     def _cleanup(self) -> None:
-        """Clean up everything running in the background."""
         if self._mqtt is not None:
             self._mqtt.shutdown()
             self._mqtt = None
@@ -99,7 +130,6 @@ class Imager:
 
     @loguru.logger.catch
     def _handle_new_message(self) -> None:
-        """Handle a new message received over MQTT."""
         assert self._mqtt is not None
         if self._mqtt.msg is None:
             return
@@ -123,13 +153,7 @@ class Imager:
             self._active_routine = None
 
     def _update_metadata(self, latest_message: dict[str, typing.Any]) -> None:
-        """Handle a new imager command to update the configuration (i.e. the metadata)."""
         assert self._mqtt is not None
-
-        # TODO(ethanjli): it'll be simpler if we just take the configuration as part of the command
-        # to start image acquisition! This requires modifying the MQTT API (to remove the
-        # "update_config" action and require the client to pass the metadata with the "image"
-        # action), so we'll do it later.
         if self._active_routine is not None and self._active_routine.is_alive():
             loguru.logger.error("Can't update configuration during image acquisition!")
             self._mqtt.client.publish("status/imager", '{"status":"Busy"}')
@@ -146,7 +170,6 @@ class Imager:
         loguru.logger.success("Updated configuration!")
 
     def _start_acquisition(self, latest_message: dict[str, typing.Any]) -> None:
-        """Handle a new imager command to start image acquisition."""
         assert self._mqtt is not None
         assert self._pump is not None
         assert self._camera is not None
@@ -156,7 +179,6 @@ class Imager:
             return
         if self._camera.camera is None:
             loguru.logger.error("Missing camera - maybe it was closed?")
-            # TODO(ethanjli): officially add this error status to the MQTT API!
             self._mqtt.client.publish("status/imager", '{"status": "Error: missing camera"}')
             raise RuntimeError("Camera is not available")
 
@@ -185,7 +207,6 @@ class Imager:
             )
             return
         if output_path is None:
-            # An error status was already reported, so we don't need to do anything else
             return
 
         self._active_routine = ImageAcquisitionRoutine(
@@ -198,12 +219,6 @@ class Imager:
 def _parse_acquisition_settings(
     latest_message: dict[str, typing.Any],
 ) -> typing.Optional[stopflow.Settings]:
-    """Parse a command to start acquisition into stop-flow settings.
-
-    Returns:
-        A [stopflow.Settings] with the parsed settings if input validation and parsing succeeded,
-        or `None` otherwise.
-    """
     for field in ("nb_frame", "sleep", "volume", "pump_direction"):
         if field not in latest_message:
             loguru.logger.error(
@@ -237,27 +252,9 @@ def _initialize_acquisition_directory(
     base_path: str,
     metadata: dict[str, typing.Any],
 ) -> typing.Optional[str]:
-    """Make the directory where images will be saved for the current image-acquisition routine.
-
-    This also saves the metadata to a `metadata.json` file and initializes a file integrity log in
-    the directory.
-
-    Args:
-        base_path: directory under which a subdirectory tree will be created for the image
-          acquisition.
-        metadata: a dict of all metadata to be associated with the acquisition. Must contain
-          keys "object_date", "sample_id", and "acq_id".
-
-    Returns:
-        The directory where captured images will be saved if preparation finished successfully,
-        or `None` otherwise.
-
-    Raises:
-        ValueError: Acquisition directory initialization failed.
-    """
     loguru.logger.info("Setting up the directory structure for storing the pictures...")
 
-    if "object_date" not in metadata:  # needed for the directory path
+    if "object_date" not in metadata:
         loguru.logger.error("The metadata did not contain object_date!")
         raise ValueError("object_date is missing!")
 
@@ -287,26 +284,111 @@ def _initialize_acquisition_directory(
 class ImageAcquisitionRoutine(threading.Thread):
     """A thread to run a single image acquisition routine to completion, with MQTT updates."""
 
-    # TODO(ethanjli): instead of taking an arg of type mqtt.MQTT_CLIENT, just take an arg of
-    # whatever `mqtt_client.client`'s type is supposed to be. Or maybe we should just initialize
-    # our own MQTT client in here?
     def __init__(self, routine: stopflow.Routine, mqtt_client: mqtt.MQTT_Client) -> None:
-        """Initialize the thread.
-
-        Args:
-            routine: the image-acquisition routine to run.
-            mqtt_client: an MQTT client which will be used to broadcast updates.
-        """
         super().__init__()
         self._routine = routine
         self._mqtt_client = mqtt_client.client
+        self._interrupted = threading.Event()
+
+    def _capture_pre_acquisition_frame(self, index: int) -> typing.Optional[str]:
+        """Capture a single pre-acquisition frame for flat field calculation.
+
+        Returns:
+            Path to captured frame, or None if interrupted
+        """
+        if self._interrupted.is_set():
+            return None
+
+        # Pump sample
+        self._routine._pump.run_discrete(self._routine.settings.pump)
+
+        if self._interrupted.is_set():
+            return None
+
+        # Wait for stabilization
+        time.sleep(self._routine.settings.stabilization_duration)
+
+        if self._interrupted.is_set():
+            return None
+
+        # Capture frame
+        filename = f".flatfield_pre_{index}.jpg"
+        capture_path = os.path.join(self._routine.output_path, filename)
+        self._routine._camera.capture_file(capture_path)
+
+        return capture_path
+
+    def _calculate_pre_acquisition_flatfield(self) -> bool:
+        """Capture pre-acquisition frames and calculate flat field.
+
+        Returns:
+            True if flat field was calculated successfully, False otherwise
+        """
+        loguru.logger.info("Starting pre-acquisition flat field calculation...")
+        self._mqtt_client.publish(
+            "status/imager",
+            json.dumps({"status": "Calculating flat field...", "step": 0, "total": FLATFIELD_PRE_FRAMES})
+        )
+
+        pre_frame_paths = []
+
+        for i in range(FLATFIELD_PRE_FRAMES):
+            if self._interrupted.is_set():
+                loguru.logger.info("Pre-acquisition flat field calculation interrupted")
+                return False
+
+            self._mqtt_client.publish(
+                "status/imager",
+                json.dumps({
+                    "status": "Calculating flat field...",
+                    "step": i + 1,
+                    "total": FLATFIELD_PRE_FRAMES
+                })
+            )
+
+            loguru.logger.info(f"Capturing pre-acquisition frame {i + 1}/{FLATFIELD_PRE_FRAMES}")
+
+            path = self._capture_pre_acquisition_frame(i)
+            if path is None:
+                return False
+            pre_frame_paths.append(path)
+
+        # Calculate flat field from captured frames
+        loguru.logger.info("Computing flat field reference from pre-acquisition frames...")
+        flat_ref = calculate_flatfield_reference(pre_frame_paths)
+
+        if flat_ref is not None:
+            # Save flat field reference
+            flat_path = os.path.join(self._routine.output_path, ".flatfield_ref.npy")
+            np.save(flat_path, flat_ref)
+            loguru.logger.success(f"Flat field reference saved to {flat_path}")
+
+            self._mqtt_client.publish(
+                "status/imager",
+                json.dumps({"status": "Flat field ready"})
+            )
+            return True
+        else:
+            loguru.logger.warning("Failed to calculate flat field reference")
+            return False
 
     def run(self) -> None:
         """Run a stop-flow image-acquisition routine until completion or interruption."""
+
+        # Phase 1: Pre-acquisition flat field calculation
+        if not self._calculate_pre_acquisition_flatfield():
+            if self._interrupted.is_set():
+                self._mqtt_client.publish("status/imager", '{"status":"Interrupted"}')
+                return
+            # Continue anyway even if flat field calculation failed
+            loguru.logger.warning("Continuing without pre-acquisition flat field")
+
+        # Phase 2: Main acquisition
         self._mqtt_client.publish("status/imager", '{"status":"Started"}')
+
         while True:
             if (result := self._routine.run_step()) is None:
-                if self._routine.interrupted:
+                if self._routine.interrupted or self._interrupted.is_set():
                     loguru.logger.debug("Image-acquisition routine was interrupted!")
                     self._mqtt_client.publish("status/imager", '{"status":"Interrupted"}')
                     break
@@ -334,7 +416,6 @@ class ImageAcquisitionRoutine(threading.Thread):
                 )
                 break
 
-            # FIXME: remove
             self._mqtt_client.publish(
                 "status/imager",
                 f'{{"status":"Image {index + 1}/{self._routine.settings.total_images} '
@@ -353,42 +434,23 @@ class ImageAcquisitionRoutine(threading.Thread):
             )
 
     def stop(self) -> None:
-        """Stop the thread.
-
-        Blocks until the thread is done.
-
-        Raises:
-            RuntimeError: this method was called before the thread was started.
-        """
+        """Stop the thread."""
+        self._interrupted.set()
         self._routine.stop()
         self.join()
 
 
-# TODO(ethanjli): rearchitect the hardware controller so that the imager can directly call pump
-# methods (by running all modules in the same process), so that we can just delete this entire class
-# and simplify function calls between the imager and the pump! This will require launching the
-# pump and the imager as threads in the same process, rather than launching them as separate
-# processes.
 class _PumpClient:
     """Thread-safe RPC stub for remotely controlling the pump over MQTT."""
 
     def __init__(self) -> None:
-        """Initialize the stub."""
-        # Note(ethanjli): We have to have our own MQTT client because we need to publish messages
-        # from a separate thread, and currently the MQTT client isn't thread-safe (it deadlocks
-        # if we don't have a separate MQTT client):
         self._mqtt: typing.Optional[mqtt.MQTT_Client] = None
         self._mqtt_receiver_thread: typing.Optional[threading.Thread] = None
-        self._stop_receiving_mqtt = threading.Event()  # close() was called
-        self._done = threading.Event()  # run_discrete() finished or stop() was called
-        self._discrete_run = threading.Lock()  # mutex on starting the pump
+        self._stop_receiving_mqtt = threading.Event()
+        self._done = threading.Event()
+        self._discrete_run = threading.Lock()
 
     def open(self) -> None:
-        """Start the pump MQTT client.
-
-        Launches a thread to listen for MQTT updates from the pump. After this method is called,
-        the `run_discrete()` and `stop()` methods can be called.
-        """
         if self._mqtt is not None:
             return
 
@@ -397,7 +459,6 @@ class _PumpClient:
         self._mqtt_receiver_thread.start()
 
     def _receive_messages(self) -> None:
-        """Update internal state based on pump status updates received over MQTT."""
         assert self._mqtt is not None
 
         while not self._stop_receiving_mqtt.is_set():
@@ -419,22 +480,10 @@ class _PumpClient:
                 self._discrete_run.release()
 
     def run_discrete(self, settings: stopflow.DiscretePumpSettings) -> None:
-        """Run the pump for a discrete volume at the specified flow rate and direction.
-
-        Blocks until the pump has finished pumping. Before starting the pump, this first blocks
-        until the previous `run_discrete()` call (if it was started in another thread and is still
-        running) has finished.
-
-        Raises:
-            RuntimeError: this method was called before the `open()` method was called, or after
-              the `close()` method was called.
-        """
         if self._mqtt is None:
             raise RuntimeError("MQTT client was not initialized yet!")
 
-        # We ignore the pylint error here because the lock can only be released from a different
-        # thread (the thread which calls the `handle_status_update()` method):
-        self._discrete_run.acquire()  # pylint: disable=consider-using-with
+        self._discrete_run.acquire()
         self._done.clear()
         self._mqtt.client.publish(
             "actuator/pump",
@@ -450,18 +499,12 @@ class _PumpClient:
         self._done.wait()
 
     def stop(self) -> None:
-        """Stop the pump."""
         if self._mqtt is None:
             raise RuntimeError("MQTT client was not initialized yet!")
 
         self._mqtt.client.publish("actuator/pump", '{"action": "stop"}')
 
     def close(self) -> None:
-        """Close the pump MQTT client, if it's currently open.
-
-        Stops the MQTT receiver thread and blocks until it finishes. After this method is called,
-        no methods are allowed to be called.
-        """
         if self._mqtt is None:
             return
 
@@ -472,8 +515,6 @@ class _PumpClient:
         self._mqtt.shutdown()
         self._mqtt = None
 
-        # We don't know if the run is done (or if it'll ever finish), but we'll release the lock to
-        # prevent deadlocks:
         if not self._discrete_run.locked():
             return
         self._discrete_run.release()

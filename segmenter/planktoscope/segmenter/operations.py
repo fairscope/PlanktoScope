@@ -231,11 +231,11 @@ def calculate_blur(img):
         img (cv2 img): Image to calculate blur for (BGR or grayscale)
 
     Returns:
-        float: Laplacian variance (blur metric), or None if image is invalid
+        float: Laplacian variance (blur metric), or 0.0 if image is invalid
     """
     if img is None or img.size == 0:
-        return None
+        return 0.0
     if len(img.shape) < 2:
-        return None
+        return 0.0
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if len(img.shape) == 3 else img
     return float(cv2.Laplacian(gray, cv2.CV_64F).var())
