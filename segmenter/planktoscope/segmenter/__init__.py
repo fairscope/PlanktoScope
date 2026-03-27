@@ -504,10 +504,6 @@ class SegmenterProcess(multiprocessing.Process):
             if threshold_value is not None:
                 metadata["threshold"] = threshold_value
 
-            # Calculate blur metric for this object (Laplacian variance)
-            blur_laplacian = planktoscope.segmenter.operations.calculate_blur(obj_image)
-            metadata["blur_laplacian"] = blur_laplacian
-
             # Second extract to get a bigger image for saving
             obj_image = img[__augment_slice(region.slice, labels.shape, 10)]
             object_id = f"{name}_{i}"
