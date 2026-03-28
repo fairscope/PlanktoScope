@@ -3,6 +3,7 @@
 import datetime
 import json
 import os
+import subprocess
 import sys
 import threading
 import time
@@ -10,9 +11,7 @@ import typing
 from concurrent.futures import ProcessPoolExecutor
 from uuid import uuid4
 
-import cv2
 import loguru
-import numpy as np
 
 import integrity
 import mqtt
@@ -26,41 +25,12 @@ _segmenter_path = os.path.join(os.path.dirname(__file__), "..", "..", "segmenter
 if _segmenter_path not in sys.path:
     sys.path.insert(0, os.path.abspath(_segmenter_path))
 
+# Path to compute_flatfield.py in the segmenter directory (runs under segmenter venv)
+_compute_flatfield_script = os.path.join(os.path.abspath(_segmenter_path), "compute_flatfield.py")
+
 
 # Flat field configuration
 FLATFIELD_PRE_FRAMES = 3  # Number of frames to capture before acquisition for flat field
-
-
-def calculate_flatfield_reference(frame_paths: list[str]) -> typing.Optional[np.ndarray]:
-    """Calculate flat field reference from multiple frames using median.
-
-    Args:
-        frame_paths: List of paths to reference frames
-
-    Returns:
-        Flat field reference array (float32), or None if calculation failed
-    """
-    if len(frame_paths) < FLATFIELD_PRE_FRAMES:
-        return None
-
-    frames = []
-    for path in frame_paths:
-        img = cv2.imread(path)
-        if img is not None:
-            frames.append(img.astype(np.float32))
-
-    if len(frames) < FLATFIELD_PRE_FRAMES:
-        return None
-
-    # Stack and compute median
-    stacked = np.stack(frames, axis=0)
-    flat_ref = np.median(stacked, axis=0)
-
-    # Normalize to mean intensity and clip to avoid division issues
-    flat_ref = flat_ref / flat_ref.mean() * 128
-    flat_ref = np.clip(flat_ref, 1, 255)
-
-    return flat_ref.astype(np.float32)
 
 
 class Imager:
@@ -377,23 +347,27 @@ class ImageAcquisitionRoutine(threading.Thread):
                 return False
             pre_frame_paths.append(path)
 
-        # Calculate flat field from captured frames
+        # Calculate flat field via segmenter venv subprocess (has cv2/numpy)
+        flat_path = os.path.join(self._routine.output_path, ".flatfield_ref.npy")
         loguru.logger.info("Computing flat field reference from pre-acquisition frames...")
-        flat_ref = calculate_flatfield_reference(pre_frame_paths)
-
-        if flat_ref is not None:
-            # Save flat field reference
-            flat_path = os.path.join(self._routine.output_path, ".flatfield_ref.npy")
-            np.save(flat_path, flat_ref)
-            loguru.logger.success(f"Flat field reference saved to {flat_path}")
-
-            self._mqtt_client.publish(
-                "status/imager",
-                json.dumps({"status": "Flat field ready"})
+        try:
+            result = subprocess.run(
+                ["uv", "run", "python", _compute_flatfield_script, flat_path] + pre_frame_paths,
+                cwd=os.path.abspath(_segmenter_path),
+                capture_output=True, text=True, timeout=30,
             )
-            return True
-        else:
-            loguru.logger.warning("Failed to calculate flat field reference")
+            if result.returncode == 0 and os.path.exists(flat_path):
+                loguru.logger.success(f"Flat field reference saved to {flat_path}")
+                self._mqtt_client.publish(
+                    "status/imager",
+                    json.dumps({"status": "Flat field ready"})
+                )
+                return True
+            else:
+                loguru.logger.warning(f"Flat field computation failed: {result.stderr}")
+                return False
+        except Exception as e:
+            loguru.logger.warning(f"Failed to compute flat field reference: {e}")
             return False
 
     def _setup_live_segmentation(self) -> None:
