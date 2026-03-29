@@ -439,7 +439,8 @@ class SegmenterProcess(multiprocessing.Process):
 
         # Convert min ESD threshold from µm to pixels for filtering
         # process_min_ESD is in µm; equivalent_diameter_area from regionprops is in pixels
-        pixel_size = self.__global_metadata.get("process_pixel", None)
+        # process_pixel_size is the per-flowcell calibrated value; process_pixel is hardware-only
+        pixel_size = self.__global_metadata.get("process_pixel_size", None)
         try:
             pixel_size = float(pixel_size) if pixel_size is not None else None
         except (ValueError, TypeError):
@@ -476,7 +477,8 @@ class SegmenterProcess(multiprocessing.Process):
             obj_image = img[region.slice]
             colors = self._get_color_info(obj_image, region.filled_image)
             # Convert pixel measurements to physical units (µm / µm²) using process_pixel calibration
-            pixel_size_um = self.__global_metadata.get("process_pixel", None)
+            # process_pixel_size is the per-flowcell calibrated value; process_pixel is hardware-only
+            pixel_size_um = self.__global_metadata.get("process_pixel_size", None)
             if pixel_size_um is not None:
                 try:
                     pixel_size_um = float(pixel_size_um)
