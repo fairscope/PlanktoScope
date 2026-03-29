@@ -814,6 +814,11 @@ class SegmenterProcess(multiprocessing.Process):
             )
         )
 
+        # Sync process_pixel to the per-flowcell process_pixel_size so that downstream consumers
+        # (e.g. EXPLORER/GALLERY scale bars) that read process_pixel get the correct value
+        if "process_pixel_size" in self.__global_metadata:
+            self.__global_metadata["process_pixel"] = self.__global_metadata["process_pixel_size"]
+
         project = self.__global_metadata["sample_project"].replace(" ", "_")
         sample = self.__global_metadata["sample_id"].replace(" ", "_")
         acquisition = self.__global_metadata["acq_id"].replace(" ", "_")
