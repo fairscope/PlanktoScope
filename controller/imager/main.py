@@ -141,7 +141,7 @@ class Imager:
             return
 
         loguru.logger.info("Updating configuration...")
-        self._metadata = latest_message["config"]
+        self._metadata.update(latest_message["config"])
         self._mqtt.client.publish("status/imager", '{"status":"Config updated"}')
         loguru.logger.success("Updated configuration!")
 
