@@ -121,6 +121,10 @@ class Imager:
         elif action == "stop" and self._active_routine is not None:
             self._active_routine.stop()
             self._active_routine = None
+        elif action == "pause" and self._active_routine is not None:
+            self._active_routine.pause()
+        elif action == "resume" and self._active_routine is not None:
+            self._active_routine.resume()
 
     def _update_metadata(self, latest_message: dict[str, typing.Any]) -> None:
         """Handle a new imager command to update the configuration (i.e. the metadata)."""
@@ -351,6 +355,16 @@ class ImageAcquisitionRoutine(threading.Thread):
                     }
                 ),
             )
+
+    def pause(self) -> None:
+        """Pause the acquisition between steps."""
+        self._routine.pause()
+        self._mqtt_client.publish("status/imager", '{"status":"Paused"}')
+
+    def resume(self) -> None:
+        """Resume the acquisition after being paused."""
+        self._routine.resume()
+        self._mqtt_client.publish("status/imager", '{"status":"Resumed"}')
 
     def stop(self) -> None:
         """Stop the thread.
