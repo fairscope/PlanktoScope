@@ -176,15 +176,20 @@ class Imager:
             "acq_uuid": str(uuid4()),
             "sample_uuid": str(uuid4()),
         }
-        # Ensure process_pixel is in metadata for the segmenter's unit conversion.
-        # Fall back to process_pixel_fixed from hardware.json if not provided by the client.
-        if "process_pixel" not in metadata and self.configuration:
+        # Resolve pixel size (µm/px) for the segmenter's unit conversion.
+        # Node-RED resolves the correct value from the per-preset calibration
+        # matrix and sends it as process_pixel. Fall back to process_pixel_fixed
+        # from hardware.json for backward compatibility with old Node-RED flows.
+        pixel_size = metadata.get("process_pixel")
+        if pixel_size is not None:
+            metadata["process_pixel"] = float(pixel_size)
+        elif self.configuration:
             pixel_fixed = self.configuration.get("process_pixel_fixed")
             if pixel_fixed is not None:
-                metadata["process_pixel"] = pixel_fixed
+                metadata["process_pixel"] = float(pixel_fixed)
                 loguru.logger.info(
-                    f"process_pixel not in config, using process_pixel_fixed={pixel_fixed} "
-                    "from hardware.json"
+                    f"process_pixel not in config, using "
+                    f"process_pixel_fixed={pixel_fixed} from hardware.json"
                 )
         loguru.logger.debug(f"Saving metadata: {metadata}")
         try:
