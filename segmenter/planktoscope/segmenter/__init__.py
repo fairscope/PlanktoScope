@@ -854,9 +854,8 @@ class SegmenterProcess(multiprocessing.Process):
         # Define the name of the .zip file that will contain the images and the .tsv table for EcoTaxa
         self.__archive_fn = os.path.join(
             self.__ecotaxa_path,
-            # filename includes project name, timestamp and sample id
-            f"ecotaxa_{acquisition}.zip",
             # TODO #102 sanitize the filename to remove potential problems with spaces and special characters
+            f"Ecotaxa_{project}_{acquisition}.zip",
         )
 
         self.__working_path = path

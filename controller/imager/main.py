@@ -176,6 +176,16 @@ class Imager:
             "acq_uuid": str(uuid4()),
             "sample_uuid": str(uuid4()),
         }
+        # Ensure process_pixel is in metadata for the segmenter's unit conversion.
+        # Fall back to process_pixel_fixed from hardware.json if not provided by the client.
+        if "process_pixel" not in metadata and self.configuration:
+            pixel_fixed = self.configuration.get("process_pixel_fixed")
+            if pixel_fixed is not None:
+                metadata["process_pixel"] = pixel_fixed
+                loguru.logger.info(
+                    f"process_pixel not in config, using process_pixel_fixed={pixel_fixed} "
+                    "from hardware.json"
+                )
         loguru.logger.debug(f"Saving metadata: {metadata}")
         try:
             output_path = _initialize_acquisition_directory(
