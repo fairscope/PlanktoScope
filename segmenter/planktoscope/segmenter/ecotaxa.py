@@ -20,7 +20,7 @@ from loguru import logger
 
 
 import numpy
-import pandas  # FIXME: just use python's csv library, to shave off pandas's 60 MB of unnecessary disk space usage
+import csv
 import zipfile
 import os
 import io
@@ -262,25 +262,50 @@ def ecotaxa_export(archive_filepath, metadata, image_base_path, keep_files=False
                 # we remove the image file if we don't want to keep it!
                 os.remove(image_path)
 
-        tsv_content = pandas.DataFrame(tsv_content)
-
-        tsv_type_header = [dtype_to_ecotaxa(dt) for dt in tsv_content.dtypes]
-        tsv_content.columns = pandas.MultiIndex.from_tuples(
-            list(zip(tsv_content.columns, tsv_type_header))
-        )
-
+        # Extract column names from first row if content exists
+        if not tsv_content:
+            logger.error("No TSV content to export")
+            return 0
+            
+        column_names = sorted(tsv_content[0].keys())
+        
+        # Determine data types for each column
+        tsv_type_header = []
+        for col in column_names:
+            # Check the type of the first non-None value in this column
+            sample_value = next((row[col] for row in tsv_content if row.get(col) is not None), None)
+            if sample_value is not None and isinstance(sample_value, (int, float)):
+                tsv_type_header.append("[f]")
+            else:
+                tsv_type_header.append("[t]")
+        
         # create the filename with the acquisition ID
         acquisition_id = metadata.get("acq_id")
         acquisition_id = acquisition_id.replace(" ", "_")
         tsv_filename = f"ecotaxa_{acquisition_id}.tsv"
-
+        
+        # Build TSV content as string
+        tsv_output = io.StringIO()
+        writer = csv.writer(tsv_output, delimiter='\t', lineterminator='\n')
+        
+        # Write header row (column names)
+        writer.writerow(column_names)
+        
+        # Write type header row
+        writer.writerow(tsv_type_header)
+        
+        # Write data rows
+        for row in tsv_content:
+            writer.writerow([row.get(col, '') for col in column_names])
+        
+        tsv_string = tsv_output.getvalue()
+        
         # add the tsv to the archive
-        archive.writestr(
-            tsv_filename,
-            io.BytesIO(tsv_content.to_csv(sep="\t", encoding="utf-8", index=False).encode()).read(),
-        )
+        archive.writestr(tsv_filename, tsv_string.encode('utf-8'))
+        
         if keep_files:
             tsv_file = os.path.join(image_base_path, tsv_filename)
-            tsv_content.to_csv(path_or_buf=tsv_file, sep="\t", encoding="utf-8", index=False)
+            with open(tsv_file, 'w', encoding='utf-8', newline='') as f:
+                f.write(tsv_string)
     logger.success("Ecotaxa archive is ready!")
     return 1

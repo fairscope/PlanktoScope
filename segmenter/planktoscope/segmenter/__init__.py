@@ -38,6 +38,7 @@ import cv2
 import numpy as np
 import PIL.Image
 import skimage.exposure
+from scipy.stats import skew, kurtosis
 
 ################################################################################
 # Other image processing Libraries
@@ -268,9 +269,14 @@ class SegmenterProcess(multiprocessing.Process):
         h_stddev = np.std(h_channel, where=mask)
         s_stddev = np.std(s_channel, where=mask)
         v_stddev = np.std(v_channel, where=mask)
-        # TODO #103 Add skewness and kurtosis calculation (with scipy) here
-        # using https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.skew.html#scipy.stats.skew
-        # and https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.kurtosis.html#scipy.stats.kurtosis
+        # Distribution skewness and kurtosis computation
+        h_skewness = skew(h_channel, bias=False, axis=None)
+        s_skewness = skew(s_channel, bias=False, axis=None)
+        v_skewness = skew(v_channel, bias=False, axis=None)
+        h_kurtosis = kurtosis(h_channel, bias=False, axis=None)
+        s_kurtosis = kurtosis(s_channel, bias=False, axis=None)
+        v_kurtosis = kurtosis(v_channel, bias=False, axis=None)
+        
         # h_quartiles = np.quantile(h_channel, quartiles)
         # s_quartiles = np.quantile(s_channel, quartiles)
         # v_quartiles = np.quantile(v_channel, quartiles)
@@ -308,6 +314,12 @@ class SegmenterProcess(multiprocessing.Process):
             "StdHue": h_stddev,
             "StdSaturation": s_stddev,
             "StdValue": v_stddev,
+            "SkewnessHue": h_skewness,
+            "SkewnessSaturation": s_skewness,
+            "SkewnessValue": v_skewness,
+            "KurtosisHue": h_kurtosis,
+            "KurtosisSaturation": s_kurtosis,
+            "KurtosisValue": v_kurtosis
             # "object_minHue": h_quartiles[0],
             # "object_Q05Hue": h_quartiles[1],
             # "object_Q25Hue": h_quartiles[2],
