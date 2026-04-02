@@ -3,11 +3,31 @@
 import { $ } from "execa"
 import { writeFile, rename } from "node:fs/promises"
 
-export async function getBlockDevices(device) {
-  const { stdout } =
-    await $`lsblk --json --output=PATH,PARTUUID,LABEL,PARTLABEL,MOUNTPOINT,FSTYPE,PARTN ${device}`
+export async function lsblk(columns, device) {
+  const args = ["--json", `--output=${columns.join(",")}`]
+  if (device) {
+    args.push(device)
+  }
+
+  const { stdout } = await $`lsblk ${args}`
   const { blockdevices } = JSON.parse(stdout)
   return blockdevices
+}
+
+export async function getBlockDevices(device) {
+  return lsblk(
+    [
+      "PATH",
+      "PARTUUID",
+      "LABEL",
+      "PARTLABEL",
+      "MOUNTPOINT",
+      "FSTYPE",
+      "PARTN",
+      "PKNAME",
+    ],
+    device,
+  )
 }
 
 export async function umount(device) {
