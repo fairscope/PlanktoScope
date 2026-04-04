@@ -178,19 +178,12 @@ class Imager:
         }
         # Resolve pixel size (µm/px) for the segmenter's unit conversion.
         # Node-RED resolves the correct value from the per-preset calibration
-        # matrix and sends it as process_pixel. Fall back to process_pixel_fixed
-        # from hardware.json for backward compatibility with old Node-RED flows.
+        # matrix and sends it as process_pixel.
         pixel_size = metadata.get("process_pixel")
         if pixel_size is not None:
             metadata["process_pixel"] = float(pixel_size)
-        elif self.configuration:
-            pixel_fixed = self.configuration.get("process_pixel_fixed")
-            if pixel_fixed is not None:
-                metadata["process_pixel"] = float(pixel_fixed)
-                loguru.logger.info(
-                    f"process_pixel not in config, using "
-                    f"process_pixel_fixed={pixel_fixed} from hardware.json"
-                )
+        else:
+            loguru.logger.warning("process_pixel missing from config — measurements will be in pixels")
         loguru.logger.debug(f"Saving metadata: {metadata}")
         try:
             output_path = _initialize_acquisition_directory(

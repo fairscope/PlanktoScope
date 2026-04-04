@@ -30,12 +30,11 @@ def check(name, condition, detail=""):
 print("\n=== Test 1: Imager process_pixel fallback ===")
 
 
-def build_metadata(user_metadata, hardware_configuration):
-    """Simulates the metadata construction in controller/imager/main.py:170-193
+def build_metadata(user_metadata):
+    """Simulates the metadata construction in controller/imager/main.py:170-187
 
     Node-RED resolves the correct value from the per-preset calibration matrix
-    and sends it as process_pixel. Python just uses it, with process_pixel_fixed
-    from hardware.json as a last-resort fallback.
+    and sends it as process_pixel. Python just uses it.
     """
     metadata = {
         **user_metadata,
@@ -47,50 +46,28 @@ def build_metadata(user_metadata, hardware_configuration):
         "sample_uuid": "test-sample-uuid",
     }
     # Resolve pixel size — Node-RED sends the already-resolved process_pixel.
-    # Fall back to process_pixel_fixed from hardware.json for old Node-RED flows.
     pixel_size = metadata.get("process_pixel")
     if pixel_size is not None:
         metadata["process_pixel"] = float(pixel_size)
-    elif hardware_configuration:
-        pixel_fixed = hardware_configuration.get("process_pixel_fixed")
-        if pixel_fixed is not None:
-            metadata["process_pixel"] = float(pixel_fixed)
     return metadata
 
 
-# Case 1a: No pixel info at all → fallback from hardware.json
-hw_config = {"process_pixel_fixed": 0.75, "hat_type": "planktoscope"}
-user_config = {"acq_celltype": 300, "sample_project": "Test"}
-meta = build_metadata(user_config, hw_config)
+# Case 1a: Node-RED sends process_pixel → used directly
+user_config_with_pixel = {"acq_celltype": 300, "process_pixel": 0.75}
+meta = build_metadata(user_config_with_pixel)
 check(
-    "Fallback injects process_pixel from hardware.json",
+    "process_pixel from Node-RED used directly",
     meta.get("process_pixel") == 0.75,
     f"got {meta.get('process_pixel')}",
 )
 
-# Case 1b: Client sends process_pixel directly (calibration path) → use it
-user_config_with_pixel = {"acq_celltype": 300, "process_pixel": 1.2}
-meta = build_metadata(user_config_with_pixel, hw_config)
-check(
-    "Client-provided process_pixel takes precedence over hardware.json",
-    meta.get("process_pixel") == 1.2,
-    f"got {meta.get('process_pixel')}",
-)
-
-# Case 1c: No hardware config available (edge case)
+# Case 1b: process_pixel absent → stays absent (warning logged in real code)
 user_config_bare = {"acq_celltype": 300}
-meta = build_metadata(user_config_bare, None)
+meta = build_metadata(user_config_bare)
 check(
-    "No hardware config → process_pixel remains absent (graceful)",
+    "No process_pixel → remains absent (graceful)",
     "process_pixel" not in meta,
     f"unexpectedly got {meta.get('process_pixel')}",
-)
-
-# Case 1d: hardware config missing process_pixel_fixed
-meta = build_metadata(user_config_bare, {"hat_type": "planktoscope"})
-check(
-    "Hardware config without process_pixel_fixed → no crash",
-    "process_pixel" not in meta,
 )
 
 # =============================================================================
@@ -117,7 +94,7 @@ def resolve_pixel_size(matrix, preset):
 # Case: High magnification, no user calibration → factory default
 pixel = resolve_pixel_size(calibration_matrix, "high")
 high_mag_config = {"acq_celltype": 100, "process_pixel": pixel}
-meta = build_metadata(high_mag_config, hw_config)
+meta = build_metadata(high_mag_config)
 check(
     "High mag (uncalibrated): process_pixel = 0.53 (factory)",
     meta["process_pixel"] == 0.53,
@@ -127,7 +104,7 @@ check(
 # Case: Low magnification, no user calibration → factory default
 pixel = resolve_pixel_size(calibration_matrix, "low")
 low_mag_config = {"acq_celltype": 500, "process_pixel": pixel}
-meta = build_metadata(low_mag_config, hw_config)
+meta = build_metadata(low_mag_config)
 check(
     "Low mag (uncalibrated): process_pixel = 1.34 (factory)",
     meta["process_pixel"] == 1.34,
@@ -137,7 +114,7 @@ check(
 # Case: Medium magnification, no user calibration
 pixel = resolve_pixel_size(calibration_matrix, "medium")
 med_mag_config = {"acq_celltype": 300, "process_pixel": pixel}
-meta = build_metadata(med_mag_config, hw_config)
+meta = build_metadata(med_mag_config)
 check(
     "Medium mag (uncalibrated): process_pixel = 0.75 (factory)",
     meta["process_pixel"] == 0.75,
@@ -148,7 +125,7 @@ check(
 calibration_matrix["high"]["user_calibrated"] = 0.55
 pixel = resolve_pixel_size(calibration_matrix, "high")
 custom_high = {"acq_celltype": 100, "process_pixel": pixel}
-meta = build_metadata(custom_high, hw_config)
+meta = build_metadata(custom_high)
 check(
     "High mag (calibrated): process_pixel = 0.55 (user calibration wins)",
     meta["process_pixel"] == 0.55,
@@ -157,7 +134,7 @@ check(
 
 # Case: Switching to medium doesn't lose high calibration
 pixel_med = resolve_pixel_size(calibration_matrix, "medium")
-meta_med = build_metadata({"acq_celltype": 300, "process_pixel": pixel_med}, hw_config)
+meta_med = build_metadata({"acq_celltype": 300, "process_pixel": pixel_med})
 check(
     "Switch to medium: process_pixel = 0.75 (medium factory)",
     meta_med["process_pixel"] == 0.75,
@@ -174,7 +151,7 @@ check(
 # Case: User calibrates medium to 0.762
 calibration_matrix["medium"]["user_calibrated"] = 0.762
 pixel = resolve_pixel_size(calibration_matrix, "medium")
-meta = build_metadata({"acq_celltype": 300, "process_pixel": pixel}, hw_config)
+meta = build_metadata({"acq_celltype": 300, "process_pixel": pixel})
 check(
     "Medium mag (calibrated): process_pixel = 0.762 (user calibration)",
     meta["process_pixel"] == 0.762,
@@ -346,8 +323,6 @@ check(
 # =============================================================================
 print("\n=== Test 6: Full pipeline (end-to-end simulation) ===")
 
-hw = {"process_pixel_fixed": 0.75}
-
 # Magnification presets (mirrors Node-RED acquisition page)
 MAG_PRESETS = {
     "high":   {"pixel_size": 0.53, "thickness": 100},
@@ -374,7 +349,7 @@ def run_e2e(mag_name, preset):
     }
 
     # Step 1: Imager resolves pixel size
-    metadata = build_metadata(user_mqtt_config, hw)
+    metadata = build_metadata(user_mqtt_config)
     check(
         f"E2E {mag_name}: process_pixel = {pixel}",
         metadata["process_pixel"] == pixel,
@@ -418,8 +393,8 @@ def run_e2e(mag_name, preset):
 for mag_name, preset in MAG_PRESETS.items():
     run_e2e(mag_name, preset)
 
-# Also test the legacy case: no pixel info at all (old Node-RED, no magnification)
-print("\n=== Test 6b: Legacy fallback (no pixel info) ===")
+# Also test the case where process_pixel is missing (should not happen with current Node-RED)
+print("\n=== Test 6b: Missing process_pixel (graceful) ===")
 legacy_config = {
     "sample_project": "Legacy Project",
     "sample_id": "s1",
@@ -427,10 +402,8 @@ legacy_config = {
     "acq_celltype": 300,
     "object_date": "2026-03-31",
 }
-meta = build_metadata(legacy_config, hw)
-check("Legacy: falls back to hardware.json 0.75", meta["process_pixel"] == 0.75)
-min_esd_px = compute_min_esd_pixels(20, meta["process_pixel"])
-check("Legacy: min ESD = 26.67px (= 20µm)", abs(min_esd_px - 26.667) < 0.01)
+meta = build_metadata(legacy_config)
+check("Missing process_pixel: not in metadata", "process_pixel" not in meta)
 
 # =============================================================================
 # Summary
