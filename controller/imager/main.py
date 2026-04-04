@@ -183,7 +183,9 @@ class Imager:
         if pixel_size is not None:
             metadata["process_pixel"] = float(pixel_size)
         else:
-            loguru.logger.warning("process_pixel missing from config — measurements will be in pixels")
+            loguru.logger.warning(
+                "process_pixel missing from config — measurements will be in pixels"
+            )
         loguru.logger.debug(f"Saving metadata: {metadata}")
         try:
             output_path = _initialize_acquisition_directory(
