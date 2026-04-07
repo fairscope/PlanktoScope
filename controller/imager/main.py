@@ -176,6 +176,16 @@ class Imager:
             "acq_uuid": str(uuid4()),
             "sample_uuid": str(uuid4()),
         }
+        # Resolve pixel size (µm/px) for the segmenter's unit conversion.
+        # Node-RED resolves the correct value from the per-preset calibration
+        # matrix and sends it as process_pixel.
+        pixel_size = metadata.get("process_pixel")
+        if pixel_size is not None:
+            metadata["process_pixel"] = float(pixel_size)
+        else:
+            loguru.logger.warning(
+                "process_pixel missing from config — measurements will be in pixels"
+            )
         loguru.logger.debug(f"Saving metadata: {metadata}")
         try:
             output_path = _initialize_acquisition_directory(
