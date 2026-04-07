@@ -18,6 +18,9 @@ dependencies = [
     "loguru>=0.7.3,<0.8",
     "opencv-python-headless>=4.6.0.66,<5",
     "scikit-image>=0.25.2,<0.26",
+    "scipy>=1.16.0,<2",
+    "scikit-learn>=1.6.0,<2",
+    "umap-learn>=0.5.7,<0.6",
 ]
 
 [project.urls]

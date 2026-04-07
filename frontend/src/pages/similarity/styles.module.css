@@ -1,0 +1,66 @@
+:global(html) {
+  background-color: #f3f3f3;
+}
+
+.container {
+  padding: 24px;
+  max-width: 100%;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+  margin-bottom: 16px;
+}
+
+.controls select {
+  min-width: 200px;
+}
+
+.plot {
+  width: 100%;
+  height: calc(100vh - 220px);
+  min-height: 400px;
+  background: white;
+  border-radius: 8px;
+}
+
+.status {
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.status_ready {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status_loading {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.status_empty {
+  background: #f8f9fa;
+  color: #6c757d;
+}
+
+.thumbnail_popup {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1000;
+  background: white;
+  border: 2px solid #333;
+  border-radius: 4px;
+  padding: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.thumbnail_popup img {
+  max-width: 200px;
+  max-height: 200px;
+  display: block;
+}

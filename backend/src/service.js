@@ -9,6 +9,7 @@ import "./factory.js"
 // import "./config.js"
 import "./led-operating-time.js"
 import "./network.js"
+import "./similarity.js"
 import { readSoftwareConfig, removeConfig } from "../../lib/file-config.js"
 import { capture } from "../../lib/scope.js"
 

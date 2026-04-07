@@ -44,12 +44,14 @@ import skimage.exposure
 ################################################################################
 import skimage.measure
 from loguru import logger
+from scipy.stats import kurtosis, skew
 
 # Basic planktoscope libraries
 import planktoscope.mqtt
 import planktoscope.segmenter.ecotaxa
 import planktoscope.segmenter.encoder
 import planktoscope.segmenter.operations
+import planktoscope.segmenter.similarity
 
 logger.info("planktoscope.segmenter is loaded")
 
@@ -253,82 +255,115 @@ class SegmenterProcess(multiprocessing.Process):
         return mask
 
     def _get_color_info(self, bgr_img, mask):
-        # bgr_mean, bgr_stddev = cv2.meanStdDev(bgr_img, mask=mask)
-        # (b_channel, g_channel, r_channel) = cv2.split(bgr_img)
-        # quartiles = [0, 0.05, 0.25, 0.50, 0.75, 0.95, 1]
-        # b_quartiles = np.quantile(b_channel, quartiles)
-        # g_quartiles = np.quantile(g_channel, quartiles)
-        # r_quartiles = np.quantile(r_channel, quartiles)
+        # mask is a boolean array (region.filled_image) — use channel[mask] for masked ops
+        mask_uint8 = (mask * 255).astype(np.uint8)
+
+        # RGB mean and standard deviation (cv2.meanStdDev handles mask natively)
+        bgr_mean, bgr_stddev = cv2.meanStdDev(bgr_img, mask=mask_uint8)
+        (b_channel, g_channel, r_channel) = cv2.split(bgr_img)
+
+        # HSV channels
         hsv_img = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2HSV)
         (h_channel, s_channel, v_channel) = cv2.split(hsv_img)
-        # hsv_mean, hsv_stddev = cv2.meanStdDev(hsv_img, mask=mask)
+
+        # HSV mean and standard deviation on masked pixels
         h_mean = np.mean(h_channel, where=mask)
         s_mean = np.mean(s_channel, where=mask)
         v_mean = np.mean(v_channel, where=mask)
         h_stddev = np.std(h_channel, where=mask)
         s_stddev = np.std(s_channel, where=mask)
         v_stddev = np.std(v_channel, where=mask)
-        # TODO #103 Add skewness and kurtosis calculation (with scipy) here
-        # using https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.skew.html#scipy.stats.skew
-        # and https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.kurtosis.html#scipy.stats.kurtosis
-        # h_quartiles = np.quantile(h_channel, quartiles)
-        # s_quartiles = np.quantile(s_channel, quartiles)
-        # v_quartiles = np.quantile(v_channel, quartiles)
+
+        # Quartiles on masked pixels only (channel[mask] extracts foreground as 1D array)
+        quartiles = [0, 0.05, 0.25, 0.50, 0.75, 0.95, 1]
+        r_quartiles = np.quantile(r_channel[mask], quartiles)
+        g_quartiles = np.quantile(g_channel[mask], quartiles)
+        b_quartiles = np.quantile(b_channel[mask], quartiles)
+        h_quartiles = np.quantile(h_channel[mask], quartiles)
+        s_quartiles = np.quantile(s_channel[mask], quartiles)
+        v_quartiles = np.quantile(v_channel[mask], quartiles)
+
+        # Skewness and kurtosis per channel (resolves #103)
+        r_pixels = r_channel[mask].astype(np.float64)
+        g_pixels = g_channel[mask].astype(np.float64)
+        b_pixels = b_channel[mask].astype(np.float64)
+        h_pixels = h_channel[mask].astype(np.float64)
+        s_pixels = s_channel[mask].astype(np.float64)
+        v_pixels = v_channel[mask].astype(np.float64)
+
         return {
-            # "object_MeanRedLevel": bgr_mean[2][0],
-            # "object_MeanGreenLevel": bgr_mean[1][0],
-            # "object_MeanBlueLevel": bgr_mean[0][0],
-            # "object_StdRedLevel": bgr_stddev[2][0],
-            # "object_StdGreenLevel": bgr_stddev[1][0],
-            # "object_StdBlueLevel": bgr_stddev[0][0],
-            # "object_minRedLevel": r_quartiles[0],
-            # "object_Q05RedLevel": r_quartiles[1],
-            # "object_Q25RedLevel": r_quartiles[2],
-            # "object_Q50RedLevel": r_quartiles[3],
-            # "object_Q75RedLevel": r_quartiles[4],
-            # "object_Q95RedLevel": r_quartiles[5],
-            # "object_maxRedLevel": r_quartiles[6],
-            # "object_minGreenLevel": g_quartiles[0],
-            # "object_Q05GreenLevel": g_quartiles[1],
-            # "object_Q25GreenLevel": g_quartiles[2],
-            # "object_Q50GreenLevel": g_quartiles[3],
-            # "object_Q75GreenLevel": g_quartiles[4],
-            # "object_Q95GreenLevel": g_quartiles[5],
-            # "object_maxGreenLevel": g_quartiles[6],
-            # "object_minBlueLevel": b_quartiles[0],
-            # "object_Q05BlueLevel": b_quartiles[1],
-            # "object_Q25BlueLevel": b_quartiles[2],
-            # "object_Q50BlueLevel": b_quartiles[3],
-            # "object_Q75BlueLevel": b_quartiles[4],
-            # "object_Q95BlueLevel": b_quartiles[5],
-            # "object_maxBlueLevel": b_quartiles[6],
+            # RGB mean and standard deviation
+            "MeanRedLevel": float(bgr_mean[2][0]),
+            "MeanGreenLevel": float(bgr_mean[1][0]),
+            "MeanBlueLevel": float(bgr_mean[0][0]),
+            "StdRedLevel": float(bgr_stddev[2][0]),
+            "StdGreenLevel": float(bgr_stddev[1][0]),
+            "StdBlueLevel": float(bgr_stddev[0][0]),
+            # RGB quartiles
+            "minRedLevel": float(r_quartiles[0]),
+            "Q05RedLevel": float(r_quartiles[1]),
+            "Q25RedLevel": float(r_quartiles[2]),
+            "Q50RedLevel": float(r_quartiles[3]),
+            "Q75RedLevel": float(r_quartiles[4]),
+            "Q95RedLevel": float(r_quartiles[5]),
+            "maxRedLevel": float(r_quartiles[6]),
+            "minGreenLevel": float(g_quartiles[0]),
+            "Q05GreenLevel": float(g_quartiles[1]),
+            "Q25GreenLevel": float(g_quartiles[2]),
+            "Q50GreenLevel": float(g_quartiles[3]),
+            "Q75GreenLevel": float(g_quartiles[4]),
+            "Q95GreenLevel": float(g_quartiles[5]),
+            "maxGreenLevel": float(g_quartiles[6]),
+            "minBlueLevel": float(b_quartiles[0]),
+            "Q05BlueLevel": float(b_quartiles[1]),
+            "Q25BlueLevel": float(b_quartiles[2]),
+            "Q50BlueLevel": float(b_quartiles[3]),
+            "Q75BlueLevel": float(b_quartiles[4]),
+            "Q95BlueLevel": float(b_quartiles[5]),
+            "maxBlueLevel": float(b_quartiles[6]),
+            # HSV mean and standard deviation
             "MeanHue": h_mean,
             "MeanSaturation": s_mean,
             "MeanValue": v_mean,
             "StdHue": h_stddev,
             "StdSaturation": s_stddev,
             "StdValue": v_stddev,
-            # "object_minHue": h_quartiles[0],
-            # "object_Q05Hue": h_quartiles[1],
-            # "object_Q25Hue": h_quartiles[2],
-            # "object_Q50Hue": h_quartiles[3],
-            # "object_Q75Hue": h_quartiles[4],
-            # "object_Q95Hue": h_quartiles[5],
-            # "object_maxHue": h_quartiles[6],
-            # "object_minSaturation": s_quartiles[0],
-            # "object_Q05Saturation": s_quartiles[1],
-            # "object_Q25Saturation": s_quartiles[2],
-            # "object_Q50Saturation": s_quartiles[3],
-            # "object_Q75Saturation": s_quartiles[4],
-            # "object_Q95Saturation": s_quartiles[5],
-            # "object_maxSaturation": s_quartiles[6],
-            # "object_minValue": v_quartiles[0],
-            # "object_Q05Value": v_quartiles[1],
-            # "object_Q25Value": v_quartiles[2],
-            # "object_Q50Value": v_quartiles[3],
-            # "object_Q75Value": v_quartiles[4],
-            # "object_Q95Value": v_quartiles[5],
-            # "object_maxValue": v_quartiles[6],
+            # HSV quartiles
+            "minHue": float(h_quartiles[0]),
+            "Q05Hue": float(h_quartiles[1]),
+            "Q25Hue": float(h_quartiles[2]),
+            "Q50Hue": float(h_quartiles[3]),
+            "Q75Hue": float(h_quartiles[4]),
+            "Q95Hue": float(h_quartiles[5]),
+            "maxHue": float(h_quartiles[6]),
+            "minSaturation": float(s_quartiles[0]),
+            "Q05Saturation": float(s_quartiles[1]),
+            "Q25Saturation": float(s_quartiles[2]),
+            "Q50Saturation": float(s_quartiles[3]),
+            "Q75Saturation": float(s_quartiles[4]),
+            "Q95Saturation": float(s_quartiles[5]),
+            "maxSaturation": float(s_quartiles[6]),
+            "minValue": float(v_quartiles[0]),
+            "Q05Value": float(v_quartiles[1]),
+            "Q25Value": float(v_quartiles[2]),
+            "Q50Value": float(v_quartiles[3]),
+            "Q75Value": float(v_quartiles[4]),
+            "Q95Value": float(v_quartiles[5]),
+            "maxValue": float(v_quartiles[6]),
+            # Skewness per channel
+            "SkewRed": float(skew(r_pixels)),
+            "SkewGreen": float(skew(g_pixels)),
+            "SkewBlue": float(skew(b_pixels)),
+            "SkewHue": float(skew(h_pixels)),
+            "SkewSaturation": float(skew(s_pixels)),
+            "SkewValue": float(skew(v_pixels)),
+            # Kurtosis per channel
+            "KurtosisRed": float(kurtosis(r_pixels)),
+            "KurtosisGreen": float(kurtosis(g_pixels)),
+            "KurtosisBlue": float(kurtosis(b_pixels)),
+            "KurtosisHue": float(kurtosis(h_pixels)),
+            "KurtosisSaturation": float(kurtosis(s_pixels)),
+            "KurtosisValue": float(kurtosis(v_pixels)),
         }
 
     def _extract_metadata_from_regionprop(self, prop, pixel_size_um=None):
@@ -396,6 +431,13 @@ class SegmenterProcess(multiprocessing.Process):
             "local_centroid_row": prop.local_centroid[0],
             # solidity — dimensionless ratio (area / convex_area)
             "solidity": prop.solidity,
+            # Crofton perimeter estimate (µm if calibrated) — more accurate than standard perimeter
+            "perim_crofton": prop.perimeter_crofton * px,
+            # Maximum Feret diameter / max caliper distance (µm if calibrated)
+            "feret_diameter_max": prop.feret_diameter_max * px,
+            # Inertia tensor eigenvalues — rotation-invariant shape descriptors (dimensionless)
+            "inertia_eigval_major": float(prop.inertia_tensor_eigvals[0]),
+            "inertia_eigval_minor": float(prop.inertia_tensor_eigvals[1]),
         }
 
     def _slice_image(self, img, name, mask, start_count=0):
@@ -708,6 +750,9 @@ class SegmenterProcess(multiprocessing.Process):
             f"We also found {total_objects} objects, or an average of {total_objects / (total_duration * 60)}objects per second"
         )
 
+        # Copy objects list before ecotaxa export (which pops it from metadata)
+        objects_for_umap = list(self.__global_metadata.get("objects", []))
+
         if ecotaxa_export:
             if "objects" in self.__global_metadata:
                 if planktoscope.segmenter.ecotaxa.ecotaxa_export(
@@ -723,6 +768,28 @@ class SegmenterProcess(multiprocessing.Process):
                 logger.info("There are no objects to export")
         else:
             logger.info("We are not creating the ecotaxa output archive for this folder")
+
+        # UMAP similarity projection (post-segmentation)
+        if objects_for_umap:
+            try:
+                self.segmenter_client.client.publish(
+                    "status/segmenter",
+                    '{"status":"Computing UMAP projection"}',
+                )
+                umap_path = planktoscope.segmenter.similarity.compute_umap_projection(
+                    objects_for_umap,
+                    self.__working_obj_path,
+                )
+                if umap_path:
+                    relative_path = os.path.relpath(
+                        umap_path, os.path.join(self.__objects_root, "..")
+                    )
+                    self.segmenter_client.client.publish(
+                        "status/segmenter/umap",
+                        json.dumps({"status": "ready", "path": relative_path}),
+                    )
+            except Exception as e:
+                logger.error(f"UMAP projection failed: {e}")
 
         # cleanup
         # we're done free some mem
