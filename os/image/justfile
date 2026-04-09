@@ -1,5 +1,5 @@
 setup:
-    sudo apt install -y partclone
+    sudo apt install -y partclone rauc rauc-service squashfs-tools
     npm ci --omit=dev
 
 test:
