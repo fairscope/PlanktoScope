@@ -39,13 +39,18 @@ partprobe "$device"
 # find first partition
 boot_partition=$(lsblk -ln -o NAME "$device" | sed -n '2p')
 
+# create temporary mountpoint folder
+mountpoint=$(mktemp -d)
+
 # mount boot partition
-mount /dev/"${boot_partition}" /mnt
+mount /dev/"${boot_partition}" "$mountpoint"
 
 # configure
-cp user-data.yaml /mnt/user-data
+cp user-data.yaml "${mountpoint}"/user-data
 
 # unmount boot partition
 umount /dev/"${boot_partition}"
+
+rm "$mountpoint"
 
 echo "✅ Disk is ready."
