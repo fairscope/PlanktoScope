@@ -17,11 +17,11 @@ export async function createPartitions(device, rpios_partitions) {
 
   await create_autobootfs(partitions["AUTOBOOT"])
 
-  const rpios_bootfs = rpios_partitions['bootfs']
+  const rpios_bootfs = rpios_partitions["bootfs"]
   await create_bootfs(partitions["BOOTFS A"], rpios_bootfs)
   await create_bootfs(partitions["BOOTFS B"], rpios_bootfs)
 
-  const rpios_rootfs = rpios_partitions['rootfs']
+  const rpios_rootfs = rpios_partitions["rootfs"]
   await create_rootfs(partitions["ROOTFS A"], rpios_rootfs)
   await create_rootfs(partitions["ROOTFS B"], rpios_rootfs)
 
@@ -72,7 +72,7 @@ async function createPartitionTable(device) {
   await $`udevadm settle`
 }
 
-async function create_autobootfs({partlabel, path}) {
+async function create_autobootfs({ partlabel, path }) {
   const { stdout: mountpoint } = await $`mktemp -d`
   await $`wipefs -a ${path}`
   await $`mkfs.vfat -F12 ${path} -n ${partlabel}`
@@ -80,7 +80,7 @@ async function create_autobootfs({partlabel, path}) {
   await $`cp autoboot.ini ${join(mountpoint, "autoboot.txt")}`
 }
 
-async function create_bootfs({path, partlabel}, rpios_bootfs) {
+async function create_bootfs({ path, partlabel }, rpios_bootfs) {
   const { stdout: mountpoint } = await $`mktemp -d`
   await $`wipefs -a ${path}`
 
@@ -104,6 +104,8 @@ async function create_bootfs({path, partlabel}, rpios_bootfs) {
   const data = await readFile(
     fileURLToPath(import.meta.resolve("./user-data.yaml")),
   )
+  // FIXME: does not work
+  // /boot/firmware/userconf and /boot/formware/ssh does
   await backupAndReplace(`${mountpoint}/user-data`, data)
 }
 
@@ -121,7 +123,7 @@ async function create_bootfs({path, partlabel}, rpios_bootfs) {
 //   await $`cp user-data.yaml ${mountpoint}/user-data`
 // }
 
-async function create_rootfs({path, partlabel}, rpios_rootfs) {
+async function create_rootfs({ path, partlabel }, rpios_rootfs) {
   const { stdout: mountpoint } = await $`mktemp -d`
   await $`wipefs -a ${path}`
 
@@ -133,7 +135,7 @@ async function create_rootfs({path, partlabel}, rpios_rootfs) {
   await $`tune2fs -U ${crypto.randomUUID()} ${path}`
 
   // set filesystem label
-  await $`e2label ${path} ${partlabel}` 
+  await $`e2label ${path} ${partlabel}`
 
   await $`e2fsck -y -f ${path}` // check filesystem - required by resize2fs
   await $`resize2fs ${path}` // resize to take remaining space
@@ -153,7 +155,7 @@ async function create_rootfs({path, partlabel}, rpios_rootfs) {
 //   await $`rsync -axHAXES --filter=${"-x security.selinux"} ${rpios_rootfs.mountpoint}/ ${mountpoint}/`
 // }
 
-async function create_datafs({path, partlabel}) {
+async function create_datafs({ path, partlabel }) {
   const { stdout: mountpoint } = await $`mktemp -d`
   await $`wipefs -a ${path}`
   await $`mkfs.ext4 -q -L ${partlabel} ${path}`

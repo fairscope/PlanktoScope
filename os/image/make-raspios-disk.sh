@@ -51,6 +51,6 @@ cp user-data.yaml "${mountpoint}"/user-data
 # unmount boot partition
 umount /dev/"${boot_partition}"
 
-rm "$mountpoint"
+rm -r "$mountpoint"
 
 echo "✅ Disk is ready."
