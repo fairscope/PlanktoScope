@@ -19,6 +19,12 @@
 import cv2
 from loguru import logger
 
+# WARNING: These module-level globals use process-local state.
+# remove_previous_mask / __mask_to_remove: NOT safe for parallel use — requires
+# sequential image-to-image processing. In parallel mode, the pipeline substitutes
+# no_op() for the remove_previous_mask step.
+# __last_threshold_value: safe in parallel mode because each worker process gets
+# its own copy of this global via fork/spawn.
 __mask_to_remove = None
 __last_threshold_value = None
 
