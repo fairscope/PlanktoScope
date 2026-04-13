@@ -18,8 +18,8 @@ export async function createPartitions(device, rpios_partitions) {
   await create_autobootfs(partitions["AUTOBOOT"])
 
   const rpios_bootfs = rpios_partitions["bootfs"]
-  await create_bootfs(partitions["BOOTFS A"], rpios_bootfs)
-  await create_bootfs(partitions["BOOTFS B"], rpios_bootfs)
+  await create_firmwarefs(partitions["FIRMWAREFS A"], rpios_bootfs)
+  await create_firmwarefs(partitions["FIRMWAREFS B"], rpios_bootfs)
 
   const rpios_rootfs = rpios_partitions["rootfs"]
   await create_rootfs(partitions["ROOTFS A"], rpios_rootfs)
@@ -53,10 +53,10 @@ async function createPartitionTable(device) {
 
   // # Partition 1: 8MB FAT12 "AUTOBOOT"
   await $`sgdisk --new=1:0:+8M --typecode=1:0700 -A 1:set:0 -A 1:set:1 -A 1:set:62 -A 1:set:63 --change-name=1:AUTOBOOT ${device}`
-  // # Partition 2: 512MB FAT32 "BOOTFS A"
-  await $`sgdisk --new=2:0:+512M --typecode=2:0700 -A 2:set:0 -A 2:set:1 -A 2:set:62 -A 2:set:63 --change-name=2:${"BOOTFS A"} ${device}`
-  // # Partition 3: 512MB FAT32 "BOOTFS B"
-  await $`sgdisk --new=3:0:+512M --typecode=3:0700 -A 3:set:0 -A 3:set:1 -A 3:set:62 -A 3:set:63 --change-name=3:${"BOOTFS B"} ${device}`
+  // # Partition 2: 512MB FAT32 "FIRMWAREFS A"
+  await $`sgdisk --new=2:0:+512M --typecode=2:0700 -A 2:set:0 -A 2:set:1 -A 2:set:62 -A 2:set:63 --change-name=2:${"FIRMWAREFS A"} ${device}`
+  // # Partition 3: 512MB FAT32 "FIRMWAREFS B"
+  await $`sgdisk --new=3:0:+512M --typecode=3:0700 -A 3:set:0 -A 3:set:1 -A 3:set:62 -A 3:set:63 --change-name=3:${"FIRMWAREFS B"} ${device}`
   // # Partition 4: 12GB EXT4 "ROOTFS A"
   await $`sgdisk --new=4:0:+12G --typecode=4:8300 -A 4:set:0 -A 4:set:1 -A 4:set:62 -A 4:set:63 --change-name=4:${"ROOTFS A"} ${device}`
   // # Partition 5: 12GB EXT4 "ROOTFS B"
@@ -80,7 +80,7 @@ async function create_autobootfs({ partlabel, path }) {
   await $`cp autoboot.ini ${join(mountpoint, "autoboot.txt")}`
 }
 
-async function create_bootfs({ path, partlabel }, rpios_bootfs) {
+async function create_firmwarefs({ path, partlabel }, rpios_bootfs) {
   const { stdout: mountpoint } = await $`mktemp -d`
   await $`wipefs -a ${path}`
 
@@ -110,10 +110,10 @@ async function create_bootfs({ path, partlabel }, rpios_bootfs) {
 }
 
 /*
-  create_bootfs with rsync
+  create_firmwarefs with rsync
   alternative implementation, left here in case it proves useful in the future
 */
-// async function create_bootfs_with_rsync({path, partlabel}, rpios_bootfs) {
+// async function create_firmwarefs_with_rsync({path, partlabel}, rpios_bootfs) {
 //   const { stdout: mountpoint } = await $`mktemp -d`
 //   await $`wipefs -a ${path}`
 //   await $`mkfs.vfat -F32 ${path} -n ${partlabel}`
@@ -163,9 +163,9 @@ async function create_datafs({ path, partlabel }) {
 }
 
 async function process_cmdline(rpios_partitions, partitions, AB) {
+  const firmwarefs = partitions[`FIRMWA ${AB.toUpperCase()}`]
   const rootfs = partitions[`ROOTFS ${AB.toUpperCase()}`]
-  const bootfs = partitions[`BOOTFS ${AB.toUpperCase()}`]
-  const path = join(bootfs.mountpoint, "cmdline.txt")
+  const path = join(firmwarefs.mountpoint, "cmdline.txt")
 
   const rpios_rootfs_partuuid = rpios_partitions["rootfs"].partuuid
 
@@ -188,7 +188,8 @@ async function process_cmdline(rpios_partitions, partitions, AB) {
 }
 
 async function process_fstab(rpios_partitions, partitions, AB) {
-  const bootfs = partitions[`BOOTFS ${AB.toUpperCase()}`]
+  const autobootfs = partitions["AUTOBOOTFS"]
+  const firmwarefs = partitions[`FIRMWAREFS ${AB.toUpperCase()}`]
   const rootfs = partitions[`ROOTFS ${AB.toUpperCase()}`]
   const datafs = partitions[`DATA`]
   const path = join(rootfs.mountpoint, "etc/fstab")
@@ -202,7 +203,7 @@ async function process_fstab(rpios_partitions, partitions, AB) {
   content = assertReplace(
     content,
     `PARTUUID=${rpios_bootfs_partuuid} `,
-    `PARTUUID=${bootfs.partuuid} `,
+    `PARTUUID=${firmwarefs.partuuid} `,
   )
   content = assertReplace(
     content,
@@ -210,6 +211,8 @@ async function process_fstab(rpios_partitions, partitions, AB) {
     `PARTUUID=${rootfs.partuuid} `,
   )
   content += `\nPARTUUID=${datafs.partuuid} /home/pi/data ${datafs.fstype} defaults,noatime 0 2`
+  content += `\nPARTUUID=${autobootfs.partuuid} /autoboot ${autobootfs.fstype} defaults 0 2`
+  content += "\n"
 
   await backupAndReplace(path, content)
 }
@@ -223,8 +226,8 @@ async function getPartitions(device) {
   }
   assert.equal(Object.keys(partitions).length, 6)
   assert.ok(partitions["AUTOBOOT"])
-  assert.ok(partitions["BOOTFS A"])
-  assert.ok(partitions["BOOTFS B"])
+  assert.ok(partitions["FIRMWAREFS A"])
+  assert.ok(partitions["FIRMWAREFS B"])
   assert.ok(partitions["ROOTFS A"])
   assert.ok(partitions["ROOTFS A"])
   assert.ok(partitions["DATA"])
@@ -233,15 +236,16 @@ async function getPartitions(device) {
 
 async function process_autoboot(partitions) {
   const autobootfs = partitions["AUTOBOOT"]
-  const bootfs_a = partitions["BOOTFS A"]
-  // const bootfs_b = partitions["BOOTFS B"]
+  const firmwarefs_a = partitions["FIRMWAREFS A"]
+  const firmwarefs_b = partitions["FIRMWAREFS B"]
 
   let content = await readFile(
     fileURLToPath(import.meta.resolve("./autoboot.ini")),
     "utf-8",
   )
   const config = parse(content)
-  config.all.boot_partition = bootfs_a.partn
+  config.all.boot_partition = firmwarefs_a.partn
+  config.tryboot.boot_partition = firmwarefs_b.partn
 
   await writeFile(
     join(autobootfs.mountpoint, "autoboot.txt"),
