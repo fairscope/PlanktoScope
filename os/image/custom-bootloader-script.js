@@ -7,13 +7,6 @@ import { readFile } from "node:fs/promises"
 import { parse, stringify } from "ini"
 import { getBlockDevices } from "./lib.js"
 
-// import {
-//   setupRaspberryPiOSDevice,
-//   mountRaspberryPiOSPartitions,
-//   teardownRaspberryPiOSDevice,
-// } from "./rpios.js"
-// import { createPartitions, updateMountpoints } from "./planktoscope.js"
-
 const device = "/dev/nvme0n1"
 const systemconf = new URL(import.meta.resolve("./system.conf"))
 // FIXME: rename partition to BOOTLOADERFS ?
@@ -22,7 +15,22 @@ const autoboottxt = "/autoboot/autoboot.txt"
 
 // https://rauc.readthedocs.io/en/latest/integration.html#custom-bootloader-backend-interface
 
-async function readRaucSystemConf() {}
+async function readRaucSystemConf() {
+  const content = await readFile(systemconf, "utf8")
+  const conf = parse(content)
+
+  // https://rauc.readthedocs.io/en/latest/reference.html#slot-slot-class-idx-sections
+  const slot_entries = {}
+  for (const [slot_class_name, slot_class] of Object.entries(conf.slot)) {
+    for (const [slot_number, value] of Object.entries(slot_class)) {
+      slot_entries[slot_class_name + "." + slot_number] = value
+    }
+  }
+
+  conf.slots = slot_entries
+
+  return conf
+}
 
 async function getRaucSlot(boot_partition_number) {
   const partitions = await getBlockDevices("/dev/nvme0n1")
@@ -35,18 +43,8 @@ async function getRaucSlot(boot_partition_number) {
     )
   }
 
-  const content = await readFile(systemconf, "utf8")
-  const conf = parse(content)
-
-  // https://rauc.readthedocs.io/en/latest/reference.html#slot-slot-class-idx-sections
-  const slot_entries = {}
-  for (const [slot_class_name, slot_class] of Object.entries(conf.slot)) {
-    for (const [slot_number, value] of Object.entries(slot_class)) {
-      slot_entries[slot_class_name + "." + slot_number] = value
-    }
-  }
-
-  const rauc_part = Object.values(slot_entries).find(
+  const rauc_config = await readRaucSystemConf()
+  const rauc_part = Object.values(rauc_config.slots).find(
     ({ device }) => device === partition.path,
   )
   if (!rauc_part?.bootname) {
@@ -57,26 +55,8 @@ async function getRaucSlot(boot_partition_number) {
 }
 
 async function getBootPartitionNumber(rauc_slot) {
-  // const partitions = await getBlockDevices("/dev/nvme0n1")
-  // const partition = partitions.find(({ partn }) => partn === partition_number)
-  // if (!partition) {
-  //   throw new Error(
-  //     `Could not find /dev/nvme0n1 partition number "${partition_number}".`,
-  //   )
-  // }
-
-  const content = await readFile(systemconf, "utf8")
-  const conf = parse(content)
-
-  // https://rauc.readthedocs.io/en/latest/reference.html#slot-slot-class-idx-sections
-  const slot_entries = {}
-  for (const [slot_class_name, slot_class] of Object.entries(conf.slot)) {
-    for (const [slot_number, value] of Object.entries(slot_class)) {
-      slot_entries[slot_class_name + "." + slot_number] = value
-    }
-  }
-
-  const rauc_part = Object.values(slot_entries).find(
+  const rauc_config = await readRaucSystemConf()
+  const rauc_part = Object.values(rauc_config.slots).find(
     ({ bootname }) => bootname === rauc_slot,
   )
   if (!rauc_part?.device) {
@@ -121,16 +101,20 @@ export const handlers = {
   // If the set was successful, the handler must also return with a 0, otherwise the return value must be non-zero.
   async ["set-primary"](bootname) {
     const boot_partition_number = await getBootPartitionNumber(bootname)
-
     const content = await readFile(autoboottxt, "utf8")
     const data = parse(content)
-
     const current_boot_partition = data.all.boot_partition
-    data.all.boot_partition = boot_partition_number
-    data.tryboot.boot_partition = current_boot_partition
+    data.all.boot_partition = current_boot_partition
+    data.tryboot.boot_partition = boot_partition_number
 
-    // TODO: atomic!
-    await writeFile(autoboottxt, stringify(data))
+    await $`vcmailbox 0x00038064 4 0 1`
+
+    try {
+      // TODO: atomic!
+      await writeFile(autoboottxt, stringify(data))
+    } catch {
+      await $`vcmailbox 0x00038064 4 0 1`
+    }
   },
   // In addition to the primary slot, RAUC must also be able to determine the boot state of a specific slot.
   // RAUC determines the necessary boot state by calling the custom bootloader handler with the argument get-state <slot.bootname>.
