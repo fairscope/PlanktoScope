@@ -152,7 +152,28 @@ export const handlers = {
   //   * good if the last start of the slot was successful or
   //   * bad if the last start of the slot failed.
   // The return value must be 0 if the boot state was set successfully, or non-zero if an error occurred.
-  async ["set-state"](bootname, state) {},
+  async ["set-state"](bootname, state) {
+    const boot_partition_number = await getBootPartitionNumber(bootname)
+
+    const content = await readFile(autoboottxt, "utf8")
+    const data = parse(content)
+
+    const current_boot_partition = data.all.boot_partition
+    const current_tryboot_partition = data.tryboot_boot_partition
+
+    if (state === "good") {
+      data.all.boot_partition = boot_partition_number
+      // FIXME: other
+      data.tryboot.boot_partition = current_boot_partition
+    } else if (state === "bad") {
+      // FIXME: other
+      data.all.boot_partition = current_tryboot_partition
+      data.tryboot.boot_partition = current_boot_partition
+    }
+
+    // TODO: atomic!
+    await writeFile(autoboottxt, stringify(data))
+  },
   // To get the current running slot, the handler must be called with the argument get-current.
   // The handler must output the current running slot’s bootname on the stdout, and return 0 on exit, if no error occurred.
   // Implementing this is only needed when the /proc/cmdline is not providing information about current booted slot.
