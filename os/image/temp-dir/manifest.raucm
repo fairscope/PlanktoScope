@@ -1,0 +1,12 @@
+[update]
+compatible=rauc-demo-x86
+version=2026.04-testing
+
+[bundle]
+format=verity
+
+[image.firmware]
+filename=firmware.vfat.img
+
+[image.root]
+filename=root.ext4.img

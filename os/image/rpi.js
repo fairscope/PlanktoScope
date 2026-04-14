@@ -1,12 +1,73 @@
-import { $ } from "execa"
+import { readFile, writeFile } from "node:fs/promises"
 
+import { $ } from "execa"
+import { parse, stringify } from "ini"
+
+// FIXME: use mountpoint of BOOTLOADER part
+const path_autoboot = "/boot/bootloader/autoboot.txt"
+
+export async function readAutoboot() {
+  const content = await readFile(path_autoboot, "utf8")
+  const autoboot = parse(content)
+
+  autoboot.all ??= {}
+  const boot_partition = autoboot?.all?.boot_partition
+  if (typeof boot_partition === "string") {
+    const n = Number(boot_partition)
+    if (!Number.isInteger(n))
+      throw new Error(
+        `Invalid value "${boot_partition}" for all.boot_partition.`,
+      )
+    autoboot.all.boot_partition = n
+  }
+
+  autoboot.tryboot ??= {}
+  const tryboot_partition = autoboot?.tryboot?.boot_partition
+  if (typeof tryboot_partition === "string") {
+    const n = Number(tryboot_partition)
+    if (!Number.isInteger(n))
+      throw new Error(
+        `Invalid value "${tryboot_partition}" for tryboot.boot_partition.`,
+      )
+    autoboot.tryboot.boot_partition = n
+  }
+
+  return autoboot
+}
+
+// TODO: atomic!
+export async function writeAutoboot(autoboot) {
+  const content = stringify(autoboot)
+  await writeFile(path_autoboot, content)
+}
+
+// https://github.com/rauc/rauc/pull/1599/changes#diff-919dcf951e9ecb449e0cfa6368b4c3dd441a4cad667abc4c59c97589f12c430bR190
+// https://github.com/Rtone/raspberrypi-firmware-rauc-bootloader-backend/blob/c8aa8ab78f9eb12c42d5b45f7d27c430bce8b7ef/bootloader-custom-backend#L225
 export async function setTryBootFlag(bool) {
   await $`vcmailbox 0x00038064 4 0 ${bool ? "1" : "0"}`
 }
 
-export async function getTryBootFlag() {
+export async function getBootedPartition() {
+  const { stdout } =
+    await $`fdtget /sys/firmware/fdt /chosen/bootloader partition`
+  const n = Number(stdout.trim())
+  if (!Number.isInteger(n)) throw new Error("Could not get booted partition")
+  return n
+}
+
+export async function getBootedWithTryBootFlag() {
+  const { stdout: tryboot_flag } =
+    await $`fdtget /sys/firmware/fdt /chosen/bootloader tryboot`
+  const n = Number(tryboot_flag.trim())
+  if ([0, 1].includes(n)) throw new Error("Could not get booted partition")
+  return !!n
+}
+
+// ⚠️ DO NOT USE
+// FIXME: This fails with "ioctl_set_msg failed:-1"
+// even though it is used in https://github.com/rauc/rauc/pull/1599/changes#diff-919dcf951e9ecb449e0cfa6368b4c3dd441a4cad667abc4c59c97589f12c430bR124
+async function getTryBootFlag() {
   const { stdout } = await $`vcmailbox 0x00038064 4 0`
-  console.log(stdout)
   /*
    * Parse output.
    *
@@ -24,15 +85,4 @@ export async function getTryBootFlag() {
   const [, , , , word] = stdout.split(" ")
   const value = parseInt(words, 0) >>> 0 // >>> 0 coerces to uint32
   return value !== 0
-}
-
-if (import.meta.main) {
-  const a = await getTryBootFlag()
-  console.log(a)
-  await setTryBootFlag(!a)
-
-  const b = await getTryBootFlag()
-  console.lob(b)
-
-  console.log(a === b)
 }
