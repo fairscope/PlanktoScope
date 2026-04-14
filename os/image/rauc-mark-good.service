@@ -1,0 +1,10 @@
+[Unit]
+Description=RAUC Good-marking Service
+Documentation=https://rauc.readthedocs.io/en/latest/integration.html#systemd-integration
+After=local-fs.target
+
+[Service]
+ExecStart=/usr/bin/rauc status mark-good
+
+[Install]
+WantedBy=multi-user.target

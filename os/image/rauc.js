@@ -10,7 +10,7 @@ const systemconf = new URL(import.meta.resolve("./system.conf"))
 
 export async function getBootedSlot() {
   const booted_partition_number = await getBootPartitionNumber()
-  return await getRaucSlot(boot_partition_number)
+  return await getRaucSlot(booted_partition_number)
 }
 
 export async function getRaucSlot(boot_partition_number) {
@@ -25,9 +25,13 @@ export async function getRaucSlot(boot_partition_number) {
   }
 
   const rauc_config = await readRaucSystemConf()
-  const rauc_part = Object.values(rauc_config.slots).find(
+  let rauc_part = Object.values(rauc_config.slots).find(
     ({ device }) => device === partition.path,
   )
+  if (rauc_part.parent) {
+    rauc_part = rauc_config.slots[rauc_part.parent]
+  }
+
   if (!rauc_part?.bootname) {
     throw new Error(`Could not find rauc slot for "${partition.path}"`)
   }

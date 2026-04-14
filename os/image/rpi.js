@@ -56,10 +56,10 @@ export async function getBootedPartition() {
 }
 
 export async function getBootedWithTryBootFlag() {
-  const { stdout: tryboot_flag } =
+  const { stdout } =
     await $`fdtget /sys/firmware/fdt /chosen/bootloader tryboot`
-  const n = Number(tryboot_flag.trim())
-  if ([0, 1].includes(n)) throw new Error("Could not get booted partition")
+  const n = Number(stdout.trim())
+  if (![0, 1].includes(n)) throw new Error("Could not get booted partition")
   return !!n
 }
 

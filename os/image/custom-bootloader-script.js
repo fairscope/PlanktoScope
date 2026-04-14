@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 import assert from "node:assert"
+import { createWriteStream } from "fs"
+import { debuglog } from "util"
 
 import { parse, stringify } from "ini"
 
@@ -11,6 +13,8 @@ import {
   writeAutoboot,
 } from "./rpi.js"
 import { getRaucSlot, getBootPartitionNumber, getBootedSlot } from "./rauc.js"
+
+const debug = debuglog("bootloader")
 
 // https://rauc.readthedocs.io/en/latest/integration.html#custom-bootloader-backend-interface
 
@@ -24,7 +28,7 @@ export const handlers = {
     if (!Number.isInteger(boot_partition)) {
       throw new Error(`Could not read autoboot.all.boot_partition.`)
     }
-    return await getRaucSlot(n)
+    return await getRaucSlot(boot_partition)
   },
   // Accordingly, in order to set the primary slot, the custom bootloader handler is called with argument set-primary <slot.bootname>
   // where <slot.bootname> matches the bootname= key defined for the respective slot in your system.conf.
@@ -92,13 +96,15 @@ export const handlers = {
 }
 
 if (import.meta.main) {
+  debug("started")
+
   if (process.getuid() !== 0) {
     throw new Error("Please run as root.")
   }
 
-  console.debug(process.argv)
-
   const [, , command, ...args] = process.argv
+
+  debug("called with:", command, ...args)
 
   if (!(command in handlers)) {
     throw new Error(`Unknown handler "${command}".`)
