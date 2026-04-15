@@ -252,10 +252,18 @@ async function process_fstab(rpios_partitions, partitions, bootname) {
   const rpios_bootfs_partuuid = rpios_partitions["bootfs"].partuuid
   const rpios_rootfs_partuuid = rpios_partitions["rootfs"].partuuid
 
-  await backupAndReplace(
-    path,
-    `PARTUUID=${datafs.partuuid} /home/pi/data ext4 defaults,noatime 0 2`,
-  )
+  const fstab = dedent`
+    PARTUUID=${datafs.partuuid} /data    ext4  defaults,noatime 0 2
+    /data/home                  /home    none  bind             0 0
+    # TODO: when we go readonly
+    # /data/varlib              /var/lib none  bind             0 0
+    # tmpfs                     /tmp     tmpfs defaults,nosuid,nodev,mode=1777 0 0
+    # tmpfs                     /var/tmp tmpfs defaults,nosuid,nodev,mode=1777 0 0
+    # tmpfs                     /run     tmpfs defaults,nosuid,nodev           0 0
+    # tmpfs                     /var/log tmpfs defaults,nosuid,nodev,mode=0755 0 0
+  `
+
+  await backupAndReplace(path, fstab)
 }
 
 async function getPartitions(device) {
