@@ -63,14 +63,14 @@ async function createPartitionTable(device) {
 
   // # Partition 1: 8MB FAT12 "BOOTLOADER"
   await $`sgdisk --new=1:0:+8M --typecode=1:0700 -A 1:set:0 -A 1:set:1 -A 1:set:62 -A 1:set:63 --change-name=1:BOOTLOADER ${device}`
-  // # Partition 2: 512MB FAT32 "FIRMWARE A"
-  await $`sgdisk --new=2:0:+512M --typecode=2:0700 -A 2:set:0 -A 2:set:1 -A 2:set:62 -A 2:set:63 --change-name=2:${"FIRMWARE A"} ${device}`
-  // # Partition 3: 512MB FAT32 "FIRMWARE B"
-  await $`sgdisk --new=3:0:+512M --typecode=3:0700 -A 3:set:0 -A 3:set:1 -A 3:set:62 -A 3:set:63 --change-name=3:${"FIRMWARE B"} ${device}`
-  // # Partition 4: 12GB EXT4 "ROOT A"
-  await $`sgdisk --new=4:0:+12G --typecode=4:8300 -A 4:set:0 -A 4:set:1 -A 4:set:62 -A 4:set:63 --change-name=4:${"ROOT A"} ${device}`
-  // # Partition 5: 12GB EXT4 "ROOT B"
-  await $`sgdisk --new=5:0:+12G --typecode=5:8300 -A 5:set:0 -A 5:set:1 -A 5:set:62 -A 5:set:63 --change-name=5:${"ROOT B"} ${device}`
+  // # Partition 2: 236MB FAT32 "FIRMWARE A"
+  await $`sgdisk --new=2:0:+256M --typecode=2:0700 -A 2:set:0 -A 2:set:1 -A 2:set:62 -A 2:set:63 --change-name=2:${"FIRMWARE A"} ${device}`
+  // # Partition 3: 236MB FAT32 "FIRMWARE B"
+  await $`sgdisk --new=3:0:+256M --typecode=3:0700 -A 3:set:0 -A 3:set:1 -A 3:set:62 -A 3:set:63 --change-name=3:${"FIRMWARE B"} ${device}`
+  // # Partition 4: 10GB EXT4 "ROOT A"
+  await $`sgdisk --new=4:0:+10G --typecode=4:8300 -A 4:set:0 -A 4:set:1 -A 4:set:62 -A 4:set:63 --change-name=4:${"ROOT A"} ${device}`
+  // # Partition 5: 10GB EXT4 "ROOT B"
+  await $`sgdisk --new=5:0:+10G --typecode=5:8300 -A 5:set:0 -A 5:set:1 -A 5:set:62 -A 5:set:63 --change-name=5:${"ROOT B"} ${device}`
   // # Partition 6: Remaining space EXT4 "DATA"
   await $`sgdisk --new=6:0:0 --typecode=6:8300 -A 6:set:0 -A 6:set:1  -A 6:set:62 -A 6:set:63 --change-name=6:DATA ${device}`
 

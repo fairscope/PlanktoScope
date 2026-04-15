@@ -11,7 +11,7 @@ import { $ } from "execa"
 import { getBlockDevices, umount } from "./lib.js"
 import { getRaspberryPiOSReference } from "./rpi.js"
 
-// ⚠️ IMPORTANT sync date with setup.sh
+// ⚠️ IMPORTANT sync reference with setup.sh
 const url = `https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2025-12-04/2025-12-04-raspios-trixie-arm64-lite.img.xz`
 const sha256 =
   "681a775e20b53a9e4c7341d748a5a8cdc822039d8c67c1fd6ca35927abbe6290"
