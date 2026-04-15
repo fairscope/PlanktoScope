@@ -24,7 +24,13 @@ export const handlers = {
   // if no error occurred. In case of failure, the handler must return with non-zero value.
   async ["get-primary"]() {
     const autoboot = await readAutoboot()
-    const boot_partition = autoboot?.all?.boot_partition
+
+    let boot_partition
+    if (await getBootedWithTryBootFlag()) {
+      boot_partition = autoboot?.tryboot?.boot_partition
+    } else {
+      boot_partition = autoboot?.all?.boot_partition
+    }
     if (!Number.isInteger(boot_partition)) {
       throw new Error(`Could not read autoboot.all.boot_partition.`)
     }
@@ -46,8 +52,9 @@ export const handlers = {
 
     try {
       await writeAutoboot(autoboot)
-    } catch {
+    } catch (err) {
       await setTryBootFlag(false)
+      throw err
     }
   },
   // In addition to the primary slot, RAUC must also be able to determine the boot state of a specific slot.
@@ -56,9 +63,18 @@ export const handlers = {
   // If the state cannot be determined or another error occurs, the custom bootloader handler must exit with non-zero return value.
   async ["get-state"](bootname) {
     const booted_slot = await getBootedSlot()
+
     if (bootname === booted_slot) return "good"
-    if (await getBootedWithTryBootFlag()) return "good"
-    return "bad"
+
+    const booted_with_tryboot_flag = await getBootedWithTryBootFlag()
+    if (!booted_with_tryboot_flag) return "bad"
+
+    const autoboot = await readAutoboot()
+    const tryboot_partition = autoboot?.tryboot?.boot_partition
+    if (!Number.isInteger(autoboot.tryboot.boot_partition)) return "bad"
+
+    const tryboot_slot = await getRaucSlot(tryboot_partition)
+    return tryboot_slot === bootname ? "good" : "bad"
   },
   // To set the boot state to the desire slot, the handler is called with argument set-state <slot.bootname> <state>.
   // As already mentioned in the paragraph above, the <slot.bootname> matches the bootname= key defined for the respective slot in your system.conf.
@@ -90,6 +106,7 @@ export const handlers = {
   // The handler must output the current running slot’s bootname on the stdout, and return 0 on exit, if no error occurred.
   // Implementing this is only needed when the /proc/cmdline is not providing information about current booted slot.
   // https://github.com/Rtone/raspberrypi-firmware-rauc-bootloader-backend/blob/c8aa8ab78f9eb12c42d5b45f7d27c430bce8b7ef/bootloader-custom-backend#L461
+  // looks like it is not used even though https://github.com/rauc/rauc/pull/1712 was merged and is available since rauc 1.5 https://github.com/rauc/rauc/releases/tag/v1.15
   async ["get-current"]() {
     return getBootedSlot()
   },
@@ -114,5 +131,8 @@ if (import.meta.main) {
   if (typeof value === "string") {
     process.stdout.write(value)
   }
+
+  debug("return value", value)
+
   process.exit(0)
 }

@@ -3,13 +3,14 @@ import { readFile, writeFile } from "node:fs/promises"
 import { parse, stringify } from "ini"
 
 import { getBlockDevices } from "./lib.js"
+import { getBootedPartition } from "./rpi.js"
 
 // FIXME: nvme or sdcard
 const device = "/dev/nvme0n1"
 const systemconf = new URL(import.meta.resolve("./system.conf"))
 
 export async function getBootedSlot() {
-  const booted_partition_number = await getBootPartitionNumber()
+  const booted_partition_number = await getBootedPartition()
   return await getRaucSlot(booted_partition_number)
 }
 
@@ -39,19 +40,22 @@ export async function getRaucSlot(boot_partition_number) {
   return rauc_part.bootname
 }
 
-export async function getBootPartitionNumber(rauc_slot) {
-  const rauc_config = await readRaucSystemConf()
-  const rauc_part = Object.values(rauc_config.slots).find(
-    ({ bootname }) => bootname === rauc_slot,
+export async function getBootPartitionNumber(bootname) {
+  const { slots } = await readRaucSystemConf()
+  const [slot_name] = Object.entries(slots).find(
+    ([name, slot]) => slot.bootname === bootname,
   )
-  if (!rauc_part?.device) {
-    throw new Error(`Could not find rauc slot "${rauc_slot}"`)
+  const firmware_slot = Object.values(slots).find(
+    (slot) => slot.parent === slot_name,
+  )
+  if (!firmware_slot) {
+    throw new Error(`Could not find boot partition for "${bootname}"`)
   }
 
   const partitions = await getBlockDevices(device)
-  const partition = partitions.find(({ path }) => path === rauc_part.device)
+  const partition = partitions.find(({ path }) => path === firmware_slot.device)
   if (!partition) {
-    throw new Error(`Could not find ${rauc_part.device} partition.`)
+    throw new Error(`Could not find ${firmware_slot.device} partition.`)
   }
 
   return partition.partn

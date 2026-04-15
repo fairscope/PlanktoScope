@@ -109,6 +109,14 @@ async function create_firmwarefs({ path, partlabel }, rpios_bootfs) {
   await backupAndReplace(`${mountpoint}/user-data`, data)
 }
 
+async function dumpImagesForSlot(device, source_slot, target_slot) {
+  const partitions = await getPartitions(device)
+
+
+  sudo dd if=/dev/nvme0n1p3 of=temp-dir/firmware.vfat.img bs=64M status=progress
+  sudo dd if=/dev/nvme0n1p5 of=temp-dir/root.ext4.img bs=64M status=progress
+}
+
 /*
   create_firmwarefs with rsync
   alternative implementation, left here in case it proves useful in the future

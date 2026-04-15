@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-NODE_DEBUG=bootloader node ./custom-bootloader-script.js "$@" 2> custom-bootloader-script.log
+NODE_DEBUG=bootloader node ./custom-bootloader-script.js "$@" 2>> custom-bootloader-script.log
