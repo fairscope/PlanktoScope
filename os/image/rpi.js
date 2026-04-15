@@ -1,4 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises"
+import { join } from "node:path"
 
 import { $ } from "execa"
 import { parse, stringify } from "ini"
@@ -85,4 +86,12 @@ async function getTryBootFlag() {
   const [, , , , word] = stdout.split(" ")
   const value = parseInt(words, 0) >>> 0 // >>> 0 coerces to uint32
   return value !== 0
+}
+
+export async function getRaspberryPiOSReference(base_path = "/") {
+  const path = join(base_path, "/etc/rpi-issue")
+  const content = await readFile(path, "utf8")
+  const ref = content.match(/Raspberry Pi reference (.*)/)?.[1]
+  if (!ref) throw new Error("Could not read reference from /etc/rpi-issue")
+  return ref
 }

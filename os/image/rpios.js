@@ -2,13 +2,14 @@
 // https://www.raspberrypi.com/software/operating-systems/#raspberry-pi-os-64-bit
 
 import assert from "node:assert"
-import { basename } from "node:path"
+import { basename, join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { access } from "node:fs/promises"
+import { access, readFile } from "node:fs/promises"
 
 import { $ } from "execa"
 
 import { getBlockDevices, umount } from "./lib.js"
+import { getRaspberryPiOSReference } from "./rpi.js"
 
 // ⚠️ IMPORTANT sync date with setup.sh
 const url = `https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2025-12-04/2025-12-04-raspios-trixie-arm64-lite.img.xz`
@@ -16,7 +17,8 @@ const sha256 =
   "681a775e20b53a9e4c7341d748a5a8cdc822039d8c67c1fd6ca35927abbe6290"
 const file = basename(url)
 const img = basename(url, ".xz")
-// const date = img.slice(0, 10)
+const reference = file.match(/(.*)-raspios-.*.img/)?.[1]
+assert.ok(reference)
 
 async function downloadRaspberryPiOS() {
   // download raspios
@@ -64,7 +66,8 @@ export async function mountRaspberryPiOSPartitions(device, partitions) {
   const { stdout: mprootfs } = await $`mktemp -d`
   await $`mount ${partitions.rootfs.path} ${mprootfs}`
 
-  // TODO: assert that /etc/rpi-issue date matches date
+  // verify RPI OS date
+  assert.equal(await getRaspberryPiOSReference(mprootfs), reference)
 
   return getRaspberryPiOSPartitions(device)
 }
@@ -80,4 +83,17 @@ async function getRaspberryPiOSPartitions(device) {
   assert.ok(partitions.bootfs)
   assert.ok(partitions.rootfs)
   return partitions
+}
+
+if (import.meta.main) {
+  let rpios_device, rpios_partitions
+  try {
+    ;[rpios_device, rpios_partitions] = await setupRaspberryPiOSDevice()
+    rpios_partitions = await mountRaspberryPiOSPartitions(
+      rpios_device,
+      rpios_partitions,
+    )
+  } finally {
+    rpios_device && (await teardownRaspberryPiOSDevice(rpios_device))
+  }
 }

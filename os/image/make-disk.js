@@ -22,9 +22,9 @@ if (import.meta.main) {
   assert.ok(device)
   await umount(device)
 
-  let [rpios_device, rpios_partitions] = await setupRaspberryPiOSDevice()
-
+  let rpios_device, rpios_partitions
   try {
+    ;[rpios_device, rpios_partitions] = await setupRaspberryPiOSDevice()
     // With partclone the source cannot be mounted so we mount them after
     await createPartitions(device, rpios_partitions)
     rpios_partitions = await mountRaspberryPiOSPartitions(
@@ -35,7 +35,7 @@ if (import.meta.main) {
   } finally {
     await $`sync`
     await umount(device)
-    await teardownRaspberryPiOSDevice(rpios_device)
+    rpios_device && (await teardownRaspberryPiOSDevice(rpios_device))
   }
 
   console.log("✅ Disk is ready.")
