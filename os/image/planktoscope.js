@@ -1,11 +1,14 @@
 import assert from "node:assert"
-import { getBlockDevices, backupAndReplace, assertReplace } from "./lib.js"
-import { $ } from "execa"
 import { readFile, writeFile } from "node:fs/promises"
-import { join } from "path"
+import { join } from "node:path"
+import { fileURLToPath } from "node:url"
+import crypto from "node:crypto"
+
+import { $ } from "execa"
 import { stringify, parse } from "ini"
-import { fileURLToPath } from "url"
-import crypto from "crypto"
+import dedent from "dedent"
+
+import { getBlockDevices, backupAndReplace, backupAndRemove } from "./lib.js"
 
 export async function createPartitions(device, rpios_partitions) {
   // We create the entire partition table first
@@ -31,10 +34,17 @@ export async function createPartitions(device, rpios_partitions) {
 export async function updateMountpoints(device, rpios_partitions) {
   const partitions = await getPartitions(device)
 
-  await process_fstab(rpios_partitions, partitions, "A")
-  await process_fstab(rpios_partitions, partitions, "B")
+  // FIXME: refactor - fstab and config are the same for both A/B
+  // cmdline is split into cmdline-A.txt and cmdline-B.txt on both A/B
+  // TODO: read from RPIOS and write the files onto partitions to make it more obvious
   await process_cmdline(rpios_partitions, partitions, "A")
+  await process_config(rpios_partitions, partitions, "A")
+  await process_fstab(rpios_partitions, partitions, "A")
+
   await process_cmdline(rpios_partitions, partitions, "B")
+  await process_config(rpios_partitions, partitions, "B")
+  await process_fstab(rpios_partitions, partitions, "B")
+
   await process_autoboot(partitions)
 }
 
@@ -109,14 +119,6 @@ async function create_firmwarefs({ path, partlabel }, rpios_bootfs) {
   await backupAndReplace(`${mountpoint}/user-data`, data)
 }
 
-async function dumpImagesForSlot(device, source_slot, target_slot) {
-  const partitions = await getPartitions(device)
-
-
-  sudo dd if=/dev/nvme0n1p3 of=temp-dir/firmware.vfat.img bs=64M status=progress
-  sudo dd if=/dev/nvme0n1p5 of=temp-dir/root.ext4.img bs=64M status=progress
-}
-
 /*
   create_firmwarefs with rsync
   alternative implementation, left here in case it proves useful in the future
@@ -170,9 +172,25 @@ async function create_datafs({ path, partlabel }) {
   await $`mount ${path} ${mountpoint}`
 }
 
-async function process_cmdline(rpios_partitions, partitions, slot) {
-  const firmwarefs = partitions[`FIRMWARE ${slot}`]
-  const rootfs = partitions[`ROOT ${slot}`]
+async function process_config(partitions, bootname) {
+  const firmwarefs = partitions[`FIRMWARE ${bootname}`]
+  const path = join(firmwarefs.mountpoint, "config.txt")
+
+  const content = await readFile(path, "utf8")
+
+  const config =
+    dedent`
+    [boot_partition=2]
+    cmdline=cmdline-A.txt
+    [boot_partition=3]
+    cmdline=cmdline-B.txt
+  ` + content
+
+  await backupAndReplace(path, config)
+}
+
+async function process_cmdline(rpios_partitions, partitions, bootname) {
+  const firmwarefs = partitions[`FIRMWARE ${bootname}`]
   const path = join(firmwarefs.mountpoint, "cmdline.txt")
 
   const rpios_rootfs_partuuid = rpios_partitions["rootfs"].partuuid
@@ -185,44 +203,59 @@ async function process_cmdline(rpios_partitions, partitions, slot) {
   assert.notEqual(resize_idx, -1)
   args.splice(resize_idx, 1)
 
-  // update root
   const root_idx = args.findIndex(
     (arg) => arg === `root=PARTUUID=${rpios_rootfs_partuuid}`,
   )
   assert.notEqual(resize_idx, -1)
-  args[root_idx] = `root=PARTUUID=${rootfs.partuuid}`
 
-  await backupAndReplace(path, args.join(" "))
+  // cmdline-A.txt see config.txt
+  const cmdline_a = write_cmdline_for_bootname(args, partitions, index, "A")
+  await writeFile(join(firmwarefs.mountpoint, "cmdline-A.txt"), cmdline_a)
+  // cmdline-B.txt see config.txt
+  const cmdline_b = get_cmdline_for_bootname(args, partitions, index, "B")
+  await writeFile(join(firmwarefs.mountpoint, "cmdline-B.txt"), cmdline_b)
+
+  await backupAndRemove(path)
 }
 
-async function process_fstab(rpios_partitions, partitions, slot) {
+async function write_cmdline_for_bootname(
+  firmwarefs,
+  args,
+  partitions,
+  index,
+  bootname,
+) {
+  const rootfs = partitions[`ROOT ${bootname}`]
+  args[index] = `root=PARTUUID=${rootfs.partuuid}`
+  await writeFile(
+    join(firmwarefs.mountpoint, `cmdline-${bootname}.txt`),
+    args.join(" "),
+  )
+}
+
+// So the default of RPI OS is
+// mount rootfs to /
+// mount bootfs to /boot/firmware
+// in a A/B partition setup we want the same /etc/fstab on both A and B
+// but we don't know which one is rootfs A/B and which one is bootfs A/B
+// thankefully we don't need them in /etc/fstab
+// cmdline tells the kernel how to mount / (via root)
+// /boot/firmware does not need to be mounted in a image based updates filesystem
+// only apt upgrade would require /boot/firmware
+async function process_fstab(rpios_partitions, partitions, bootname) {
   const bootloaderfs = partitions["BOOTLOADER"]
-  const firmwarefs = partitions[`FIRMWARE ${slot}`]
-  const rootfs = partitions[`ROOT ${slot}`]
+  const firmwarefs = partitions[`FIRMWARE ${bootname}`]
+  const rootfs = partitions[`ROOT ${bootname}`]
   const datafs = partitions[`DATA`]
   const path = join(rootfs.mountpoint, "etc/fstab")
 
   const rpios_bootfs_partuuid = rpios_partitions["bootfs"].partuuid
   const rpios_rootfs_partuuid = rpios_partitions["rootfs"].partuuid
 
-  let content = await readFile(path, "utf-8")
-
-  content = content.trim()
-  content = assertReplace(
-    content,
-    `PARTUUID=${rpios_bootfs_partuuid} `,
-    `PARTUUID=${firmwarefs.partuuid} `,
+  await backupAndReplace(
+    path,
+    `PARTUUID=${datafs.partuuid} /home/pi/data ext4 defaults,noatime 0 2`,
   )
-  content = assertReplace(
-    content,
-    `PARTUUID=${rpios_rootfs_partuuid} `,
-    `PARTUUID=${rootfs.partuuid} `,
-  )
-  content += `\nPARTUUID=${datafs.partuuid} /home/pi/data ${datafs.fstype} defaults,noatime 0 2`
-  content += `\nPARTUUID=${bootloaderfs.partuuid} /boot/bootloader ${bootloaderfs.fstype} defaults 0 2`
-  content += "\n"
-
-  await backupAndReplace(path, content)
 }
 
 async function getPartitions(device) {

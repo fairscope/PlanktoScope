@@ -1,10 +1,6 @@
 #!/usr/bin/env node
 
-import assert from "node:assert"
-import { createWriteStream } from "fs"
 import { debuglog } from "util"
-
-import { parse, stringify } from "ini"
 
 import {
   setTryBootFlag,
