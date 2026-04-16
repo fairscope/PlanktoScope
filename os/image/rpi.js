@@ -3,9 +3,9 @@ import { join } from "node:path"
 
 import { $ } from "execa"
 import { parse, stringify } from "ini"
+import writeFileAtomic from "write-file-atomic"
 
-// FIXME: use mountpoint of BOOTLOADER part
-const path_autoboot = "/boot/bootloader/autoboot.txt"
+const path_autoboot = "/bootloader/autoboot.txt"
 
 export async function readAutoboot() {
   const content = await readFile(path_autoboot, "utf8")
@@ -36,10 +36,24 @@ export async function readAutoboot() {
   return autoboot
 }
 
-// TODO: atomic!
 export async function writeAutoboot(autoboot) {
+  const { stdout } = await $`findmnt --json --target ${path_autoboot}`
+  const result = JSON.parse(stdout)
+  const filesystem = result.filesystems[0]
+  const read_only = filesystem.options.split(",").includes("ro")
+
   const content = stringify(autoboot)
-  await writeFile(path_autoboot, content)
+
+  if (read_only) {
+    await $`mount -o remount,rw ${filesystem.target}`
+  }
+  try {
+    await await writeFileAtomic(path_autoboot, content)
+  } finally {
+    if (read_only) {
+      await $`mount -o remount,ro ${filesystem.target}`
+    }
+  }
 }
 
 // https://github.com/rauc/rauc/pull/1599/changes#diff-919dcf951e9ecb449e0cfa6368b4c3dd441a4cad667abc4c59c97589f12c430bR190

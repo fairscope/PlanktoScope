@@ -217,7 +217,7 @@ async function setup_cmdline(rpios_partitions, partitions) {
     for (const [file, content] of cmdlines) {
       await writeFile(join(firmware_mp, file), content)
     }
-    // remove original
+    // remove original cmdline.txt
     await backupAndRemove(firmware_mp, "cmdline.txt")
   }
 }
@@ -232,9 +232,11 @@ async function setup_cmdline(rpios_partitions, partitions) {
 // /boot/firmware does not need to be mounted in a image based updates filesystem
 // only apt upgrade and rpi specific tools would require /boot/firmware
 async function setup_fstab(partitions) {
-  const datafs = partitions[`DATA`]
+  const bootloader_partuuid = partitions[`BOOTLOADER`].partuuid
+  const datafs_partuuid = partitions[`DATA`].partuuid
   const fstab = dedent`
-    PARTUUID=${datafs.partuuid} /data           ext4  defaults,noatime 0 2
+    PARTUUID=${bootloader_partuuid} /bootloader vfat  defaults,ro      0 2
+    PARTUUID=${datafs_partuuid} /data           ext4  defaults,noatime 0 2
     /data/home                  /home           none  bind             0 0
     /data/machine-id            /etc/machine-id none  bind 0 0
   `
