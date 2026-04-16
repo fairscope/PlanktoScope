@@ -8,7 +8,12 @@ import { $ } from "execa"
 import { stringify, parse } from "ini"
 import dedent from "dedent"
 
-import { getBlockDevices, backupAndReplace, backupAndRemove } from "./lib.js"
+import {
+  getBlockDevices,
+  backupAndReplace,
+  backupAndRemove,
+  getMountPoint,
+} from "./lib.js"
 
 export async function createPartitions(device, rpios_partitions) {
   // We create the entire partition table first
@@ -75,7 +80,7 @@ async function createPartitionTable(device) {
 }
 
 async function create_bootloaderfs({ partlabel, path }) {
-  const { stdout: mountpoint } = await $`mktemp -d`
+  const mountpoint = await getMountPoint(partlabel)
   await $`wipefs -a ${path}`
   await $`mkfs.vfat -F12 ${path} -n ${partlabel}`
   await $`mount ${path} ${mountpoint}`
@@ -83,25 +88,17 @@ async function create_bootloaderfs({ partlabel, path }) {
 }
 
 async function create_firmwarefs({ path, partlabel }, rpios_bootfs) {
-  const { stdout: mountpoint } = await $`mktemp -d`
+  const mountpoint = await getMountPoint(partlabel)
   await $`wipefs -a ${path}`
-
-  await $`partclone.${rpios_bootfs.fstype} --dev-to-dev --source ${rpios_bootfs.path} --overwrite ${path} --quiet`
-  // alternative with dd - slower
-  // await $`dd if=${rpios_partitions.bootfs.path} of=${path} bs=1M`
-
-  // update the filesystem UUID so it's not the same as RPI OS
-  const serial = crypto.randomBytes(4).toString("hex").toUpperCase()
-  await $`fatlabel -i ${path} ${serial}`
-
-  // set filesystem label
-  await $`fatlabel ${path} ${partlabel}`
-
-  await $`fsck.vfat -n ${path}` // check filesystem
-  // TODO: figure this out
-  // await $`fatresize -s max ${path}` // resize to take remaining space
-  // await $`fsck.vfat -n ${path}` // check filesystem
+  await $`mkfs.vfat -F32 ${path} -n ${partlabel}`
   await $`mount ${path} ${mountpoint}`
+
+  // We don't clone the block device because the source partition is smaller than the target partition
+  // it also means we don't have to resize the target partition (treacherous with vfat)
+  // or inherit from the RPI OS bootfs uuid/label
+  await $`cp -a ${rpios_bootfs.mountpoint}/. ${mountpoint}/`
+  // alternatively but not useful for vfat
+  // await $`rsync -a ${rpios_bootfs.mountpoint}/ ${mountpoint}/`
 
   const data = await readFile(
     fileURLToPath(import.meta.resolve("./user-data.yaml")),
@@ -111,54 +108,20 @@ async function create_firmwarefs({ path, partlabel }, rpios_bootfs) {
   await backupAndReplace(`${mountpoint}/user-data`, data)
 }
 
-/*
-  create_firmwarefs with rsync
-  alternative implementation, left here in case it proves useful in the future
-*/
-// async function create_firmwarefs_with_rsync({path, partlabel}, rpios_bootfs) {
-//   const { stdout: mountpoint } = await $`mktemp -d`
-//   await $`wipefs -a ${path}`
-//   await $`mkfs.vfat -F32 ${path} -n ${partlabel}`
-//   await $`mount ${path} ${mountpoint}`
-//   await $`rsync -a ${rpios_bootfs.mountpoint}/ ${mountpoint}/`
-//   await $`mv ${mountpoint}/user-data ${mountpoint}/user-data.orig`
-//   await $`cp user-data.yaml ${mountpoint}/user-data`
-// }
-
 async function create_rootfs({ path, partlabel }, rpios_rootfs) {
-  const { stdout: mountpoint } = await $`mktemp -d`
+  const mountpoint = await getMountPoint(partlabel)
   await $`wipefs -a ${path}`
-
-  await $`partclone.${rpios_rootfs.fstype} --dev-to-dev --source ${rpios_rootfs.path} --overwrite ${path} --quiet`
-  // alternative with dd - slower
-  // await $`dd if=${rpios_rootfs.path} of=${path} bs=1M`
-
-  // update the filesystem UUID so it's not the same as RPI OS
-  await $`tune2fs -U ${crypto.randomUUID()} ${path}`
-
-  // set filesystem label
-  await $`e2label ${path} ${partlabel}`
-
-  await $`e2fsck -y -f ${path}` // check filesystem - required by resize2fs
-  await $`resize2fs ${path}` // resize to take remaining space
+  await $`mkfs.ext4 -q -L ${partlabel} ${path}`
   await $`mount ${path} ${mountpoint}`
+
+  // We don't clone the block device because rsync is faster than dd, e2image or partclone
+  // it also means we don't have to resize the target partition
+  // or inherit from the RPI OS rootfs uuid/label
+  await $`rsync -axHAXES --filter=${"-x security.selinux"} ${rpios_rootfs.mountpoint}/ ${mountpoint}/`
 }
 
-/*
-  create_rootfs with rsync
-  alternative implementation, left here in case it proves useful in the future
-  it is actually faster but less exact
-*/
-// async function create_rootfs_with_rsync({path, partlabel}, rpios_rootfs) {
-//   const { stdout: mountpoint } = await $`mktemp -d`
-//   await $`wipefs -a ${path}`
-//   await $`mkfs.ext4 -q -L ${partlabel} ${path}`
-//   await $`mount ${path} ${mountpoint}`
-//   await $`rsync -axHAXES --filter=${"-x security.selinux"} ${rpios_rootfs.mountpoint}/ ${mountpoint}/`
-// }
-
 async function create_datafs({ path, partlabel }) {
-  const { stdout: mountpoint } = await $`mktemp -d`
+  const mountpoint = await getMountPoint(partlabel)
   await $`wipefs -a ${path}`
   await $`mkfs.ext4 -q -L ${partlabel} ${path}`
   await $`mount ${path} ${mountpoint}`
@@ -176,7 +139,8 @@ async function setup_config(rpios_partitions, partitions) {
     cmdline=cmdline-A.txt
     [boot_partition=3]
     cmdline=cmdline-B.txt
-  ` + content
+
+    ` + content
 
   for (const bootname of ["A", "B"]) {
     const part = partitions[`FIRMWARE ${bootname}`]
@@ -186,8 +150,12 @@ async function setup_config(rpios_partitions, partitions) {
 }
 
 async function setup_cmdline(rpios_partitions, partitions) {
-  const rootfs = rpios_partitions["rootfs"]
-  const content = await readFile(join(rootfs.mountpoint, "cmdline"), "utf8")
+  const rpios_bootfs = rpios_partitions["bootfs"]
+  const rpios_rootfs = rpios_partitions["rootfs"]
+  const content = await readFile(
+    join(rpios_bootfs.mountpoint, "cmdline.txt"),
+    "utf8",
+  )
 
   const args = content.trim().split(" ")
   // remove resize
@@ -197,7 +165,7 @@ async function setup_cmdline(rpios_partitions, partitions) {
 
   // root needs to be updated
   const root_idx = args.findIndex(
-    (arg) => arg === `root=PARTUUID=${rootfs.partuuid}`,
+    (arg) => arg === `root=PARTUUID=${rpios_rootfs.partuuid}`,
   )
   assert.notEqual(resize_idx, -1)
 
@@ -207,7 +175,7 @@ async function setup_cmdline(rpios_partitions, partitions) {
     const rootfs = partitions[`ROOT ${bootname}`]
     const clone = structuredClone(args)
     clone[root_idx] = `root=PARTUUID=${rootfs.partuuid}`
-    cmdlines.push([`cmdline-${bootname}.txt`, clone.join("")])
+    cmdlines.push([`cmdline-${bootname}.txt`, clone.join(" ")])
   }
 
   // write all cmdline files to all firmware partitions
@@ -218,7 +186,7 @@ async function setup_cmdline(rpios_partitions, partitions) {
       await writeFile(join(firmware_mp, file), content)
     }
     // remove original cmdline.txt
-    await backupAndRemove(firmware_mp, "cmdline.txt")
+    await backupAndRemove(join(firmware_mp, "cmdline.txt"))
   }
 }
 

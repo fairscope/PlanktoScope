@@ -1,5 +1,8 @@
+import { writeFile, rename, mkdir } from "node:fs/promises"
+import { fileURLToPath } from "node:url"
+import { join } from "path"
+
 import { $ } from "execa"
-import { writeFile, rename } from "node:fs/promises"
 
 export async function getBlockDevices(device) {
   const { stdout } =
@@ -33,4 +36,11 @@ export async function backupAndReplace(path, data) {
   await writeFile(temporary, data)
   await rename(path, backup)
   await rename(temporary, path)
+}
+
+const builddir = fileURLToPath(import.meta.resolve("./.build"))
+export async function getMountPoint(name) {
+  const mp = join(builddir, name.replace(" ", "_"))
+  await mkdir(mp, { recursive: true })
+  return mp
 }

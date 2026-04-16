@@ -8,7 +8,7 @@ import { access, readFile, readlink } from "node:fs/promises"
 
 import { $ } from "execa"
 
-import { getBlockDevices, umount } from "./lib.js"
+import { getBlockDevices, umount, getMountPoint } from "./lib.js"
 import { getRaspberryPiOSReference } from "./rpi.js"
 
 // ⚠️ IMPORTANT sync reference with setup.sh
@@ -59,15 +59,16 @@ export async function teardownRaspberryPiOSDevice(device) {
 
 export async function mountRaspberryPiOSPartitions(device, partitions) {
   // bootfs
-  const { stdout: mpbootfs } = await $`mktemp -d`
-  await $`mount ${partitions.bootfs.path} ${mpbootfs}`
+  const mpbootfs = await getMountPoint("RPIOS bootfs")
+  await $`mount -o ro ${partitions.bootfs.path} ${mpbootfs}`
 
   // rootfs
-  const { stdout: mprootfs } = await $`mktemp -d`
-  await $`mount ${partitions.rootfs.path} ${mprootfs}`
+  const mprootfs = await getMountPoint("RPIOS rootfs")
+  await $`mount -o ro ${partitions.rootfs.path} ${mprootfs}`
 
   // verify RPI OS date
   assert.equal(await getRaspberryPiOSReference(mprootfs), reference)
+  // TODO: there is also mpbootfs/issue.txt
 
   // TODO: Move this to post-image build tests
 
