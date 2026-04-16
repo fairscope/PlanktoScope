@@ -8,7 +8,6 @@ import { umount } from "./lib.js"
 import { $ } from "execa"
 import {
   setupRaspberryPiOSDevice,
-  mountRaspberryPiOSPartitions,
   teardownRaspberryPiOSDevice,
 } from "./rpios.js"
 import { createPartitions, updateMountpoints } from "./planktoscope.js"

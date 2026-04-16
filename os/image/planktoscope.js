@@ -2,7 +2,6 @@ import assert from "node:assert"
 import { readFile, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
-import crypto from "node:crypto"
 
 import { $ } from "execa"
 import { stringify, parse } from "ini"
