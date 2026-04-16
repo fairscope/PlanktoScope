@@ -34,18 +34,10 @@ export async function createPartitions(device, rpios_partitions) {
 export async function updateMountpoints(device, rpios_partitions) {
   const partitions = await getPartitions(device)
 
-  // FIXME: refactor - fstab and config are the same for both A/B
-  // cmdline is split into cmdline-A.txt and cmdline-B.txt on both A/B
-  // TODO: read from RPIOS and write the files onto partitions to make it more obvious
-  await process_cmdline(rpios_partitions, partitions, "A")
-  await process_config(rpios_partitions, partitions, "A")
-  await process_fstab(rpios_partitions, partitions, "A")
-
-  await process_cmdline(rpios_partitions, partitions, "B")
-  await process_config(rpios_partitions, partitions, "B")
-  await process_fstab(rpios_partitions, partitions, "B")
-
-  await process_autoboot(partitions)
+  await setup_cmdline(rpios_partitions, partitions)
+  await setup_config(rpios_partitions, partitions)
+  await setup_fstab(partitions)
+  await setup_autoboot(partitions)
 }
 
 async function createPartitionTable(device) {
@@ -172,11 +164,11 @@ async function create_datafs({ path, partlabel }) {
   await $`mount ${path} ${mountpoint}`
 }
 
-async function process_config(partitions, bootname) {
-  const firmwarefs = partitions[`FIRMWARE ${bootname}`]
-  const path = join(firmwarefs.mountpoint, "config.txt")
-
-  const content = await readFile(path, "utf8")
+async function setup_config(rpios_partitions, partitions) {
+  const content = await readFile(
+    join(rpios_partitions["bootfs"].mountpoint, "config.txt"),
+    "utf8",
+  )
 
   const config =
     dedent`
@@ -186,51 +178,48 @@ async function process_config(partitions, bootname) {
     cmdline=cmdline-B.txt
   ` + content
 
-  await backupAndReplace(path, config)
+  for (const bootname of ["A", "B"]) {
+    const part = partitions[`FIRMWARE ${bootname}`]
+    const path = join(part.mountpoint, "config.txt")
+    await backupAndReplace(path, config)
+  }
 }
 
-async function process_cmdline(rpios_partitions, partitions, bootname) {
-  const firmwarefs = partitions[`FIRMWARE ${bootname}`]
-  const path = join(firmwarefs.mountpoint, "cmdline.txt")
+async function setup_cmdline(rpios_partitions, partitions) {
+  const rootfs = rpios_partitions["rootfs"]
+  const content = await readFile(join(rootfs.mountpoint, "cmdline"), "utf8")
 
-  const rpios_rootfs_partuuid = rpios_partitions["rootfs"].partuuid
-
-  const content = await readFile(path, "utf-8")
   const args = content.trim().split(" ")
-
   // remove resize
   const resize_idx = args.findIndex((arg) => arg === "resize")
   assert.notEqual(resize_idx, -1)
   args.splice(resize_idx, 1)
 
+  // root needs to be updated
   const root_idx = args.findIndex(
-    (arg) => arg === `root=PARTUUID=${rpios_rootfs_partuuid}`,
+    (arg) => arg === `root=PARTUUID=${rootfs.partuuid}`,
   )
   assert.notEqual(resize_idx, -1)
 
-  // cmdline-A.txt see config.txt
-  const cmdline_a = write_cmdline_for_bootname(args, partitions, root_idx, "A")
-  await writeFile(join(firmwarefs.mountpoint, "cmdline-A.txt"), cmdline_a)
-  // cmdline-B.txt see config.txt
-  const cmdline_b = write_cmdline_for_bootname(args, partitions, root_idx, "B")
-  await writeFile(join(firmwarefs.mountpoint, "cmdline-B.txt"), cmdline_b)
+  // generate a cmdline for each bootname
+  const cmdlines = []
+  for (const bootname of ["A", "B"]) {
+    const rootfs = partitions[`ROOT ${bootname}`]
+    const clone = structuredClone(args)
+    clone[root_idx] = `root=PARTUUID=${rootfs.partuuid}`
+    cmdlines.push([`cmdline-${bootname}.txt`, clone.join("")])
+  }
 
-  await backupAndRemove(path)
-}
-
-async function write_cmdline_for_bootname(
-  firmwarefs,
-  args,
-  partitions,
-  index,
-  bootname,
-) {
-  const rootfs = partitions[`ROOT ${bootname}`]
-  args[index] = `root=PARTUUID=${rootfs.partuuid}`
-  await writeFile(
-    join(firmwarefs.mountpoint, `cmdline-${bootname}.txt`),
-    args.join(" "),
-  )
+  // write all cmdline files to all firmware partitions
+  // see config.txt
+  for (const bootname of ["A", "B"]) {
+    const firmware_mp = partitions[`FIRMWARE ${bootname}`].mountpoint
+    for (const [file, content] of cmdlines) {
+      await writeFile(join(firmware_mp, file), content)
+    }
+    // remove original
+    await backupAndRemove(firmware_mp, "cmdline.txt")
+  }
 }
 
 // So the default of RPI OS is
@@ -241,25 +230,25 @@ async function write_cmdline_for_bootname(
 // thankefully we don't need them in /etc/fstab
 // cmdline tells the kernel how to mount / (via root)
 // /boot/firmware does not need to be mounted in a image based updates filesystem
-// only apt upgrade would require /boot/firmware
-async function process_fstab(rpios_partitions, partitions, bootname) {
-  const rootfs = partitions[`ROOT ${bootname}`]
+// only apt upgrade and rpi specific tools would require /boot/firmware
+async function setup_fstab(partitions) {
   const datafs = partitions[`DATA`]
-  const path = join(rootfs.mountpoint, "etc/fstab")
-
   const fstab = dedent`
-    PARTUUID=${datafs.partuuid} /data    ext4  defaults,noatime 0 2
-    /data/home                  /home    none  bind             0 0
-    /data/machine-id            /etc/machine-id none bind 0 0
-    # TODO: when we go readonly
-    # /data/varlib              /var/lib none  bind             0 0
-    # tmpfs                     /tmp     tmpfs defaults,nosuid,nodev,mode=1777 0 0
-    # tmpfs                     /var/tmp tmpfs defaults,nosuid,nodev,mode=1777 0 0
-    # tmpfs                     /run     tmpfs defaults,nosuid,nodev           0 0
-    # tmpfs                     /var/log tmpfs defaults,nosuid,nodev,mode=0755 0 0
+    PARTUUID=${datafs.partuuid} /data           ext4  defaults,noatime 0 2
+    /data/home                  /home           none  bind             0 0
+    /data/machine-id            /etc/machine-id none  bind 0 0
   `
+  // TODO: when we go readonly
+  // /data/varlib              /var/lib none  bind             0 0
+  // tmpfs                     /tmp     tmpfs defaults,nosuid,nodev,mode=1777 0 0
+  // tmpfs                     /var/tmp tmpfs defaults,nosuid,nodev,mode=1777 0 0
+  // tmpfs                     /run     tmpfs defaults,nosuid,nodev           0 0
+  // tmpfs                     /var/log tmpfs defaults,nosuid,nodev,mode=0755 0 0`
 
-  await backupAndReplace(path, fstab)
+  for (const bootname of ["A", "B"]) {
+    const path = join(partitions[`ROOT ${bootname}`].mountpoint, "etc/fstab")
+    await backupAndReplace(path, fstab)
+  }
 }
 
 async function getPartitions(device) {
@@ -279,7 +268,7 @@ async function getPartitions(device) {
   return partitions
 }
 
-async function process_autoboot(partitions) {
+async function setup_autoboot(partitions) {
   const bootloaderfs = partitions["BOOTLOADER"]
   const firmwarefs_a = partitions["FIRMWARE A"]
   const firmwarefs_b = partitions["FIRMWARE B"]
