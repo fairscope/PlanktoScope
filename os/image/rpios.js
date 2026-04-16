@@ -47,7 +47,9 @@ export async function setupRaspberryPiOSDevice() {
   await $`partprobe ${device}`
   await $`udevadm settle`
 
-  const partitions = await getRaspberryPiOSPartitions(device)
+  let partitions = await getRaspberryPiOSPartitions(device)
+  await mountRaspberryPiOSPartitions(device, partitions)
+  partitions = await getRaspberryPiOSPartitions(device)
 
   return [device, partitions]
 }
@@ -57,7 +59,7 @@ export async function teardownRaspberryPiOSDevice(device) {
   await $`losetup --detach ${device}`
 }
 
-export async function mountRaspberryPiOSPartitions(device, partitions) {
+async function mountRaspberryPiOSPartitions(device, partitions) {
   // bootfs
   const mpbootfs = await getMountPoint("RPIOS bootfs")
   await $`mount -o ro ${partitions.bootfs.path} ${mpbootfs}`
@@ -83,8 +85,6 @@ export async function mountRaspberryPiOSPartitions(device, partitions) {
   assert.rejects(readlink(join(mprootfs, "/var/lib/dbus/machine-id")), {
     code: "ENOENT",
   })
-
-  return getRaspberryPiOSPartitions(device)
 }
 
 async function getRaspberryPiOSPartitions(device) {
@@ -103,12 +103,8 @@ async function getRaspberryPiOSPartitions(device) {
 if (import.meta.main) {
   let rpios_device, rpios_partitions
   try {
-    ;[rpios_device, rpios_partitions] = await setupRaspberryPiOSDevice()
     // eslint-disable-next-line no-unused-vars
-    rpios_partitions = await mountRaspberryPiOSPartitions(
-      rpios_device,
-      rpios_partitions,
-    )
+    ;[rpios_device, rpios_partitions] = await setupRaspberryPiOSDevice()
   } finally {
     rpios_device && (await teardownRaspberryPiOSDevice(rpios_device))
   }

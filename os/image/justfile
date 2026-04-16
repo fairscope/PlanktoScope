@@ -1,5 +1,5 @@
 setup:
-    sudo apt install -y partclone squashfs-tools
+    sudo apt install -y squashfs-tools
     echo "deb http://deb.debian.org/debian forky main" | sudo tee /etc/apt/sources.list.d/forky.list
     sudo apt update
     sudo apt install -y -t forky rauc rauc-service

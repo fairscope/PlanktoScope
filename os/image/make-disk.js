@@ -25,11 +25,6 @@ if (import.meta.main) {
   let rpios_device, rpios_partitions
   try {
     ;[rpios_device, rpios_partitions] = await setupRaspberryPiOSDevice()
-    // With partclone the source cannot be mounted so we mount them after
-    rpios_partitions = await mountRaspberryPiOSPartitions(
-      rpios_device,
-      rpios_partitions,
-    )
     await createPartitions(device, rpios_partitions)
     await updateMountpoints(device, rpios_partitions)
   } finally {
