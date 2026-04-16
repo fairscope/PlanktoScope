@@ -209,10 +209,10 @@ async function process_cmdline(rpios_partitions, partitions, bootname) {
   assert.notEqual(resize_idx, -1)
 
   // cmdline-A.txt see config.txt
-  const cmdline_a = write_cmdline_for_bootname(args, partitions, index, "A")
+  const cmdline_a = write_cmdline_for_bootname(args, partitions, root_idx, "A")
   await writeFile(join(firmwarefs.mountpoint, "cmdline-A.txt"), cmdline_a)
   // cmdline-B.txt see config.txt
-  const cmdline_b = get_cmdline_for_bootname(args, partitions, index, "B")
+  const cmdline_b = write_cmdline_for_bootname(args, partitions, root_idx, "B")
   await writeFile(join(firmwarefs.mountpoint, "cmdline-B.txt"), cmdline_b)
 
   await backupAndRemove(path)
@@ -243,18 +243,14 @@ async function write_cmdline_for_bootname(
 // /boot/firmware does not need to be mounted in a image based updates filesystem
 // only apt upgrade would require /boot/firmware
 async function process_fstab(rpios_partitions, partitions, bootname) {
-  const bootloaderfs = partitions["BOOTLOADER"]
-  const firmwarefs = partitions[`FIRMWARE ${bootname}`]
   const rootfs = partitions[`ROOT ${bootname}`]
   const datafs = partitions[`DATA`]
   const path = join(rootfs.mountpoint, "etc/fstab")
 
-  const rpios_bootfs_partuuid = rpios_partitions["bootfs"].partuuid
-  const rpios_rootfs_partuuid = rpios_partitions["rootfs"].partuuid
-
   const fstab = dedent`
     PARTUUID=${datafs.partuuid} /data    ext4  defaults,noatime 0 2
     /data/home                  /home    none  bind             0 0
+    /data/machine-id            /etc/machine-id none bind 0 0
     # TODO: when we go readonly
     # /data/varlib              /var/lib none  bind             0 0
     # tmpfs                     /tmp     tmpfs defaults,nosuid,nodev,mode=1777 0 0

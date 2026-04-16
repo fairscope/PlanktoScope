@@ -1,6 +1,6 @@
-import { readFile, writeFile } from "node:fs/promises"
+import { readFile } from "node:fs/promises"
 
-import { parse, stringify } from "ini"
+import { parse } from "ini"
 
 import { getBlockDevices } from "./lib.js"
 import { getBootedPartition } from "./rpi.js"
@@ -21,7 +21,7 @@ export async function getRaucSlot(boot_partition_number) {
   )
   if (!partition) {
     throw new Error(
-      `Could not find ${device} partition number "${partition_number}".`,
+      `Could not find ${device} partition number "${boot_partition_number}".`,
     )
   }
 
@@ -43,7 +43,7 @@ export async function getRaucSlot(boot_partition_number) {
 export async function getBootPartitionNumber(bootname) {
   const { slots } = await readRaucSystemConf()
   const [slot_name] = Object.entries(slots).find(
-    ([name, slot]) => slot.bootname === bootname,
+    ([, slot]) => slot.bootname === bootname,
   )
   const firmware_slot = Object.values(slots).find(
     (slot) => slot.parent === slot_name,

@@ -67,6 +67,7 @@ export async function getBootedWithTryBootFlag() {
 // ⚠️ DO NOT USE
 // FIXME: This fails with "ioctl_set_msg failed:-1"
 // even though it is used in https://github.com/rauc/rauc/pull/1599/changes#diff-919dcf951e9ecb449e0cfa6368b4c3dd441a4cad667abc4c59c97589f12c430bR124
+// eslint-disable-next-line no-unused-vars
 async function getTryBootFlag() {
   const { stdout } = await $`vcmailbox 0x00038064 4 0`
   /*
@@ -84,7 +85,7 @@ async function getTryBootFlag() {
    */
 
   const [, , , , word] = stdout.split(" ")
-  const value = parseInt(words, 0) >>> 0 // >>> 0 coerces to uint32
+  const value = parseInt(word, 0) >>> 0 // >>> 0 coerces to uint32
   return value !== 0
 }
 

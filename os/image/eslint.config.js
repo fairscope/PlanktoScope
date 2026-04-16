@@ -17,11 +17,13 @@ export default defineConfig([
     rules: {
       "no-empty": ["error", { allowEmptyCatch: true }],
       "no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
-      "n/no-top-level-await": "error",
+      "n/no-top-level-await": "off",
+      "n/no-process-exit": "off",
       "n/no-unsupported-features/node-builtins": [
         "error",
         { allowExperimental: true },
       ],
+      "n/hashbang": "off",
     },
   },
 ])

@@ -4,7 +4,7 @@
 import assert from "node:assert"
 import { basename, join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { access, readFile } from "node:fs/promises"
+import { access, readFile, readlink } from "node:fs/promises"
 
 import { $ } from "execa"
 
@@ -69,6 +69,20 @@ export async function mountRaspberryPiOSPartitions(device, partitions) {
   // verify RPI OS date
   assert.equal(await getRaspberryPiOSReference(mprootfs), reference)
 
+  // TODO: Move this to post-image build tests
+
+  // machine-id
+  // https://www.freedesktop.org/software/systemd/man/latest/machine-id.html
+  // assert that etc machine-id is uninitialized
+  assert.equal(
+    await readFile(join(mprootfs, "/etc/machine-id"), "utf8"),
+    "uninitialized\n",
+  )
+  // dbus machine-id does not exist yet, some component will create a link
+  assert.rejects(readlink(join(mprootfs, "/var/lib/dbus/machine-id")), {
+    code: "ENOENT",
+  })
+
   return getRaspberryPiOSPartitions(device)
 }
 
@@ -89,6 +103,7 @@ if (import.meta.main) {
   let rpios_device, rpios_partitions
   try {
     ;[rpios_device, rpios_partitions] = await setupRaspberryPiOSDevice()
+    // eslint-disable-next-line no-unused-vars
     rpios_partitions = await mountRaspberryPiOSPartitions(
       rpios_device,
       rpios_partitions,
