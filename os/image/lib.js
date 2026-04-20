@@ -1,4 +1,4 @@
-import { writeFile, rename, mkdir } from "node:fs/promises"
+import { writeFile, rename, mkdir, copyFile } from "node:fs/promises"
 import { fileURLToPath } from "node:url"
 import { join } from "path"
 
@@ -21,6 +21,11 @@ export async function umount(device) {
       device.mountpoint ? $`umount ${device.mountpoint}` : null,
     ),
   )
+}
+
+export async function backupAndMove(source, destination) {
+  await copyFile(source, destination)
+  await backupAndRemove(source)
 }
 
 export async function backupAndRemove(path) {

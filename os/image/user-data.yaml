@@ -1,12 +1,12 @@
 #cloud-config
 
 users:
+  # User pi has defaults which we don't need to respecify see /etc/cloud/cloud.cfg
   - name: pi
     plain_text_passwd: copepode
     lock_passwd: false
 
-rpi:
-  enable_usb_gadget: true
+# rpi:
+#   enable_usb_gadget: true
 
 ssh_pwauth: true
-enable_ssh: true

@@ -13,7 +13,7 @@ export default defineConfig([
       sourceType: "module",
       globals: { ...globals.node, ...globals.browser },
     },
-    ignores: ["dist"],
+    ignores: [".build"],
     rules: {
       "no-empty": ["error", { allowEmptyCatch: true }],
       "no-unused-vars": ["error", { argsIgnorePattern: "^_" }],

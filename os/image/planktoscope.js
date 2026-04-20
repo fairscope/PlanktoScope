@@ -1,5 +1,12 @@
 import assert from "node:assert"
-import { readFile, writeFile } from "node:fs/promises"
+import {
+  readFile,
+  writeFile,
+  mkdir,
+  copyFile,
+  chown,
+  chmod,
+} from "node:fs/promises"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -40,6 +47,7 @@ export async function updateMountpoints(device, rpios_partitions) {
 
   await setup_cmdline(rpios_partitions, partitions)
   await setup_config(rpios_partitions, partitions)
+  await setup_cloudinit(rpios_partitions, partitions)
   await setup_fstab(partitions)
   await setup_autoboot(partitions)
 }
@@ -98,13 +106,6 @@ async function create_firmwarefs({ path, partlabel }, rpios_bootfs) {
   await $`cp -a ${rpios_bootfs.mountpoint}/. ${mountpoint}/`
   // alternatively but not useful for vfat
   // await $`rsync -a ${rpios_bootfs.mountpoint}/ ${mountpoint}/`
-
-  const data = await readFile(
-    fileURLToPath(import.meta.resolve("./user-data.yaml")),
-  )
-  // FIXME: does not work
-  // /boot/firmware/userconf and /boot/formware/ssh does
-  await backupAndReplace(`${mountpoint}/user-data`, data)
 }
 
 async function create_rootfs({ path, partlabel }, rpios_rootfs) {
@@ -117,6 +118,22 @@ async function create_rootfs({ path, partlabel }, rpios_rootfs) {
   // it also means we don't have to resize the target partition
   // or inherit from the RPI OS rootfs uuid/label
   await $`rsync -axHAXES --filter=${"-x security.selinux"} ${rpios_rootfs.mountpoint}/ ${mountpoint}/`
+
+  await mkdir(join(mountpoint, "bootloader"))
+  await mkdir(join(mountpoint, "data"))
+
+  await backupAndRemove(
+    join(
+      mountpoint,
+      "/etc/systemd/system/sysinit.target.wants/rpi-resize.service",
+    ),
+  )
+  // await backupAndRemove(
+  //   join(
+  //     mountpoint,
+  //     "/etc/systemd/system/sysinit.target.wants/regenerate_ssh_host_keys.service",
+  //   ),
+  // )
 }
 
 async function create_datafs({ path, partlabel }) {
@@ -124,6 +141,63 @@ async function create_datafs({ path, partlabel }) {
   await $`wipefs -a ${path}`
   await $`mkfs.ext4 -q -L ${partlabel} ${path}`
   await $`mount ${path} ${mountpoint}`
+
+  // FIXME: For some reason cloud-init does not or cannot create /home/pi
+  // without this - and we are greeted with
+  // Could not chdir to home directory /home/pi: No such file or directory
+  const homedir = join(mountpoint, "/home/pi")
+  await mkdir(homedir, { recursive: true })
+  await chown(homedir, 1000, 1000)
+  await chmod(homedir, 0o755)
+}
+
+// TODO: Investigate if we can replace cloud init with a simpler systemd solution
+async function setup_cloudinit(rpios_partitions, partitions) {
+  // By default RPI OS reads cloud init config from /boot/firmware
+  // since we don't mount /boot/firmware; we move the cloud-init config to /bootloader
+
+  const bootfs = rpios_partitions["bootfs"].mountpoint
+  const rootfs = rpios_partitions["rootfs"].mountpoint
+  const bootloader = partitions["BOOTLOADER"].mountpoint
+
+  // meta-data
+  await copyFile(join(bootfs, "meta-data"), join(bootloader, "meta-data"))
+  for (const bootname of ["A", "B"]) {
+    const mp = partitions[`FIRMWARE ${bootname}`].mountpoint
+    await backupAndRemove(join(mp, "meta-data"))
+  }
+
+  // network-config
+  await copyFile(
+    join(bootfs, "network-config"),
+    join(bootloader, "network-config"),
+  )
+  for (const bootname of ["A", "B"]) {
+    const mp = partitions[`FIRMWARE ${bootname}`].mountpoint
+    await backupAndRemove(join(mp, "network-config"))
+  }
+
+  // user-data
+  await copyFile(
+    fileURLToPath(import.meta.resolve("./user-data.yaml")),
+    join(bootloader, "user-data"),
+  )
+  for (const bootname of ["A", "B"]) {
+    const mp = partitions[`FIRMWARE ${bootname}`].mountpoint
+    await backupAndRemove(join(mp, "user-data"))
+  }
+
+  // update cloud-init source
+  const path_cfg = "/etc/cloud/cloud.cfg.d/99_raspberry-pi.cfg"
+  let cfg = await readFile(join(rootfs, path_cfg), "utf8")
+  cfg = cfg.replace(
+    "seedfrom: file:///boot/firmware",
+    "seedfrom: file:///bootloader",
+  )
+  for (const bootname of ["A", "B"]) {
+    const mp = partitions[`ROOT ${bootname}`].mountpoint
+    await backupAndReplace(join(mp, path_cfg), cfg)
+  }
 }
 
 async function setup_config(rpios_partitions, partitions) {
@@ -158,6 +232,8 @@ async function setup_cmdline(rpios_partitions, partitions) {
 
   const args = content.trim().split(" ")
   // remove resize
+  // undocumented, no idea what it does
+  // we also remove rpi-resize.service
   const resize_idx = args.findIndex((arg) => arg === "resize")
   assert.notEqual(resize_idx, -1)
   args.splice(resize_idx, 1)
@@ -167,6 +243,9 @@ async function setup_cmdline(rpios_partitions, partitions) {
     (arg) => arg === `root=PARTUUID=${rpios_rootfs.partuuid}`,
   )
   assert.notEqual(resize_idx, -1)
+
+  // since we don't have / in /etc/fstab we need to specify rw
+  args.push("rw")
 
   // generate a cmdline for each bootname
   const cmdlines = []
