@@ -1,5 +1,5 @@
 import assert from "node:assert"
-import { readFile, writeFile, mkdir, copyFile, cp, rm } from "node:fs/promises"
+import { readFile, writeFile, mkdir, copyFile, unlink } from "node:fs/promises"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -47,6 +47,7 @@ export async function updateMountpoints(device, rpios_partitions) {
   await setup_cloudinit(rpios_partitions, partitions)
   await setup_fstab(partitions)
   await setup_autoboot(partitions)
+  await setup_machineid(partitions)
 }
 
 async function createPartitionTable(device) {
@@ -123,18 +124,25 @@ async function create_rootfs({ path, partlabel }, rpios_rootfs) {
 
   // We don't clone the block device because rsync is faster than dd, e2image or partclone.
   // It also means we don't have to resize the target partition or inherit from the RPI OS rootfs uuid/label.
-  // In regards to "--exclude /home" - /home is copied in `create_data_fs`
+  // In regards to "--exclude /home" - /home is copied in `create_datafs`
   await $`rsync -axHAXES --filter=${"-x security.selinux"} --exclude /home ${rpios_rootfs.mountpoint}/ ${mountpoint}/`
 
   await mkdir(join(mountpoint, "bootloader"))
   await mkdir(join(mountpoint, "data"))
 
-  await backupAndRemove(
+  await unlink(
     join(
       mountpoint,
       "/etc/systemd/system/sysinit.target.wants/rpi-resize.service",
     ),
   )
+  await unlink(
+    join(
+      mountpoint,
+      "/etc/systemd/system/multi-user.target.wants/userconfig.service",
+    ),
+  )
+
   // TODO: host keys should be the same on all slots
   // await backupAndRemove(
   //   join(
@@ -152,7 +160,24 @@ async function create_datafs(device, rootfs) {
   await $`mkfs.ext4 -q -L ${partlabel} ${path}`
   await $`mount ${path} ${mountpoint}`
 
+  // /data/home
   await $`rsync -axHAXES --filter=${"-x security.selinux"} ${join(rootfs.mountpoint, "/home")}/ ${join(mountpoint, "/home")}/`
+}
+
+// We need to share /etc/machine-id so we create it and symlink it on both slots
+// in order for systemd to consider firstboot we use systemd.condition_first_boot= cmd line argument
+// https://www.freedesktop.org/software/systemd/man/latest/machine-id.html
+async function setup_machineid(partitions) {
+  const data = partitions["DATA"].mountpoint
+
+  const { stdout } = await $`systemd-machine-id-setup --print`
+  await writeFile(join(data, "machine-id"), stdout.trim())
+
+  for (const bootname of bootnames) {
+    const root = partitions[`ROOT ${bootname}`].mountpoint
+    await unlink(join(root, "/etc/machine-id"))
+    await $`ln -s /data/machine-id ${join(root, "/etc/machine-id")}`
+  }
 }
 
 // TODO: Investigate if we can replace cloud init with a simpler systemd solution
@@ -288,7 +313,6 @@ async function setup_fstab(partitions) {
     PARTUUID=${bootloader_partuuid} /bootloader vfat  defaults,ro      0 2
     PARTUUID=${datafs_partuuid} /data           ext4  defaults,noatime 0 2
     /data/home                  /home           none  bind             0 0
-    /data/machine-id            /etc/machine-id none  bind 0 0
   `
   // TODO: when we go readonly
   // /data/varlib              /var/lib none  bind             0 0

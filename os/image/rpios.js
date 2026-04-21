@@ -5,6 +5,7 @@ import assert from "node:assert"
 import { basename, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { access, readFile, readlink } from "node:fs/promises"
+import { once } from "node:events"
 
 import { $ } from "execa"
 
@@ -101,11 +102,18 @@ async function getRaspberryPiOSPartitions(device) {
 }
 
 if (import.meta.main) {
-  let rpios_device, rpios_partitions
-  try {
-    // eslint-disable-next-line no-unused-vars
-    ;[rpios_device, rpios_partitions] = await setupRaspberryPiOSDevice()
-  } finally {
-    rpios_device && (await teardownRaspberryPiOSDevice(rpios_device))
-  }
+  // Keep process running
+  let interval = setInterval(() => {}, 1 << 30)
+
+  // eslint-disable-next-line no-unused-vars
+  const [rpios_device, rpios_partitions] = await setupRaspberryPiOSDevice()
+  Object.entries(rpios_partitions).forEach(([label, part]) => {
+    console.log(`Raspberry Pi OS ${label} mounted to ${part.mountpoint}`)
+  })
+  console.log("Exit to unmount")
+
+  await Promise.race([once(process, "SIGINT"), once(process, "SIGTERM")])
+  clearInterval(interval)
+
+  rpios_device && (await teardownRaspberryPiOSDevice(rpios_device))
 }
