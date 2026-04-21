@@ -23,26 +23,6 @@ export async function umount(device) {
   )
 }
 
-export async function backupAndMove(source, destination) {
-  await copyFile(source, destination)
-  await backupAndRemove(source)
-}
-
-export async function backupAndRemove(path) {
-  const backup = path + ".orig"
-
-  await rename(path, backup)
-}
-
-export async function backupAndReplace(path, data) {
-  const backup = path + ".orig"
-  const temporary = path + ".tmp"
-
-  await writeFile(temporary, data)
-  await rename(path, backup)
-  await rename(temporary, path)
-}
-
 const builddir = fileURLToPath(import.meta.resolve("./.build"))
 export async function getMountPoint(name) {
   const mp = join(builddir, name.replace(" ", "_"))

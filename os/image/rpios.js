@@ -105,7 +105,6 @@ if (import.meta.main) {
   // Keep process running
   let interval = setInterval(() => {}, 1 << 30)
 
-  // eslint-disable-next-line no-unused-vars
   const [rpios_device, rpios_partitions] = await setupRaspberryPiOSDevice()
   Object.entries(rpios_partitions).forEach(([label, part]) => {
     console.log(`Raspberry Pi OS ${label} mounted to ${part.mountpoint}`)

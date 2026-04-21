@@ -7,12 +7,7 @@ import { $ } from "execa"
 import { stringify, parse } from "ini"
 import dedent from "dedent"
 
-import {
-  getBlockDevices,
-  backupAndReplace,
-  backupAndRemove,
-  getMountPoint,
-} from "./lib.js"
+import { getBlockDevices, getMountPoint } from "./lib.js"
 
 const bootnames = ["A", "B"]
 
@@ -144,7 +139,7 @@ async function create_rootfs({ path, partlabel }, rpios_rootfs) {
   )
 
   // TODO: host keys should be the same on all slots
-  // await backupAndRemove(
+  // await unlink(
   //   join(
   //     mountpoint,
   //     "/etc/systemd/system/sysinit.target.wants/regenerate_ssh_host_keys.service",
@@ -193,7 +188,7 @@ async function setup_cloudinit(rpios_partitions, partitions) {
   await copyFile(join(bootfs, "meta-data"), join(bootloader, "meta-data"))
   for (const bootname of bootnames) {
     const mp = partitions[`FIRMWARE ${bootname}`].mountpoint
-    await backupAndRemove(join(mp, "meta-data"))
+    await unlink(join(mp, "meta-data"))
   }
 
   // network-config
@@ -203,7 +198,7 @@ async function setup_cloudinit(rpios_partitions, partitions) {
   )
   for (const bootname of bootnames) {
     const mp = partitions[`FIRMWARE ${bootname}`].mountpoint
-    await backupAndRemove(join(mp, "network-config"))
+    await unlink(join(mp, "network-config"))
   }
 
   // user-data
@@ -213,7 +208,7 @@ async function setup_cloudinit(rpios_partitions, partitions) {
   )
   for (const bootname of bootnames) {
     const mp = partitions[`FIRMWARE ${bootname}`].mountpoint
-    await backupAndRemove(join(mp, "user-data"))
+    await unlink(join(mp, "user-data"))
   }
 
   // update cloud-init source
@@ -225,7 +220,7 @@ async function setup_cloudinit(rpios_partitions, partitions) {
   )
   for (const bootname of bootnames) {
     const mp = partitions[`ROOT ${bootname}`].mountpoint
-    await backupAndReplace(join(mp, path_cfg), cfg)
+    await writeFile(join(mp, path_cfg), cfg)
   }
 }
 
@@ -235,19 +230,18 @@ async function setup_config(rpios_partitions, partitions) {
     "utf8",
   )
 
-  const config =
-    dedent`
-    [boot_partition=2]
-    cmdline=cmdline-A.txt
-    [boot_partition=3]
-    cmdline=cmdline-B.txt
+  let prefix = ""
+  for (const bootname of bootnames) {
+    const part = partitions[`FIRMWARE ${bootname}`]
+    prefix += `\n[boot_partition=${part.partn}]\ncmdline=cmdline-${bootname}.txt\n`
+  }
 
-    ` + content
+  const config = prefix + `\n` + content
 
   for (const bootname of bootnames) {
     const part = partitions[`FIRMWARE ${bootname}`]
     const path = join(part.mountpoint, "config.txt")
-    await backupAndReplace(path, config)
+    await writeFile(path, config)
   }
 }
 
@@ -293,7 +287,7 @@ async function setup_cmdline(rpios_partitions, partitions) {
       await writeFile(join(firmware_mp, file), content)
     }
     // remove original cmdline.txt
-    await backupAndRemove(join(firmware_mp, "cmdline.txt"))
+    await unlink(join(firmware_mp, "cmdline.txt"))
   }
 }
 
@@ -323,7 +317,7 @@ async function setup_fstab(partitions) {
 
   for (const bootname of bootnames) {
     const path = join(partitions[`ROOT ${bootname}`].mountpoint, "etc/fstab")
-    await backupAndReplace(path, fstab)
+    await writeFile(path, fstab)
   }
 }
 

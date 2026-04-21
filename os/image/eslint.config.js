@@ -1,9 +1,10 @@
 import js from "@eslint/js"
 import globals from "globals"
-import { defineConfig } from "eslint/config"
+import { defineConfig, globalIgnores } from "eslint/config"
 import nodePlugin from "eslint-plugin-n"
 
 export default defineConfig([
+  globalIgnores([".build"]),
   nodePlugin.configs["flat/recommended-script"],
   {
     files: ["**/*.{js,mjs,cjs}"],
@@ -13,7 +14,6 @@ export default defineConfig([
       sourceType: "module",
       globals: { ...globals.node, ...globals.browser },
     },
-    ignores: [".build"],
     rules: {
       "no-empty": ["error", { allowEmptyCatch: true }],
       "no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
