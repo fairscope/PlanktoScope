@@ -97,7 +97,7 @@ export async function setup_system_conf() {
   conf.slot["ROOT"] ??= {}
   ;["A", "B"].forEach((bootname, idx) => {
     const part_firmware = partitions.find(
-      (part) => part.label === `FIRMWARE ${bootname}`,
+      (part) => part.partlabel === `FIRMWARE ${bootname}`,
     )
     conf.slot["FIRMWARE"][idx] = {
       device: part_firmware.path,
@@ -106,7 +106,7 @@ export async function setup_system_conf() {
     }
 
     const part_root = partitions.find(
-      (part) => part.label === `ROOT ${bootname}`,
+      (part) => part.partlabel === `ROOT ${bootname}`,
     )
     conf.slot["ROOT"][idx] = {
       bootname,
