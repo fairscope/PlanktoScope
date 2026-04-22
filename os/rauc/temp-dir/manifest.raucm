@@ -6,7 +6,7 @@ version=2026.04-testing
 format=verity
 
 [image.firmware]
-filename=firmware.vfat.img
+filename=FIRMWARE.vfat.img
 
 [image.root]
-filename=root.ext4.img
+filename=ROOT.ext4.img

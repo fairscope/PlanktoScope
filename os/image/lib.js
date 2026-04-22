@@ -29,3 +29,9 @@ export async function getMountPoint(name) {
   await mkdir(mp, { recursive: true })
   return mp
 }
+
+export async function getBootedDevice() {
+  const { stdout: source } = await $`findmnt -no SOURCE /`
+  const { stdout: pkname } = await $`lsblk -no PKNAME ${source.trim()}`
+  return `/dev/${pkname}`
+}

@@ -1,0 +1,18 @@
+setup:
+    echo "deb http://deb.debian.org/debian forky main" | sudo tee /etc/apt/sources.list.d/forky.list
+    sudo apt update
+    sudo apt install -y -t forky rauc rauc-service
+    sudo rm /etc/apt/sources.list.d/forky.list
+    sudo apt update
+    npm ci --omit=dev
+    sudo mkdir -p /etc/rauc
+    sudo node rauc.js
+    sudo systemctl reenable rauc
+    sudo systemctl restart rauc
+
+setup-dev:
+    npm install --include=dev
+
+test:
+    npx eslint .
+    validator rauc.ini

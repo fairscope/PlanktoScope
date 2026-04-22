@@ -1,13 +1,11 @@
-import { readFile } from "node:fs/promises"
+import { readFile, writeFile } from "node:fs/promises"
 
-import { parse } from "ini"
+import { parse, stringify } from "ini"
 
-import { getBlockDevices } from "./lib.js"
-import { getBootedPartition } from "./rpi.js"
+import { getBootedDevice, getBlockDevices } from "../image/lib.js"
+import { getBootedPartition } from "../image/rpi.js"
 
-// FIXME: nvme or sdcard
-const device = "/dev/nvme0n1"
-const systemconf = new URL(import.meta.resolve("./system.conf"))
+export const device = await getBootedDevice()
 
 export async function getBootedSlot() {
   const booted_partition_number = await getBootedPartition()
@@ -61,11 +59,14 @@ export async function getBootPartitionNumber(bootname) {
   return partition.partn
 }
 
-async function readRaucSystemConf() {
-  const content = await readFile(systemconf, "utf8")
+const systemconf = "/etc/rauc/system.conf"
+async function readRaucSystemConf(path = systemconf) {
+  const content = await readFile(path, "utf8")
   const conf = parse(content)
 
   // https://rauc.readthedocs.io/en/latest/reference.html#slot-slot-class-idx-sections
+  conf.slot ??= {}
+  // FIXME: Remove conf.slots and read from slot instead in higher level fns
   const slot_entries = {}
   for (const [slot_class_name, slot_class] of Object.entries(conf.slot)) {
     for (const [slot_number, value] of Object.entries(slot_class)) {
@@ -76,4 +77,44 @@ async function readRaucSystemConf() {
   conf.slots = slot_entries
 
   return conf
+}
+
+async function writeRaucSystemConf(conf, path = systemconf) {
+  delete conf.slots
+
+  const data = stringify(conf)
+  await writeFile(path, data)
+}
+
+export async function setup_system_conf() {
+  const partitions = await getBlockDevices(device)
+  const conf = await readRaucSystemConf(new URL("./rauc.ini", import.meta.url))
+
+  conf.slot["FIRMWARE"] ??= {}
+  conf.slot["ROOT"] ??= {}
+  ;["A", "B"].forEach((bootname, idx) => {
+    const part_firmware = partitions.find(
+      (part) => part.label === `FIRMWARE ${bootname}`,
+    )
+    conf.slot["FIRMWARE"][idx] = {
+      device: part_firmware.path,
+      type: part_firmware.fstype,
+      parent: `ROOT.${idx}`,
+    }
+
+    const part_root = partitions.find(
+      (part) => part.label === `ROOT ${bootname}`,
+    )
+    conf.slot["ROOT"][idx] = {
+      bootname,
+      device: part_root.path,
+      type: part_root.fstype,
+    }
+  })
+
+  await writeRaucSystemConf(conf)
+}
+
+if (import.meta.main) {
+  await setup_system_conf()
 }

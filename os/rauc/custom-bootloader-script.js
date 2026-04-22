@@ -7,10 +7,17 @@ import {
   getBootedWithTryBootFlag,
   readAutoboot,
   writeAutoboot,
-} from "./rpi.js"
-import { getRaucSlot, getBootPartitionNumber, getBootedSlot } from "./rauc.js"
+} from "../image/rpi.js"
+import {
+  getRaucSlot,
+  getBootPartitionNumber,
+  getBootedSlot,
+  device,
+} from "./rauc.js"
 
 const debug = debuglog("bootloader")
+
+debug(`Detected booted device ${device}.`)
 
 // https://rauc.readthedocs.io/en/latest/integration.html#custom-bootloader-backend-interface
 
