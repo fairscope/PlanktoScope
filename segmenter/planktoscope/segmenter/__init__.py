@@ -59,6 +59,11 @@ logger.info("planktoscope.segmenter is loaded")
 ################################################################################
 # Main Segmenter class
 ################################################################################
+class SegmentationInterrupted(Exception):
+    """Raised when a user requests stop during an active segmentation pipeline."""
+    pass
+
+
 class SegmenterProcess(multiprocessing.Process):
     """This class contains the main definitions for the segmenter of the PlanktoScope"""
 
@@ -575,6 +580,20 @@ class SegmenterProcess(multiprocessing.Process):
                 )
         return (object_number, len(regionprops), objects_list)
 
+    def _check_for_stop(self):
+        """Check if a stop request arrived via MQTT during the pipeline.
+
+        Returns True if stop was requested, False otherwise.
+        Consumes the MQTT message if it was a stop request.
+        """
+        if self.segmenter_client.new_message_received():
+            peek = self.segmenter_client.msg
+            if peek and peek.get("payload", {}).get("action") == "stop":
+                logger.info("Stop requested during active segmentation")
+                self.segmenter_client.read_message()
+                return True
+        return False
+
     def _pipe(self, ecotaxa_export):
         logger.info("Finding images")
         images_list = self._find_files(self.__working_path, ("JPG", "jpg", "JPEG", "jpeg"))
@@ -629,6 +648,8 @@ class SegmenterProcess(multiprocessing.Process):
                     self._pipe_parallel(
                         images_list, images_count, shm.name, metadata_dir
                     )
+                except SegmentationInterrupted:
+                    raise  # Do not fall back to sequential on user stop
                 except Exception as e:
                     logger.error(
                         f"Parallel segmentation failed, falling back to sequential: {e}"
@@ -735,6 +756,10 @@ class SegmenterProcess(multiprocessing.Process):
                 try:
                     result = await future
                     completed += 1
+                    # Check for stop request between image completions
+                    if self._check_for_stop():
+                        executor.shutdown(wait=True, cancel_futures=True)
+                        raise SegmentationInterrupted("User requested stop")
                     if "error" in result:
                         errors.append(result)
                         logger.error(
@@ -788,6 +813,9 @@ class SegmenterProcess(multiprocessing.Process):
         average_time = 0
 
         for i, filename in enumerate(images_list):
+            # Check for stop request between images
+            if self._check_for_stop():
+                raise SegmentationInterrupted("User requested stop")
             name = os.path.splitext(filename)[0]
 
             # Publish the object_id to via MQTT to Node-RED
@@ -916,6 +944,10 @@ class SegmenterProcess(multiprocessing.Process):
                     # forcing, let's gooooo
                     try:
                         self.segment_path(path, ecotaxa_export)
+                    except SegmentationInterrupted:
+                        logger.info(f"User stopped segmentation at {path}")
+                        exception = SegmentationInterrupted("User stopped")
+                        break
                     except Exception as e:
                         logger.error(f"There was an error while segmenting {path}")
                         exception = e
@@ -924,6 +956,9 @@ class SegmenterProcess(multiprocessing.Process):
         if exception is None:
             # Publish the status "Done" to via MQTT to Node-RED
             self.segmenter_client.client.publish("status/segmenter", '{"status":"Done"}')
+        elif isinstance(exception, SegmentationInterrupted):
+            logger.info("Publishing Interrupted status after user stop")
+            self.segmenter_client.client.publish("status/segmenter", '{"status":"Interrupted"}')
         else:
             self.segmenter_client.client.publish(
                 "status/segmenter",
@@ -1031,6 +1066,9 @@ class SegmenterProcess(multiprocessing.Process):
 
         try:
             self._pipe(ecotaxa_export)
+        except SegmentationInterrupted:
+            logger.info(f"Pipeline interrupted by user for {path}, not marking as done")
+            raise
         except Exception as e:
             logger.exception(f"There was an error in the pipeline {e}")
             raise e
