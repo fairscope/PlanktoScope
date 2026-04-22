@@ -109,6 +109,7 @@ class SegmenterProcess(multiprocessing.Process):
         # https://planktoscope.slack.com/archives/C01V5ENKG0M/p1714146253356569
         self.__remove_previous_mask = False
         self.__worker_count = 3  # default for RPi 5 (4 cores, leave 1 for system)
+        self._interrupt_requested = False
 
         # create all base path
         for path in [
@@ -583,14 +584,16 @@ class SegmenterProcess(multiprocessing.Process):
     def _check_for_stop(self):
         """Check if a stop request arrived via MQTT during the pipeline.
 
-        Returns True if stop was requested, False otherwise.
-        Consumes the MQTT message if it was a stop request.
+        Idempotent — once True, stays True until segment_list() resets it.
         """
+        if self._interrupt_requested:
+            return True
         if self.segmenter_client.new_message_received():
             peek = self.segmenter_client.msg
             if peek and peek.get("payload", {}).get("action") == "stop":
                 logger.info("Stop requested during active segmentation")
                 self.segmenter_client.read_message()
+                self._interrupt_requested = True
                 return True
         return False
 
@@ -924,6 +927,12 @@ class SegmenterProcess(multiprocessing.Process):
         """
         logger.info(f"The pipeline will be run in {len(path_list)} directories")
         logger.debug(f"Those are {path_list}")
+
+        # Drain any stop/garbage messages buffered between runs, then reset the
+        # interrupt flag so a stale click from a previous run can't kill this one.
+        while self.segmenter_client.new_message_received():
+            self.segmenter_client.read_message()
+        self._interrupt_requested = False
 
         self.__process_uuid = str(uuid4())
 
