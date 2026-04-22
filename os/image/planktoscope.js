@@ -131,12 +131,6 @@ async function create_rootfs({ path, partlabel }, rpios_rootfs) {
       "/etc/systemd/system/sysinit.target.wants/rpi-resize.service",
     ),
   )
-  await unlink(
-    join(
-      mountpoint,
-      "/etc/systemd/system/multi-user.target.wants/userconfig.service",
-    ),
-  )
 
   // TODO: host keys should be the same on all slots
   // await unlink(
@@ -214,6 +208,7 @@ async function setup_cloudinit(rpios_partitions, partitions) {
   // update cloud-init source
   const path_cfg = "/etc/cloud/cloud.cfg.d/99_raspberry-pi.cfg"
   let cfg = await readFile(join(rootfs, path_cfg), "utf8")
+  assert.ok(cfg.includes("seedfrom: file:///boot/firmware"))
   cfg = cfg.replace(
     "seedfrom: file:///boot/firmware",
     "seedfrom: file:///bootloader",
@@ -222,6 +217,15 @@ async function setup_cloudinit(rpios_partitions, partitions) {
     const mp = partitions[`ROOT_${bootname}`].mountpoint
     await writeFile(join(mp, path_cfg), cfg)
   }
+
+  const override_dir = "/etc/systemd/system/cloud-init-local.service.d/"
+  await mkdir(override_dir, {
+    recursive: true,
+  })
+  await cp(
+    new URL("./cloud-init-local-override.ini", import.meta.resolve),
+    join(override_dir, "override.conf"),
+  )
 }
 
 async function setup_config(rpios_partitions, partitions) {
