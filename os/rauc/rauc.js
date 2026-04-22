@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { readFile, writeFile } from "node:fs/promises"
 
 import { parse, stringify } from "ini"
@@ -125,6 +127,10 @@ export async function createBundle(device, bootname) {
   const part_root = partitions.find((part) => part.label === `ROOT ${bootname}`)
 
   await $`dd if=${part_firmware.path} of=temp-dir/FIRMWARE.vfat.img bs=64M`
+
+  // TODO: Create a img file instead with "mkfs.ext4 rootfs.img"
+  // mount it as loop device "mount -o loop rootfs.img /mnt"
+  // then rsync files into it
   await $`dd if=${part_root.path} of=temp-dir/ROOT.ext4.img bs=64M`
   await $`rauc --cert demo.cert.pem --key demo.key.pem bundle temp-dir/ update-2015.04-1.raucb`
 }
@@ -141,7 +147,7 @@ if (import.meta.main) {
     const booted_slot = await getBootedSlot()
     if (device_path === device && bootname === booted_slot) {
       throw new Error(
-        `Cannot create a bundle for live ${device} ${bootname} slot.`,
+        `Cannot create a bundle for booted ${device} ${bootname} slot.`,
       )
     }
     await createBundle(device_path, bootname)

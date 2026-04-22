@@ -1,12 +1,16 @@
 setup:
     echo "deb http://deb.debian.org/debian forky main" | sudo tee /etc/apt/sources.list.d/forky.list
     sudo apt update
+    sudo apt install -y squashfs-tools
     sudo apt install -y -t forky rauc rauc-service
     sudo rm /etc/apt/sources.list.d/forky.list
     sudo apt update
     npm ci --omit=dev
     sudo mkdir -p /etc/rauc
     sudo node rauc.js create-configuration
+    sudo cp rauc-mark-good.service /etc/systemd/system/
+    sudo systemctl reenable rauc-mark-good
+    sudo systemctl restart rauc-mark-good
 
 setup-dev:
     npm install --include=dev

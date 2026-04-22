@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-sudo NODE_DEBUG=bootloader node ${SCRIPT_DIR}/custom-bootloader-script.js "$@" 2>> custom-bootloader-script.log
+#NODE_DEBUG=bootloader
+node ${SCRIPT_DIR}/custom-bootloader-script.js "$@" 2>> custom-bootloader-script.log

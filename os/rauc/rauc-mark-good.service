@@ -1,7 +1,10 @@
 [Unit]
 Description=RAUC Good-marking Service
 Documentation=https://rauc.readthedocs.io/en/latest/integration.html#systemd-integration
+# TODO: We should do more checks before marking the slot as good
 After=local-fs.target
+After=network.target
+After=multi-user.target
 
 [Service]
 ExecStart=/usr/bin/rauc status mark-good
