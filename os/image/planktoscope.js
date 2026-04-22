@@ -23,12 +23,12 @@ export async function createPartitions(device, rpios_partitions) {
 
   const rpios_bootfs = rpios_partitions["bootfs"]
   for (const bootname of bootnames) {
-    await create_firmwarefs(partitions[`FIRMWARE ${bootname}`], rpios_bootfs)
+    await create_firmwarefs(partitions[`FIRMWARE_${bootname}`], rpios_bootfs)
   }
 
   const rpios_rootfs = rpios_partitions["rootfs"]
   for (const bootname of bootnames) {
-    await create_rootfs(partitions[`ROOT ${bootname}`], rpios_rootfs)
+    await create_rootfs(partitions[`ROOT_${bootname}`], rpios_rootfs)
   }
 
   await create_datafs(device, rpios_rootfs)
@@ -68,13 +68,13 @@ async function createPartitionTable(device) {
   // FIRMWARE X
   for (const bootname of bootnames) {
     partn++
-    await $`sgdisk --new=${partn}:0:+256M --typecode=${partn}:0700 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${"FIRMWARE " + bootname} ${device}`
+    await $`sgdisk --new=${partn}:0:+256M --typecode=${partn}:0700 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${"FIRMWARE_" + bootname} ${device}`
   }
 
   // ROOT X
   for (const bootname of bootnames) {
     partn++
-    await $`sgdisk --new=${partn}:0:+10G --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${"ROOT " + bootname} ${device}`
+    await $`sgdisk --new=${partn}:0:+10G --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${"ROOT_" + bootname} ${device}`
   }
 
   // "DATA"
@@ -92,7 +92,7 @@ async function createPartitionTable(device) {
 async function create_bootloaderfs({ partlabel, path }) {
   const mountpoint = await getMountPoint(partlabel)
   await $`wipefs -a ${path}`
-  await $`mkfs.vfat -F12 ${path} -n ${partlabel}`
+  await $`mkfs.vfat -F12 ${path} -n ROOT`
   await $`mount ${path} ${mountpoint}`
   await $`cp autoboot.ini ${join(mountpoint, "autoboot.txt")}`
 }
@@ -100,7 +100,7 @@ async function create_bootloaderfs({ partlabel, path }) {
 async function create_firmwarefs({ path, partlabel }, rpios_bootfs) {
   const mountpoint = await getMountPoint(partlabel)
   await $`wipefs -a ${path}`
-  await $`mkfs.vfat -F32 ${path} -n ${partlabel}`
+  await $`mkfs.vfat -F32 ${path} -n FIRMWARE`
   await $`mount ${path} ${mountpoint}`
 
   // We don't clone the block device because the source partition is smaller than the target partition
@@ -169,7 +169,7 @@ async function setup_machineid(partitions) {
   await writeFile(join(data, "machine-id"), stdout.trim())
 
   for (const bootname of bootnames) {
-    const root = partitions[`ROOT ${bootname}`].mountpoint
+    const root = partitions[`ROOT_${bootname}`].mountpoint
     await unlink(join(root, "/etc/machine-id"))
     await $`ln -s /data/machine-id ${join(root, "/etc/machine-id")}`
   }
@@ -187,7 +187,7 @@ async function setup_cloudinit(rpios_partitions, partitions) {
   // meta-data
   await copyFile(join(bootfs, "meta-data"), join(bootloader, "meta-data"))
   for (const bootname of bootnames) {
-    const mp = partitions[`FIRMWARE ${bootname}`].mountpoint
+    const mp = partitions[`FIRMWARE_${bootname}`].mountpoint
     await unlink(join(mp, "meta-data"))
   }
 
@@ -197,7 +197,7 @@ async function setup_cloudinit(rpios_partitions, partitions) {
     join(bootloader, "network-config"),
   )
   for (const bootname of bootnames) {
-    const mp = partitions[`FIRMWARE ${bootname}`].mountpoint
+    const mp = partitions[`FIRMWARE_${bootname}`].mountpoint
     await unlink(join(mp, "network-config"))
   }
 
@@ -207,7 +207,7 @@ async function setup_cloudinit(rpios_partitions, partitions) {
     join(bootloader, "user-data"),
   )
   for (const bootname of bootnames) {
-    const mp = partitions[`FIRMWARE ${bootname}`].mountpoint
+    const mp = partitions[`FIRMWARE_${bootname}`].mountpoint
     await unlink(join(mp, "user-data"))
   }
 
@@ -219,7 +219,7 @@ async function setup_cloudinit(rpios_partitions, partitions) {
     "seedfrom: file:///bootloader",
   )
   for (const bootname of bootnames) {
-    const mp = partitions[`ROOT ${bootname}`].mountpoint
+    const mp = partitions[`ROOT_${bootname}`].mountpoint
     await writeFile(join(mp, path_cfg), cfg)
   }
 }
@@ -232,14 +232,14 @@ async function setup_config(rpios_partitions, partitions) {
 
   let prefix = ""
   for (const bootname of bootnames) {
-    const part = partitions[`FIRMWARE ${bootname}`]
+    const part = partitions[`FIRMWARE_${bootname}`]
     prefix += `\n[boot_partition=${part.partn}]\ncmdline=cmdline-${bootname}.txt\n`
   }
 
   const config = prefix + `\n` + content
 
   for (const bootname of bootnames) {
-    const part = partitions[`FIRMWARE ${bootname}`]
+    const part = partitions[`FIRMWARE_${bootname}`]
     const path = join(part.mountpoint, "config.txt")
     await writeFile(path, config)
   }
@@ -273,7 +273,7 @@ async function setup_cmdline(rpios_partitions, partitions) {
   // generate a cmdline for each bootname
   const cmdlines = []
   for (const bootname of bootnames) {
-    const rootfs = partitions[`ROOT ${bootname}`]
+    const rootfs = partitions[`ROOT_${bootname}`]
     const clone = structuredClone(args)
     clone[root_idx] = `root=PARTUUID=${rootfs.partuuid}`
     cmdlines.push([`cmdline-${bootname}.txt`, clone.join(" ")])
@@ -282,7 +282,7 @@ async function setup_cmdline(rpios_partitions, partitions) {
   // write all cmdline files to all firmware partitions
   // see config.txt
   for (const bootname of bootnames) {
-    const firmware_mp = partitions[`FIRMWARE ${bootname}`].mountpoint
+    const firmware_mp = partitions[`FIRMWARE_${bootname}`].mountpoint
     for (const [file, content] of cmdlines) {
       await writeFile(join(firmware_mp, file), content)
     }
@@ -316,7 +316,7 @@ async function setup_fstab(partitions) {
   // tmpfs                     /var/log tmpfs defaults,nosuid,nodev,mode=0755 0 0`
 
   for (const bootname of bootnames) {
-    const path = join(partitions[`ROOT ${bootname}`].mountpoint, "etc/fstab")
+    const path = join(partitions[`ROOT_${bootname}`].mountpoint, "etc/fstab")
     await writeFile(path, fstab)
   }
 }
@@ -331,8 +331,8 @@ async function getPartitions(device) {
   assert.equal(Object.keys(partitions).length, bootnames.length * 2 + 2)
   assert.ok(partitions["BOOTLOADER"])
   for (const bootname of bootnames) {
-    assert.ok(partitions[`FIRMWARE ${bootname}`])
-    assert.ok(partitions[`ROOT ${bootname}`])
+    assert.ok(partitions[`FIRMWARE_${bootname}`])
+    assert.ok(partitions[`ROOT_${bootname}`])
   }
   assert.ok(partitions["DATA"])
   return partitions
@@ -350,10 +350,10 @@ async function setup_autoboot(partitions) {
   )
 
   const config = parse(content)
-  config.all.boot_partition = partitions[`FIRMWARE ${bootname_active}`].partn
+  config.all.boot_partition = partitions[`FIRMWARE_${bootname_active}`].partn
   if (bootname_fallback) {
     config.tryboot.boot_partition =
-      partitions[`FIRMWARE ${bootname_fallback}`].partn
+      partitions[`FIRMWARE_${bootname_fallback}`].partn
   }
 
   await writeFile(

@@ -1,5 +1,5 @@
 [update]
-compatible=PlanktoScope
+compatible=PlanktoScope,stable,rev1
 version=2026.04-testing
 
 [bundle]

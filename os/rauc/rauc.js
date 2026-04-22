@@ -97,7 +97,7 @@ export async function setup_system_conf() {
   conf.slot["ROOT"] ??= {}
   ;["A", "B"].forEach((bootname, idx) => {
     const part_firmware = partitions.find(
-      (part) => part.partlabel === `FIRMWARE ${bootname}`,
+      (part) => part.partlabel === `FIRMWARE_${bootname}`,
     )
     conf.slot["FIRMWARE"][idx] = {
       device: part_firmware.path,
@@ -106,7 +106,7 @@ export async function setup_system_conf() {
     }
 
     const part_root = partitions.find(
-      (part) => part.partlabel === `ROOT ${bootname}`,
+      (part) => part.partlabel === `ROOT_${bootname}`,
     )
     conf.slot["ROOT"][idx] = {
       bootname,
@@ -122,9 +122,11 @@ export async function createBundle(device, bootname) {
   const partitions = await getBlockDevices(device)
 
   const part_firmware = partitions.find(
-    (part) => part.label === `FIRMWARE ${bootname}`,
+    (part) => part.partlabel === `FIRMWARE_${bootname}`,
   )
-  const part_root = partitions.find((part) => part.label === `ROOT ${bootname}`)
+  const part_root = partitions.find(
+    (part) => part.partlabel === `ROOT_${bootname}`,
+  )
 
   await $`dd if=${part_firmware.path} of=temp-dir/FIRMWARE.vfat.img bs=64M`
 
