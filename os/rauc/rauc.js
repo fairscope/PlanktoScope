@@ -1,6 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises"
 
 import { parse, stringify } from "ini"
+import { $ } from "execa"
 
 import { getBootedDevice, getBlockDevices } from "../image/lib.js"
 import { getBootedPartition } from "../image/rpi.js"
@@ -115,6 +116,36 @@ export async function setup_system_conf() {
   await writeRaucSystemConf(conf)
 }
 
+export async function createBundle(device, bootname) {
+  const partitions = await getBlockDevices(device)
+
+  const part_firmware = partitions.find(
+    (part) => part.label === `FIRMWARE ${bootname}`,
+  )
+  const part_root = partitions.find((part) => part.label === `ROOT ${bootname}`)
+
+  await $`dd if=${part_firmware.path} of=temp-dir/FIRMWARE.vfat.img bs=64M`
+  await $`dd if=${part_root.path} of=temp-dir/ROOT.ext4.img bs=64M`
+  await $`rauc --cert demo.cert.pem --key demo.key.pem bundle temp-dir/ update-2015.04-1.raucb`
+}
+
 if (import.meta.main) {
-  await setup_system_conf()
+  const [, , command, ...args] = process.argv
+  if (command === "create-configuration") {
+    await setup_system_conf()
+  } else if (command === "create-bundle") {
+    const [device_path, bootname] = args
+    if (!device_path || !bootname) {
+      throw new Error("create-bundle /dev/device A|B")
+    }
+    const booted_slot = await getBootedSlot()
+    if (device_path === device && bootname === booted_slot) {
+      throw new Error(
+        `Cannot create a bundle for live ${device} ${bootname} slot.`,
+      )
+    }
+    await createBundle(device_path, bootname)
+  } else {
+    throw new Error(`Unknwon command "${command}".`)
+  }
 }

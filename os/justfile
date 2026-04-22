@@ -10,6 +10,7 @@ setup:
     just --justfile mosquitto/justfile    setup
     just --justfile raspberry/justfile    setup
     just --justfile mediamtx/justfile     setup
+    just --justfile rauc/justfile     setup
 
 setup-dev:
     sudo apt install -y shellcheck
