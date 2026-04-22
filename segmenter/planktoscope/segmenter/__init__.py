@@ -782,6 +782,8 @@ class SegmenterProcess(multiprocessing.Process):
                             f"{result['object_count']} objects in "
                             f"{result['duration']:.1f}s"
                         )
+                except SegmentationInterrupted:
+                    raise
                 except Exception as e:
                     completed += 1
                     errors.append({"image_name": filename, "error": str(e)})
