@@ -773,8 +773,8 @@ class SegmenterProcess(multiprocessing.Process):
                             "status/segmenter",
                             json.dumps(
                                 {
-                                    "status": f"Segmented image {filename}, "
-                                    f"{completed}/{images_count} complete, "
+                                    "status": f"Segmenting image {completed}/{images_count}: "
+                                    f"{filename}, "
                                     f"{result['object_count']} objects in "
                                     f"{result['duration']:.1f}s"
                                 }
