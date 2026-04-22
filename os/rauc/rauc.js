@@ -6,7 +6,7 @@ import { $ } from "execa"
 import { getBootedDevice, getBlockDevices } from "../image/lib.js"
 import { getBootedPartition } from "../image/rpi.js"
 
-export const device = await getBootedDevice()
+const device = await getBootedDevice()
 
 export async function getBootedSlot() {
   const booted_partition_number = await getBootedPartition()

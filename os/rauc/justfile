@@ -7,8 +7,6 @@ setup:
     npm ci --omit=dev
     sudo mkdir -p /etc/rauc
     sudo node rauc.js create-configuration
-    sudo systemctl reenable rauc
-    sudo systemctl restart rauc
 
 setup-dev:
     npm install --include=dev
