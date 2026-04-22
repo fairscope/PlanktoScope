@@ -5,7 +5,7 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-date=2025-12-04 # sync with setup.sh date
+date=2026-04-21 # sync with setup.sh date
 file=${date}-raspios-trixie-arm64-lite.img.xz
 url=https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-${date}/${file}
 device=$1

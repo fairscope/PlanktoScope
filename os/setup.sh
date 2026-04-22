@@ -4,7 +4,7 @@
 # It is meant to be run on a specific Raspberry OS Pi OS standard installation.
 
 line=$(head -n 1 /etc/rpi-issue)
-reference="2025-12-04"
+reference="2026-04-21"
 expected="Raspberry Pi reference $reference"
 
 if [ "$line" != "$expected" ]; then
