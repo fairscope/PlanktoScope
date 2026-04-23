@@ -31,6 +31,7 @@ dev = [
     "mypy>=1.18.2,<2",
     "types-paho-mqtt>=1.6.0.20240106,<2",
     "ruff>=0.13.3,<0.14",
+    "pytest>=8.0,<9",
 ]
 
 [tool.uv]
@@ -67,4 +68,5 @@ lint-mypy = "mypy ."
 lint-ruff = "ruff check"
 lint = ["lint-ruff"]
 fmt-check = "ruff format --check"
-check = ["fmt-check", "lint"]
+test = "pytest tests/"
+check = ["fmt-check", "lint", "test"]

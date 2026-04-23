@@ -1,5 +1,10 @@
 #!/bin/bash -eux
 
+if [ "$EUID" -ne 0 ]; then
+    echo "Please run as root"
+    exit 1
+fi
+
 date=2025-12-04 # sync with setup.sh date
 file=${date}-raspios-trixie-arm64-lite.img.xz
 url=https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-${date}/${file}
@@ -29,18 +34,23 @@ echo 'label: dos' | sfdisk "$device"
 # rpi-imager is also a thing worth considering; rpi-imager --cli
 xzcat "$file" | dd bs=1M of="$device" status=progress conv=fdatasync
 
-sudo partprobe "$device"
+partprobe "$device"
 
 # find first partition
 boot_partition=$(lsblk -ln -o NAME "$device" | sed -n '2p')
 
+# create temporary mountpoint folder
+mountpoint=$(mktemp -d)
+
 # mount boot partition
-mount /dev/"${boot_partition}" /mnt
+mount /dev/"${boot_partition}" "$mountpoint"
 
 # configure
-cp user-data.yaml /mnt/user-data
+cp user-data.yaml "${mountpoint}"/user-data
 
 # unmount boot partition
 umount /dev/"${boot_partition}"
+
+rm "$mountpoint"
 
 echo "✅ Disk is ready."

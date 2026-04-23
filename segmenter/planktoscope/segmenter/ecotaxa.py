@@ -270,9 +270,10 @@ def ecotaxa_export(archive_filepath, metadata, image_base_path, keep_files=False
 
         tsv_content = buf.getvalue()
 
-        # create the filename with the acquisition ID
-        acquisition_id = metadata.get("acq_id", "unknown").replace(" ", "_")
-        tsv_filename = f"ecotaxa_{acquisition_id}.tsv"
+        # create the filename with project name and acquisition ID
+        project = metadata.get("sample_project", "unknown_project").replace(" ", "_")
+        acquisition_id = metadata.get("acq_id", "unknown_acq").replace(" ", "_")
+        tsv_filename = f"Ecotaxa_{project}_{acquisition_id}.tsv"
 
         # add the tsv to the archive
         archive.writestr(tsv_filename, tsv_content.encode("utf-8"))
