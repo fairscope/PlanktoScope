@@ -18,22 +18,22 @@ update:
     just
 
 setup:
+    just --justfile lib/justfile           setup
     just --justfile node-red/justfile      setup
     just --justfile controller/justfile    setup
     just --justfile segmenter/justfile     setup
     just --justfile os/justfile            setup
     just --justfile documentation/justfile setup
-    just --justfile lib/justfile           setup
     just --justfile backend/justfile       setup
     just --justfile frontend/justfile      setup
 
 setup-dev:
+    just --justfile lib/justfile           setup-dev
     just --justfile node-red/justfile      setup-dev
     just --justfile controller/justfile    setup-dev
     just --justfile segmenter/justfile     setup-dev
     just --justfile os/justfile            setup-dev
     just --justfile documentation/justfile setup-dev
-    just --justfile lib/justfile           setup-dev
     just --justfile backend/justfile       setup-dev
     just --justfile frontend/justfile      setup-dev
     ./os/developer-mode/install-actionlint.sh
@@ -44,12 +44,12 @@ format:
 
 test:
     find . -type f -name 'justfile' -exec just --fmt --check --unstable --justfile {} ';'
+    just --justfile lib/justfile           test
     just --justfile node-red/justfile      test
     just --justfile controller/justfile    test
     just --justfile segmenter/justfile     test
     just --justfile os/justfile            test
     just --justfile documentation/justfile test
-    just --justfile lib/justfile           test
     just --justfile backend/justfile       test
     just --justfile frontend/justfile      test
     actionlint --shellcheck="" # TODO: Enable shelcheck for actionlint
