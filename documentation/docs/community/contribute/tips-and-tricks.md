@@ -20,19 +20,7 @@ You can use `Raspberry Pi Imager` (v2) -> `OS` -> `Use custom`
 1. Wait for the image to be written
 2. Re-insert the SDCard
 3. Open the `bootfs` partition
-4. Replace the content of the file `user-data` with:
-
-```yaml
-#cloud-config
-
-users:
-  - name: pi
-    plain_text_passwd: copepode
-    lock_passwd: false
-
-ssh_pwauth: true
-enable_ssh: true
-```
+4. Replace the content of the file `user-data` with [this](/os/image/user-data.yaml)
 
 Then boot into Raspberry Pi OS and type the following commands using SSH
 
