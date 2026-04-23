@@ -51,11 +51,9 @@ Find its IP address using your router dashboard or `nmap 123 192.168.1.0/24`.
 ```sh
 ssh pi@192.168.1.xxx
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/fairscope/PlanktoScope/HEAD/os/setup.sh)"
-# After the script ran succesfully
-sudo poweroff
 ```
 
-Congratulations, slot A is running PlanktoScope OS.
+Congratulations, the slot is running PlanktoScope OS.
 
 ## How does it work
 
