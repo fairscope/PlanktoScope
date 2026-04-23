@@ -504,6 +504,21 @@ class SegmenterProcess(multiprocessing.Process):
             if threshold_value is not None:
                 metadata["threshold"] = threshold_value
 
+            # External contour polygon in full-frame pixel coords, for the audit
+            # visualizer. Compact JSON list of [x, y] points; consumers can parse
+            # it with JSON.parse.
+            obj_contours, _ = cv2.findContours(
+                np.uint8(region.filled_image),
+                mode=cv2.RETR_EXTERNAL,
+                method=cv2.CHAIN_APPROX_SIMPLE,
+            )
+            if obj_contours:
+                min_row, min_col = region.bbox[0], region.bbox[1]
+                poly = obj_contours[0].reshape(-1, 2)
+                metadata["contour"] = json.dumps(
+                    [[int(p[0] + min_col), int(p[1] + min_row)] for p in poly]
+                )
+
             # Second extract to get a bigger image for saving
             obj_image = img[__augment_slice(region.slice, labels.shape, 10)]
             object_id = f"{name}_{i}"
