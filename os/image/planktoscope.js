@@ -92,7 +92,7 @@ async function createPartitionTable(device) {
 async function create_bootloaderfs({ partlabel, path }) {
   const mountpoint = await getMountPoint(partlabel)
   await $`wipefs -a ${path}`
-  await $`mkfs.vfat -F12 ${path} -n ROOT`
+  await $`mkfs.vfat -F12 ${path}`
   await $`mount ${path} ${mountpoint}`
   await $`cp autoboot.ini ${join(mountpoint, "autoboot.txt")}`
 }
@@ -100,7 +100,7 @@ async function create_bootloaderfs({ partlabel, path }) {
 async function create_firmwarefs({ path, partlabel }, rpios_bootfs) {
   const mountpoint = await getMountPoint(partlabel)
   await $`wipefs -a ${path}`
-  await $`mkfs.vfat -F32 ${path} -n FIRMWARE`
+  await $`mkfs.vfat -F32 ${path}`
   await $`mount ${path} ${mountpoint}`
 
   // We don't clone the block device because the source partition is smaller than the target partition
@@ -114,7 +114,7 @@ async function create_firmwarefs({ path, partlabel }, rpios_bootfs) {
 async function create_rootfs({ path, partlabel }, rpios_rootfs) {
   const mountpoint = await getMountPoint(partlabel)
   await $`wipefs -a ${path}`
-  await $`mkfs.ext4 -q -L ${partlabel} ${path}`
+  await $`mkfs.ext4 -q ${path}`
   await $`mount ${path} ${mountpoint}`
 
   // We don't clone the block device because rsync is faster than dd, e2image or partclone.
@@ -146,7 +146,7 @@ async function create_datafs(device, rootfs) {
   const { path, partlabel } = partitions["DATA"]
   const mountpoint = await getMountPoint(partlabel)
   await $`wipefs -a ${path}`
-  await $`mkfs.ext4 -q -L ${partlabel} ${path}`
+  await $`mkfs.ext4 -q ${path}`
   await $`mount ${path} ${mountpoint}`
 
   // /data/home
@@ -218,14 +218,21 @@ async function setup_cloudinit(rpios_partitions, partitions) {
     await writeFile(join(mp, path_cfg), cfg)
   }
 
-  const override_dir = "/etc/systemd/system/cloud-init-local.service.d/"
-  await mkdir(override_dir, {
-    recursive: true,
-  })
-  await copyFile(
-    new URL("./cloud-init-local-override.ini", import.meta.url),
-    join(override_dir, "override.conf"),
-  )
+  // make sure cloud-init-local runs after /bootloader is mounted
+  for (const bootname of bootnames) {
+    const mp = partitions[`ROOT_${bootname}`].mountpoint
+    const override_dir = join(
+      mp,
+      "/etc/systemd/system/cloud-init-local.service.d/",
+    )
+    await mkdir(override_dir, {
+      recursive: true,
+    })
+    await copyFile(
+      new URL("./cloud-init-local-override.ini", import.meta.url),
+      join(override_dir, "override.conf"),
+    )
+  }
 }
 
 async function setup_config(rpios_partitions, partitions) {
