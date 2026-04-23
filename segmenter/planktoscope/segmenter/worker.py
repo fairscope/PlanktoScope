@@ -75,9 +75,7 @@ def process_single_image(
             raise FileNotFoundError(f"Could not read image: {image_filepath}")
         image = image / _flat_array
         image[0][0] = [0, 0, 0]
-        image = skimage.exposure.rescale_intensity(
-            image, in_range=(0, 1.04), out_range="uint8"
-        )
+        image = skimage.exposure.rescale_intensity(image, in_range=(0, 1.04), out_range="uint8")
 
         if save_debug_img:
             _save_image(image, os.path.join(working_debug_path, "cleaned_image.jpg"))
@@ -98,14 +96,11 @@ def process_single_image(
         )
 
         # 4. Write objects metadata to disk incrementally
-        planktoscope.segmenter.streamer.write_image_objects(
-            metadata_dir, image_name, objects
-        )
+        planktoscope.segmenter.streamer.write_image_objects(metadata_dir, image_name, objects)
 
         duration = time.monotonic() - start
         logger.info(
-            f"Worker {os.getpid()}: {image_name} done — "
-            f"{object_count} objects in {duration:.1f}s"
+            f"Worker {os.getpid()}: {image_name} done — {object_count} objects in {duration:.1f}s"
         )
         return {
             "image_name": image_name,
@@ -155,9 +150,7 @@ def _create_mask(img, debug_path: str, save_debug: bool):
     for i, (name, func) in enumerate(pipeline):
         mask = func(mask)
         if save_debug and debug_path:
-            PIL.Image.fromarray(mask).save(
-                os.path.join(debug_path, f"mask_{i}_{name}.jpg")
-            )
+            PIL.Image.fromarray(mask).save(os.path.join(debug_path, f"mask_{i}_{name}.jpg"))
 
     logger.success("Mask created")
     return mask
@@ -313,8 +306,7 @@ def _slice_image(
             f"No valid process_pixel calibration — using min ESD of {min_esd_pixels} as pixels"
         )
     logger.debug(
-        f"Min ESD filter: {min_ESD} µm = {min_esd_pixels:.1f} px "
-        f"(process_pixel={pixel_size})"
+        f"Min ESD filter: {min_ESD} µm = {min_esd_pixels:.1f} px (process_pixel={pixel_size})"
     )
 
     filtered = [r for r in regionprops if r.equivalent_diameter_area >= min_esd_pixels]
@@ -336,9 +328,7 @@ def _slice_image(
         metadata = _extract_metadata_from_regionprop(region, pixel_size_um=pixel_size_um)
 
         # Blur metric
-        metadata["blur_laplacian"] = planktoscope.segmenter.operations.calculate_blur(
-            obj_image
-        )
+        metadata["blur_laplacian"] = planktoscope.segmenter.operations.calculate_blur(obj_image)
 
         # Threshold value (each worker has its own process-local global)
         threshold_value = planktoscope.segmenter.operations.get_last_threshold_value()

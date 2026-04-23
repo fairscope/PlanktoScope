@@ -71,8 +71,7 @@ def prepare_test_folder(source_path, work_dir):
     for f in os.listdir(source_path):
         src = os.path.join(source_path, f)
         if os.path.isfile(src) and (
-            f.endswith((".jpg", ".JPG", ".jpeg", ".JPEG"))
-            or f == "metadata.json"
+            f.endswith((".jpg", ".JPG", ".jpeg", ".JPEG")) or f == "metadata.json"
         ):
             shutil.copy2(src, os.path.join(work_dir, f))
 
@@ -86,10 +85,7 @@ def prepare_test_folder(source_path, work_dir):
 
 def count_images(path):
     """Count JPG images in a directory."""
-    return len([
-        f for f in os.listdir(path)
-        if f.lower().endswith((".jpg", ".jpeg"))
-    ])
+    return len([f for f in os.listdir(path) if f.lower().endswith((".jpg", ".jpeg"))])
 
 
 def run_segmentation(data_path, acq_path, worker_count=None):
@@ -129,6 +125,7 @@ def run_segmentation(data_path, acq_path, worker_count=None):
 
     # Set up state that segment_list() normally initializes before calling segment_path()
     from uuid import uuid4
+
     seg._SegmenterProcess__process_uuid = str(uuid4())
     if seg._SegmenterProcess__process_id == "":
         seg._SegmenterProcess__process_id = seg._SegmenterProcess__process_uuid
@@ -152,6 +149,7 @@ def run_segmentation(data_path, acq_path, worker_count=None):
     obj_path = seg._SegmenterProcess__working_obj_path
     archive_path = seg._SegmenterProcess__archive_fn
     import planktoscope.segmenter.ecotaxa
+
     archive_dir = os.path.dirname(archive_path)
     os.makedirs(archive_dir, exist_ok=True)
     planktoscope.segmenter.ecotaxa.ecotaxa_export(
@@ -162,7 +160,11 @@ def run_segmentation(data_path, acq_path, worker_count=None):
     )
 
     # Count output files
-    obj_images = len([f for f in os.listdir(obj_path) if f.endswith(".jpg")]) if os.path.exists(obj_path) else 0
+    obj_images = (
+        len([f for f in os.listdir(obj_path) if f.endswith(".jpg")])
+        if os.path.exists(obj_path)
+        else 0
+    )
 
     # Check for ecotaxa archive
     archive_exists = os.path.exists(archive_path)
@@ -190,8 +192,7 @@ def validate_against_reference(result, ref_path):
     # Compare object counts
     if result["object_count"] != ref["object_count"]:
         issues.append(
-            f"Object count mismatch: got {result['object_count']}, "
-            f"expected {ref['object_count']}"
+            f"Object count mismatch: got {result['object_count']}, expected {ref['object_count']}"
         )
 
     # Compare object names (deterministic order check)
@@ -201,7 +202,9 @@ def validate_against_reference(result, ref_path):
         missing = set(ref_names) - set(result_names)
         extra = set(result_names) - set(ref_names)
         if missing:
-            issues.append(f"Missing objects: {sorted(missing)[:10]}{'...' if len(missing) > 10 else ''}")
+            issues.append(
+                f"Missing objects: {sorted(missing)[:10]}{'...' if len(missing) > 10 else ''}"
+            )
         if extra:
             issues.append(f"Extra objects: {sorted(extra)[:10]}{'...' if len(extra) > 10 else ''}")
 
@@ -209,9 +212,7 @@ def validate_against_reference(result, ref_path):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Benchmark PlanktoScope segmenter performance"
-    )
+    parser = argparse.ArgumentParser(description="Benchmark PlanktoScope segmenter performance")
     parser.add_argument(
         "acquisition_path",
         help="Path to acquisition folder (must contain metadata.json + images)",
@@ -262,10 +263,15 @@ def main():
     # Detect branch
     try:
         import subprocess
-        branch = subprocess.check_output(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            stderr=subprocess.DEVNULL,
-        ).decode().strip()
+
+        branch = (
+            subprocess.check_output(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                stderr=subprocess.DEVNULL,
+            )
+            .decode()
+            .strip()
+        )
     except Exception:
         branch = "unknown"
 
@@ -313,12 +319,19 @@ def main():
             if result["archive_exists"]:
                 print(f"  Archive size:     {result['archive_size_mb']} MB")
             print(f"  Peak RSS:         {result['peak_rss_mb']} MB")
-            imgs_per_sec = image_count / result["elapsed_seconds"] if result["elapsed_seconds"] > 0 else 0
-            objs_per_sec = result["object_count"] / result["elapsed_seconds"] if result["elapsed_seconds"] > 0 else 0
+            imgs_per_sec = (
+                image_count / result["elapsed_seconds"] if result["elapsed_seconds"] > 0 else 0
+            )
+            objs_per_sec = (
+                result["object_count"] / result["elapsed_seconds"]
+                if result["elapsed_seconds"] > 0
+                else 0
+            )
             print(f"  Throughput:       {imgs_per_sec:.2f} images/s, {objs_per_sec:.1f} objects/s")
         except Exception as e:
             print(f"  ERROR: {e}")
             import traceback
+
             traceback.print_exc()
             all_results.append({"error": str(e)})
         finally:

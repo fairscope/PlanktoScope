@@ -61,6 +61,7 @@ logger.info("planktoscope.segmenter is loaded")
 ################################################################################
 class SegmentationInterrupted(Exception):
     """Raised when a user requests stop during an active segmentation pipeline."""
+
     pass
 
 
@@ -612,9 +613,7 @@ class SegmenterProcess(multiprocessing.Process):
             logger.debug(f"We found {images_count} images, good luck!")
 
         # Calculate initial flat field
-        self.segmenter_client.client.publish(
-            "status/segmenter", '{"status":"Calculating flat"}'
-        )
+        self.segmenter_client.client.publish("status/segmenter", '{"status":"Calculating flat"}')
         if images_count < 10:
             self._calculate_flat(images_list[0:images_count], images_count, self.__working_path)
         else:
@@ -638,31 +637,22 @@ class SegmenterProcess(multiprocessing.Process):
             if use_parallel:
                 # Create shared memory for the flat field array
                 import multiprocessing.shared_memory
+
                 flat_bytes = self.__flat.nbytes
-                shm = multiprocessing.shared_memory.SharedMemory(
-                    create=True, size=flat_bytes
-                )
-                flat_shared = np.ndarray(
-                    self.__flat.shape, dtype=self.__flat.dtype, buffer=shm.buf
-                )
+                shm = multiprocessing.shared_memory.SharedMemory(create=True, size=flat_bytes)
+                flat_shared = np.ndarray(self.__flat.shape, dtype=self.__flat.dtype, buffer=shm.buf)
                 flat_shared[:] = self.__flat[:]
 
                 try:
-                    self._pipe_parallel(
-                        images_list, images_count, shm.name, metadata_dir
-                    )
+                    self._pipe_parallel(images_list, images_count, shm.name, metadata_dir)
                 except SegmentationInterrupted:
                     raise  # Do not fall back to sequential on user stop
                 except Exception as e:
-                    logger.error(
-                        f"Parallel segmentation failed, falling back to sequential: {e}"
-                    )
+                    logger.error(f"Parallel segmentation failed, falling back to sequential: {e}")
                     self._pipe_sequential(images_list, images_count, metadata_dir)
             else:
                 if self.__remove_previous_mask and self.__worker_count > 1:
-                    logger.info(
-                        "remove_previous_mask is enabled — using sequential processing"
-                    )
+                    logger.info("remove_previous_mask is enabled — using sequential processing")
                 self._pipe_sequential(images_list, images_count, metadata_dir)
 
             # Assemble all objects from .jsonl files in image order
@@ -680,6 +670,7 @@ class SegmenterProcess(multiprocessing.Process):
                 shm.unlink()
             # Cleanup temp metadata dir
             import shutil
+
             shutil.rmtree(metadata_dir, ignore_errors=True)
 
         if ecotaxa_export:
@@ -726,11 +717,7 @@ class SegmenterProcess(multiprocessing.Process):
 
             # Build a serializable copy of metadata for workers
             # (excludes non-serializable items, keeps process_pixel etc.)
-            worker_metadata = {
-                k: v
-                for k, v in self.__global_metadata.items()
-                if k != "objects"
-            }
+            worker_metadata = {k: v for k, v in self.__global_metadata.items() if k != "objects"}
 
             futures = []
             for i, filename in enumerate(images_list):
@@ -765,9 +752,7 @@ class SegmenterProcess(multiprocessing.Process):
                         raise SegmentationInterrupted("User requested stop")
                     if "error" in result:
                         errors.append(result)
-                        logger.error(
-                            f"Worker error for {result['image_name']}: {result['error']}"
-                        )
+                        logger.error(f"Worker error for {result['image_name']}: {result['error']}")
                     else:
                         self.segmenter_client.client.publish(
                             "status/segmenter",
@@ -870,9 +855,7 @@ class SegmenterProcess(multiprocessing.Process):
             objects_count, _, objects_list = self._slice_image(img, name, mask, total_objects)
 
             # Stream objects to disk incrementally
-            planktoscope.segmenter.streamer.write_image_objects(
-                metadata_dir, name, objects_list
-            )
+            planktoscope.segmenter.streamer.write_image_objects(metadata_dir, name, objects_list)
 
             total_objects += objects_count
             # Simple heuristic to detect a movement of the flow cell and a change in the resulting flat
