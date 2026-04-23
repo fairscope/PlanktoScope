@@ -4,9 +4,12 @@ This folder contains scripts and documentation to build the PlanktoScope OS imag
 
 The scripts should work on standard Linux installations, in case of doubt use Raspberry Pi OS.
 
-Make sure to run `just` first.
 
-## How does it work
+
+
+## How to use
+
+### Bootstrap Raspberry Pi OS
 
 This creates a disk with an A/B partition scheme bootstrapped with Raspberry Pi OS.
 
@@ -16,63 +19,30 @@ Tested with:
 - SD card (`/dev/mmcblk0`)
 - NVMe `/dev/nvme0n1`)
 
-The partition table is as such:
-
-| PATH                    | PARTLABEL  | MOUNTPOINT  | FSTYPE | FSSIZE              |
-| ----------------------- | ---------- | ----------- | ------ | ------------------- |
-| /dev/`${device_node}`p1 | BOOTLOADER | /bootloader | vfat   | 8M                  |
-| /dev/`${device_node}`p2 | FIRMWARE_A |             | vfat   | 256M                |
-| /dev/`${device_node}`p3 | FIRMWARE_B |             | vfat   | 256M                |
-| /dev/`${device_node}`p4 | ROOT_A     |             | ext4   | 10G                 |
-| /dev/`${device_node}`p5 | ROOT_B     |             | ext4   | 10G                 |
-| /dev/`${device_node}`p6 | DATA       | /data       | ext4   | rest of avail space |
-
-The following documentation assumes you are familiar with the traditional Raspberry Pi OS partitioning (`bootfs` and `rootfs`) and boot flow.
-
----
-
-`BOOTLOADER` only contains [`autoboot.txt`](https://www.raspberrypi.com/documentation/computers/config_txt.html#autoboot-txt) (to specify boot partition) and [cloud-init configuration files](https://www.raspberrypi.com/news/cloud-init-on-raspberry-pi-os/) which normally live in `bootfs`.
-
----
-
-`FIRMWARE_A` and `FIRMWARE_B` are equivalent to RPI OS `bootfs`. `cmdline.txt` is replaced with `cmdline-A.txt` and `cmdline-B.txt`. `config.txt` is updated to choose the appropriate cmdline file based on the boot partition. They are only needed by the Raspberry Pi firmware and as such, they are not mounted after boot.
-
----
-
-`ROOT_A` and `ROOT_B` are equivalent to RPI OS `rootfs` with minor changes:
-
-- Update cloud-init to read configuration from `BOOTLOADER`
-- A/B compatible `/etc/fstab`
-- 
-
----
-
-The A/B boot flow of the Raspberry Pi is unfortunaly not well documented at the time of writing this so we'll explain in detail here what happens.
-
-The Raspberry Pi powers on.
-It checks for the file
-
-`BOOTLOADER` contains the partition
-
-Each bootname (A and B) contains a `firmware` and a `root` slot
-
-## Flash Raspberry Pi OS
-
-⚠️ Make sure to replace /dev/device with the correct path
-
 ```sh
-cd image
-sudo ./make-raspios-disk.sh /dev/device
+cd PlanktoScope/os/image
+just
+# List disk devices and copy approrpriate "PATH"
+lsblk -d -o +path,ID,model
+# Run the script ⚠️ it will erase everything on the device
+sudo NODE_DEBUG=execa ./make-disk.js <PATH>
 ```
 
-This is a CLI equivalent of using RPI Imager.
 
-- Erases the disk
-- Writes Raspberry Pi OS to the disk
-- Sets `pi:copepode` as default username/password
-- Enables password authentication SSH
+You know should have a device with the partition table documented below.
 
-## Run the setup script
+username/password is `pi:copepode`
+hostname is `raspberrypi`
+
+Both slots are bootable and contain a Raspberry Pi OS operating system. You can switch between them using
+
+* slot A: `sudo reboot 2`
+* slot B: `sudo reboot 3`
+* [tryboot](https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#fail-safe-os-updates-tryboot): `sudo reboot '0 tryboot'`
+
+To change the boot partition permanently update `/bootloader/autoboot.txt`. See below how to remount `/bootloader` readwrite.
+
+### Installing PlanktoScope software
 
 Boot the PlanktoScope into the newly flashed disk and connect Ethernet.
 
@@ -85,13 +55,78 @@ ssh pi@192.168.1.xxx
 sudo poweroff
 ```
 
-## Create the image
+Congratulations, slot A is running PlanktoScope OS.
 
-Plug the disk into your computer and run
+## How does it work
+
+### Partition table
+
+The partition table is as such:
+
+| device path             | partlabel  | mountpoint when A | mountpoint when B | type | size                |
+| ----------------------- | ---------- | ----------------- | ----------------- | ---- | ------------------- |
+| /dev/`${device_node}`p1 | BOOTLOADER | /bootloader       | /bootloader       | vfat | 8M                  |
+| /dev/`${device_node}`p2 | FIRMWARE_A |                   |                   | vfat | 256M                |
+| /dev/`${device_node}`p3 | FIRMWARE_B |                   |                   | vfat | 256M                |
+| /dev/`${device_node}`p4 | ROOT_A     | /                 |                   | ext4 | 10G                 |
+| /dev/`${device_node}`p5 | ROOT_B     |                   | /                 | ext4 | 10G                 |
+| /dev/`${device_node}`p6 | DATA       | /data             | /data             | ext4 | rest of avail space |
+
+The following documentation assumes you are familiar with the traditional Raspberry Pi OS partitions (`bootfs`/`rootfs`) and boot flow.
+
+---
+
+`BOOTLOADER` only contains [`autoboot.txt`](https://www.raspberrypi.com/documentation/computers/config_txt.html#autoboot-txt) (to specify boot partition) and [cloud-init configuration files](https://www.raspberrypi.com/news/cloud-init-on-raspberry-pi-os/) which normally live in `bootfs`.
+
+For safety reasons it is mounted readonly. You can edit files with
 
 ```sh
-cd image
-sudo ./make-planktoscope-disk.sh /dev/device pkos
+# remount readwrite
+sudo mount -o remount,rw /bootloader
+# update files
+sudo nano /bootloader/autoboot.txt
+# remount readonly
+sudo mount -o remound,ro /bootloader
 ```
 
-This will create a file pkos.img.xz which you can rename and upload.
+---
+
+`FIRMWARE_A` and `FIRMWARE_B` are equivalent to RPI OS `bootfs`. `cmdline.txt` is replaced with `cmdline-A.txt` and `cmdline-B.txt`. `config.txt` is updated to choose the appropriate cmdline file based on the boot partition.
+
+They are only needed by the Raspberry Pi firmware and as such, they are not mounted after boot.
+
+Note that `FIRMWARE X` is not mounted. `/etc/fstab` must be the sames on both `A` and `B` so we cannot use it, instead if would have to be mounted dynamically. Doable but unecesary with image based updates.
+
+However if you wish to use `raspi-config` for hardware enablements or running apt updates, you may need to mount it manually to `/boot/firmware`.
+
+---
+
+`ROOT_A` and `ROOT_B` are equivalent to RPI OS `rootfs` with minor changes:
+
+- Update cloud-init to read configuration from `BOOTLOADER`
+- A/B compatible `/etc/fstab`
+- `/etc/machine-id` is a symlink to `/data/machine-id`
+
+---
+
+`DATA` is a partition shared between A and B.
+
+It includes contains `/home` and `machine-id` and anything else that needs to be shared between `A` and `B`.
+
+---
+
+### Bootflow
+
+Unfortunaly the Raspberry Pi bootflow we use is poorly/sparsly documented but you can ready about it [here](https://waldorf.waveform.org.uk/2025/pull-yourself-up-by-your-bootstraps.html#full-abs), [here](https://www.raspberrypi.com/documentation/computers/config_txt.html#autoboot-txt) and [here](https://bootlin.com/blog/safe-updates-using-rauc-on-raspberry-pi-5/).
+
+Here is a simplified "high level" sequence of what happens:
+
+0. Raspberry Pi powers on
+1. EEPROM bootloader opens the first partition `BOOTLOADER` and reads `autoboot.txt`
+2. Firmware (GPU) initializes with the partition `FIRMWARE_A|B` defined in `autoboot.txt` (boot or tryboot depending on the state flag)
+3. The firmware opens the partition and reads `config.txt` which tells it which `cmdline-A|B.txt` file to use
+4. It initializes the Linux kernel using the cmdline arguments and mounts the given `ROOT_A|B` partition
+5. systemd reads `/etc/fstab` and mounts accordingly
+   - `BOOTLOADER` to `/bootloader` - readonly
+   - `DATA` to `/data` - readwrite
+   - `DATA/home` to `/home`
