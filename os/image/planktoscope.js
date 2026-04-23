@@ -222,8 +222,8 @@ async function setup_cloudinit(rpios_partitions, partitions) {
   await mkdir(override_dir, {
     recursive: true,
   })
-  await cp(
-    new URL("./cloud-init-local-override.ini", import.meta.resolve),
+  await copyFile(
+    new URL("./cloud-init-local-override.ini", import.meta.url),
     join(override_dir, "override.conf"),
   )
 }

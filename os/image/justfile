@@ -12,3 +12,4 @@ test:
     sudo cloud-init schema -c user-data.yaml --annotate
     validator user-data.yaml
     validator autoboot.ini
+    validator cloud-init-local-override.ini
