@@ -3,6 +3,7 @@
 import os
 import typing
 
+import libcamera  # type: ignore
 import loguru
 import picamera2  # type: ignore
 from picamera2 import encoders, outputs
@@ -278,11 +279,17 @@ class PiCamera:
             lores_config["size"] = lores_size
         # Note(ethanjli): we use the `create_still_configuration` to get the best defaults for still
         # images from the "main" stream:
+        # Request BT.601 limited-range YUV (Smpte170m) for the lores stream so that the H.264
+        # encoder's default color_range tag (limited) matches the pixel data. Without this, the
+        # ISP delivers full-range sYCC YUV but the H.264 VUI advertises limited range, causing
+        # browser/RTSP decoders to re-expand the values and display the preview ~5% brighter than
+        # the saved JPEG. See docs/preview_luminance_fix/README.md.
         config = self._camera.create_still_configuration(
             main_config,
             lores_config,
             buffer_count=self._stream_config.buffer_count,
             queue=self._stream_config.queue,
+            colour_space=libcamera.ColorSpace.Smpte170m(),
         )
         loguru.logger.debug(f"Camera configuration: {config}")
         self._camera.configure(config)
