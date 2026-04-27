@@ -870,7 +870,7 @@ class SegmenterProcess(multiprocessing.Process):
         self.__archive_fn = os.path.join(
             self.__ecotaxa_path,
             # TODO #102 sanitize the filename to remove potential problems with spaces and special characters
-            f"Ecotaxa_{project}_{acquisition}.zip",
+            f"Ecotaxa_{sample}_{acquisition}.zip",
         )
 
         self.__working_path = path
