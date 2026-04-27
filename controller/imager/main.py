@@ -1,5 +1,6 @@
 """mqtt provides an MQTT worker to perform stop-flow image acquisition."""
 
+import base64
 import datetime
 import json
 import os
@@ -16,6 +17,26 @@ from imager.camera.hardware import ISO_CALIBRATION
 
 from . import stopflow
 from .camera import mqtt as camera
+
+HAT_CUSTOM_DATA_PATH = "/proc/device-tree/hat/custom_0"
+
+
+def _read_hat_serial_number() -> typing.Optional[str]:
+    """Read the FairScope HAT serial number from the HAT EEPROM.
+
+    The Raspberry Pi exposes HAT EEPROM custom data under /proc/device-tree/hat as a NUL-terminated
+    blob. FairScope HATs store a base64-encoded JSON object containing the serial_number key.
+    """
+    try:
+        with open(HAT_CUSTOM_DATA_PATH, "rb") as f:
+            blob = f.read().rstrip(b"\x00").strip()
+        if not blob:
+            return None
+        decoded = base64.b64decode(blob, validate=True)
+        serial = json.loads(decoded).get("serial_number")
+        return str(serial) if serial else None
+    except (OSError, ValueError, json.JSONDecodeError):
+        return None
 
 
 class Imager:
@@ -176,6 +197,8 @@ class Imager:
             "acq_uuid": str(uuid4()),
             "sample_uuid": str(uuid4()),
         }
+        if (serial_number := _read_hat_serial_number()) is not None:
+            metadata["acq_instrument_serial_number"] = serial_number
         # Resolve pixel size (µm/px) for the segmenter's unit conversion.
         # Node-RED resolves the correct value from the per-preset calibration
         # matrix and sends it as process_pixel.
