@@ -48,7 +48,7 @@ export async function writeAutoboot(autoboot) {
     await $`mount -o remount,rw ${filesystem.target}`
   }
   try {
-    await await writeFileAtomic(path_autoboot, content)
+    await writeFileAtomic(path_autoboot, content)
   } finally {
     if (read_only) {
       await $`mount -o remount,ro ${filesystem.target}`
@@ -62,7 +62,7 @@ export async function setTryBootFlag(bool) {
   await $`vcmailbox 0x00038064 4 0 ${bool ? "1" : "0"}`
 }
 
-export async function getBootedPartition() {
+export async function getBootedPartitionNumber() {
   const { stdout } =
     await $`fdtget /sys/firmware/fdt /chosen/bootloader partition`
   const n = Number(stdout.trim())

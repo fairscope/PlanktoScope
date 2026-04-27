@@ -30,8 +30,12 @@ export async function getMountPoint(name) {
   return mp
 }
 
+let _booted_device
 export async function getBootedDevice() {
-  const { stdout: source } = await $`findmnt -no SOURCE /`
-  const { stdout: pkname } = await $`lsblk -no PKNAME ${source.trim()}`
-  return `/dev/${pkname}`
+  if (!_booted_device) {
+    const { stdout: source } = await $`findmnt -no SOURCE /`
+    const { stdout: pkname } = await $`lsblk -no PKNAME ${source.trim()}`
+    _booted_device = `/dev/${pkname}`
+  }
+  return _booted_device
 }

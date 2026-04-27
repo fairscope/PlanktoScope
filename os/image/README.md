@@ -64,8 +64,8 @@ The partition table is as such:
 | device path             | partlabel  | mountpoint when A | mountpoint when B | type | size                |
 | ----------------------- | ---------- | ----------------- | ----------------- | ---- | ------------------- |
 | /dev/`${device_node}`p1 | BOOTLOADER | /bootloader       | /bootloader       | vfat | 8M                  |
-| /dev/`${device_node}`p2 | FIRMWARE_A |                   |                   | vfat | 256M                |
-| /dev/`${device_node}`p3 | FIRMWARE_B |                   |                   | vfat | 256M                |
+| /dev/`${device_node}`p2 | FIRMWARE_A | /boot/firmware    |                   | vfat | 256M                |
+| /dev/`${device_node}`p3 | FIRMWARE_B |                   | /boot/firmware    | vfat | 256M                |
 | /dev/`${device_node}`p4 | ROOT_A     | /                 |                   | ext4 | 10G                 |
 | /dev/`${device_node}`p5 | ROOT_B     |                   | /                 | ext4 | 10G                 |
 | /dev/`${device_node}`p6 | DATA       | /data             | /data             | ext4 | rest of avail space |
@@ -76,7 +76,7 @@ The following documentation assumes you are familiar with the traditional Raspbe
 
 `BOOTLOADER` only contains [`autoboot.txt`](https://www.raspberrypi.com/documentation/computers/config_txt.html#autoboot-txt) (to specify boot partition) and [cloud-init configuration files](https://www.raspberrypi.com/news/cloud-init-on-raspberry-pi-os/) which normally live in `bootfs`.
 
-For safety reasons it is mounted readonly. You can edit files with
+For safety reasons it is mounted read only. You can edit files with
 
 ```sh
 # remount readwrite
@@ -91,11 +91,17 @@ sudo mount -o remound,ro /bootloader
 
 `FIRMWARE_A` and `FIRMWARE_B` are equivalent to RPI OS `bootfs`. `cmdline.txt` is replaced with `cmdline-A.txt` and `cmdline-B.txt`. `config.txt` is updated to choose the appropriate cmdline file based on the boot partition.
 
-They are only needed by the Raspberry Pi firmware and as such, they are not mounted after boot.
+`/etc/fstab` must be the sames on both `A` and `B` so we cannot use it to mount `/boot/firmware`, instead it is mounted by the `mount-firmware` service.
 
-Note that `FIRMWARE X` is not mounted. `/etc/fstab` must be the sames on both `A` and `B` so we cannot use it, instead if would have to be mounted dynamically. Doable but unecesary with image based updates.
+For safety reasons it is mounted read only. If you wish to use `raspi-config`, update the EEPROM or the kernnel you will have to remount it as such:
 
-However if you wish to use `raspi-config` for hardware enablements or running apt updates, you may need to mount it manually to `/boot/firmware`.
+```sh
+# remount readwrite
+sudo mount -o remount,rw /boot/firmware
+# make changes, then
+# remount readonly
+sudo mount -o remound,ro /boot/firmware/
+```
 
 ---
 
@@ -128,3 +134,4 @@ Here is a simplified "high level" sequence of what happens:
    - `BOOTLOADER` to `/bootloader` - readonly
    - `DATA` to `/data` - readwrite
    - `DATA/home` to `/home`
+6. systemd executes `mount-firmware.service` and `/boot/firmware` becomes available

@@ -6,12 +6,12 @@ import { parse, stringify } from "ini"
 import { $ } from "execa"
 
 import { getBootedDevice, getBlockDevices } from "../image/lib.js"
-import { getBootedPartition } from "../image/rpi.js"
+import { getBootedPartitionNumber } from "../image/rpi.js"
 
 const device = await getBootedDevice()
 
 export async function getBootedSlot() {
-  const booted_partition_number = await getBootedPartition()
+  const booted_partition_number = await getBootedPartitionNumber()
   return await getRaucSlot(booted_partition_number)
 }
 
