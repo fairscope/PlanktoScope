@@ -31,14 +31,6 @@ async function mount_active_firmware() {
   await $`mount -o defaults,ro ${partition.path} /boot/firmware`
 }
 
-async function remount_read_write() {
-  await $`mount -o remount,rw /boot/firmware`
-}
-
-async function remount_read_only() {
-  await $`mount -o remount,ro /boot/firmware`
-}
-
 if (import.meta.main) {
   await mount_active_firmware()
 }

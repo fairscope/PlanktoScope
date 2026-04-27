@@ -7,9 +7,7 @@ import { $ } from "execa"
 import { stringify, parse } from "ini"
 import dedent from "dedent"
 
-import { getBlockDevices, getBootedDevice, getMountPoint } from "./lib.js"
-import { getBootPartitionNumber } from "../rauc/rauc.js"
-import { getBootedPartitionNumber } from "./rpi.js"
+import { getBlockDevices, getMountPoint } from "./lib.js"
 
 const bootnames = ["A", "B"]
 
