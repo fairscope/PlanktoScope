@@ -1,7 +1,17 @@
 setup:
-    sudo apt install -y partclone
     npm ci --omit=dev
+    sudo cp mount-firmware.service /etc/systemd/system/
+    sudo systemctl reenable mount-firmware.service
+    sudo systemctl restart mount-firmware.service
+
+setup-dev:
+    npm install --include=dev
+
+format:
+    npx eslint --fix .
 
 test:
+    npx eslint .
     validator user-data.yaml
     validator autoboot.ini
+    validator cloud-init-local-override.ini

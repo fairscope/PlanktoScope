@@ -1,6 +1,5 @@
 setup:
     ./firmware.sh
-    ./raspi-config.sh
     ./bootloader.sh
 
 test:

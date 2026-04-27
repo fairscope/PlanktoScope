@@ -1,11 +1,15 @@
 import assert from "node:assert"
-import { getBlockDevices, backupAndReplace, assertReplace } from "./lib.js"
+import { readFile, writeFile, mkdir, copyFile, unlink } from "node:fs/promises"
+import { join } from "node:path"
+import { fileURLToPath } from "node:url"
+
 import { $ } from "execa"
-import { readFile, writeFile } from "node:fs/promises"
-import { join } from "path"
 import { stringify, parse } from "ini"
-import { fileURLToPath } from "url"
-import crypto from "crypto"
+import dedent from "dedent"
+
+import { getBlockDevices, getMountPoint } from "./lib.js"
+
+const bootnames = ["A", "B"]
 
 export async function createPartitions(device, rpios_partitions) {
   // We create the entire partition table first
@@ -15,27 +19,30 @@ export async function createPartitions(device, rpios_partitions) {
 
   const partitions = await getPartitions(device)
 
-  await create_autobootfs(partitions["AUTOBOOT"])
+  await create_bootloaderfs(partitions["BOOTLOADER"])
 
-  const rpios_bootfs = rpios_partitions['bootfs']
-  await create_bootfs(partitions["BOOTFS A"], rpios_bootfs)
-  await create_bootfs(partitions["BOOTFS B"], rpios_bootfs)
+  const rpios_bootfs = rpios_partitions["bootfs"]
+  for (const bootname of bootnames) {
+    await create_firmwarefs(partitions[`FIRMWARE_${bootname}`], rpios_bootfs)
+  }
 
-  const rpios_rootfs = rpios_partitions['rootfs']
-  await create_rootfs(partitions["ROOTFS A"], rpios_rootfs)
-  await create_rootfs(partitions["ROOTFS B"], rpios_rootfs)
+  const rpios_rootfs = rpios_partitions["rootfs"]
+  for (const bootname of bootnames) {
+    await create_rootfs(partitions[`ROOT_${bootname}`], rpios_rootfs)
+  }
 
-  await create_datafs(partitions["DATA"])
+  await create_datafs(device, rpios_rootfs)
 }
 
 export async function updateMountpoints(device, rpios_partitions) {
   const partitions = await getPartitions(device)
 
-  await process_fstab(rpios_partitions, partitions, "A")
-  await process_fstab(rpios_partitions, partitions, "B")
-  await process_cmdline(rpios_partitions, partitions, "A")
-  await process_cmdline(rpios_partitions, partitions, "B")
-  await process_autoboot(partitions)
+  await setup_cmdline(rpios_partitions, partitions)
+  await setup_config(rpios_partitions, partitions)
+  await setup_cloudinit(rpios_partitions, partitions)
+  await setup_fstab(partitions)
+  await setup_autoboot(partitions)
+  await setup_machineid(partitions)
 }
 
 async function createPartitionTable(device) {
@@ -45,24 +52,34 @@ async function createPartitionTable(device) {
   // Create a new partition table
   await $`sgdisk --new ${device}`
 
+  // -A explanation
   // 0 is "Platform required"
   // 1 is "EFI firmware should ignore the content"
   // 62 is "Hidden"
   // 63 is "No drive letter (i.e. do not automount) "
   // See https://en.wikipedia.org/wiki/GUID_Partition_Table#Partition_entries_(LBA_2%E2%80%9333)
 
-  // # Partition 1: 8MB FAT12 "AUTOBOOT"
-  await $`sgdisk --new=1:0:+8M --typecode=1:0700 -A 1:set:0 -A 1:set:1 -A 1:set:62 -A 1:set:63 --change-name=1:AUTOBOOT ${device}`
-  // # Partition 2: 512MB FAT32 "BOOTFS A"
-  await $`sgdisk --new=2:0:+512M --typecode=2:0700 -A 2:set:0 -A 2:set:1 -A 2:set:62 -A 2:set:63 --change-name=2:${"BOOTFS A"} ${device}`
-  // # Partition 3: 512MB FAT32 "BOOTFS B"
-  await $`sgdisk --new=3:0:+512M --typecode=3:0700 -A 3:set:0 -A 3:set:1 -A 3:set:62 -A 3:set:63 --change-name=3:${"BOOTFS B"} ${device}`
-  // # Partition 4: 12GB EXT4 "ROOTFS A"
-  await $`sgdisk --new=4:0:+12G --typecode=4:8300 -A 4:set:0 -A 4:set:1 -A 4:set:62 -A 4:set:63 --change-name=4:${"ROOTFS A"} ${device}`
-  // # Partition 5: 12GB EXT4 "ROOTFS B"
-  await $`sgdisk --new=5:0:+12G --typecode=5:8300 -A 5:set:0 -A 5:set:1 -A 5:set:62 -A 5:set:63 --change-name=5:${"ROOTFS B"} ${device}`
-  // # Partition 6: Remaining space EXT4 "DATA"
-  await $`sgdisk --new=6:0:0 --typecode=6:8300 -A 6:set:0 -A 6:set:1  -A 6:set:62 -A 6:set:63 --change-name=6:DATA ${device}`
+  let partn = 0
+
+  // BOOTLOADER
+  partn++
+  await $`sgdisk --new=${partn}:0:+8M --typecode=${partn}:0700 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:BOOTLOADER ${device}`
+
+  // FIRMWARE X
+  for (const bootname of bootnames) {
+    partn++
+    await $`sgdisk --new=${partn}:0:+256M --typecode=${partn}:0700 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${"FIRMWARE_" + bootname} ${device}`
+  }
+
+  // ROOT X
+  for (const bootname of bootnames) {
+    partn++
+    await $`sgdisk --new=${partn}:0:+10G --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${"ROOT_" + bootname} ${device}`
+  }
+
+  // "DATA"
+  partn++
+  await $`sgdisk --new=${partn}:0:0 --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1  -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:DATA ${device}`
 
   await $`sgdisk --verify ${device}`
 
@@ -72,144 +89,247 @@ async function createPartitionTable(device) {
   await $`udevadm settle`
 }
 
-async function create_autobootfs({partlabel, path}) {
-  const { stdout: mountpoint } = await $`mktemp -d`
+async function create_bootloaderfs({ partlabel, path }) {
+  const mountpoint = await getMountPoint(partlabel)
   await $`wipefs -a ${path}`
-  await $`mkfs.vfat -F12 ${path} -n ${partlabel}`
+  await $`mkfs.vfat -F12 ${path}`
   await $`mount ${path} ${mountpoint}`
   await $`cp autoboot.ini ${join(mountpoint, "autoboot.txt")}`
 }
 
-async function create_bootfs({path, partlabel}, rpios_bootfs) {
-  const { stdout: mountpoint } = await $`mktemp -d`
+async function create_firmwarefs({ path, partlabel }, rpios_bootfs) {
+  const mountpoint = await getMountPoint(partlabel)
   await $`wipefs -a ${path}`
-
-  await $`partclone.${rpios_bootfs.fstype} --dev-to-dev --source ${rpios_bootfs.path} --overwrite ${path} --quiet`
-  // alternative with dd - slower
-  // await $`dd if=${rpios_partitions.bootfs.path} of=${path} bs=1M`
-
-  // update the filesystem UUID so it's not the same as RPI OS
-  const serial = crypto.randomBytes(4).toString("hex").toUpperCase()
-  await $`fatlabel -i ${path} ${serial}`
-
-  // set filesystem label
-  await $`fatlabel ${path} ${partlabel}`
-
-  await $`fsck.vfat -n ${path}` // check filesystem
-  // TODO: figure this out
-  // await $`fatresize -s max ${path}` // resize to take remaining space
-  // await $`fsck.vfat -n ${path}` // check filesystem
+  await $`mkfs.vfat -F32 ${path}`
   await $`mount ${path} ${mountpoint}`
 
-  const data = await readFile(
-    fileURLToPath(import.meta.resolve("./user-data.yaml")),
+  // We don't clone the block device because the source partition is smaller than the target partition
+  // it also means we don't have to resize the target partition (treacherous with vfat)
+  // or inherit from the RPI OS bootfs uuid/label
+  await $`cp -a ${rpios_bootfs.mountpoint}/. ${mountpoint}/`
+  // alternatively but not useful for vfat
+  // await $`rsync -a ${rpios_bootfs.mountpoint}/ ${mountpoint}/`
+}
+
+async function create_rootfs({ path, partlabel }, rpios_rootfs) {
+  const mountpoint = await getMountPoint(partlabel)
+  await $`wipefs -a ${path}`
+  await $`mkfs.ext4 -q ${path}`
+  await $`mount ${path} ${mountpoint}`
+
+  // We don't clone the block device because rsync is faster than dd, e2image or partclone.
+  // It also means we don't have to resize the target partition or inherit from the RPI OS rootfs uuid/label.
+  // In regards to "--exclude /home" - /home is copied in `create_datafs`
+  await $`rsync -axHAXES --filter=${"-x security.selinux"} --exclude /home ${rpios_rootfs.mountpoint}/ ${mountpoint}/`
+
+  await mkdir(join(mountpoint, "bootloader"))
+  await mkdir(join(mountpoint, "data"))
+
+  await unlink(
+    join(
+      mountpoint,
+      "/etc/systemd/system/sysinit.target.wants/rpi-resize.service",
+    ),
   )
-  await backupAndReplace(`${mountpoint}/user-data`, data)
+
+  // TODO: host keys should be the same on all slots
+  // await unlink(
+  //   join(
+  //     mountpoint,
+  //     "/etc/systemd/system/sysinit.target.wants/regenerate_ssh_host_keys.service",
+  //   ),
+  // )
 }
 
-/*
-  create_bootfs with rsync
-  alternative implementation, left here in case it proves useful in the future
-*/
-// async function create_bootfs_with_rsync({path, partlabel}, rpios_bootfs) {
-//   const { stdout: mountpoint } = await $`mktemp -d`
-//   await $`wipefs -a ${path}`
-//   await $`mkfs.vfat -F32 ${path} -n ${partlabel}`
-//   await $`mount ${path} ${mountpoint}`
-//   await $`rsync -a ${rpios_bootfs.mountpoint}/ ${mountpoint}/`
-//   await $`mv ${mountpoint}/user-data ${mountpoint}/user-data.orig`
-//   await $`cp user-data.yaml ${mountpoint}/user-data`
-// }
-
-async function create_rootfs({path, partlabel}, rpios_rootfs) {
-  const { stdout: mountpoint } = await $`mktemp -d`
+async function create_datafs(device, rootfs) {
+  const partitions = await getPartitions(device)
+  const { path, partlabel } = partitions["DATA"]
+  const mountpoint = await getMountPoint(partlabel)
   await $`wipefs -a ${path}`
-
-  await $`partclone.${rpios_rootfs.fstype} --dev-to-dev --source ${rpios_rootfs.path} --overwrite ${path} --quiet`
-  // alternative with dd - slower
-  // await $`dd if=${rpios_rootfs.path} of=${path} bs=1M`
-
-  // update the filesystem UUID so it's not the same as RPI OS
-  await $`tune2fs -U ${crypto.randomUUID()} ${path}`
-
-  // set filesystem label
-  await $`e2label ${path} ${partlabel}` 
-
-  await $`e2fsck -y -f ${path}` // check filesystem - required by resize2fs
-  await $`resize2fs ${path}` // resize to take remaining space
+  await $`mkfs.ext4 -q ${path}`
   await $`mount ${path} ${mountpoint}`
+
+  // /data/home
+  await $`rsync -axHAXES --filter=${"-x security.selinux"} ${join(rootfs.mountpoint, "/home")}/ ${join(mountpoint, "/home")}/`
 }
 
-/*
-  create_rootfs with rsync
-  alternative implementation, left here in case it proves useful in the future
-  it is actually faster but less exact
-*/
-// async function create_rootfs_with_rsync({path, partlabel}, rpios_rootfs) {
-//   const { stdout: mountpoint } = await $`mktemp -d`
-//   await $`wipefs -a ${path}`
-//   await $`mkfs.ext4 -q -L ${partlabel} ${path}`
-//   await $`mount ${path} ${mountpoint}`
-//   await $`rsync -axHAXES --filter=${"-x security.selinux"} ${rpios_rootfs.mountpoint}/ ${mountpoint}/`
-// }
+// We need to share /etc/machine-id so we create it and symlink it on both slots
+// in order for systemd to consider firstboot we use systemd.condition_first_boot= cmd line argument
+// https://www.freedesktop.org/software/systemd/man/latest/machine-id.html
+async function setup_machineid(partitions) {
+  const data = partitions["DATA"].mountpoint
 
-async function create_datafs({path, partlabel}) {
-  const { stdout: mountpoint } = await $`mktemp -d`
-  await $`wipefs -a ${path}`
-  await $`mkfs.ext4 -q -L ${partlabel} ${path}`
-  await $`mount ${path} ${mountpoint}`
+  const { stdout } = await $`systemd-machine-id-setup --print`
+  await writeFile(join(data, "machine-id"), stdout.trim())
+
+  for (const bootname of bootnames) {
+    const root = partitions[`ROOT_${bootname}`].mountpoint
+    await unlink(join(root, "/etc/machine-id"))
+    await $`ln -s /data/machine-id ${join(root, "/etc/machine-id")}`
+  }
 }
 
-async function process_cmdline(rpios_partitions, partitions, AB) {
-  const rootfs = partitions[`ROOTFS ${AB.toUpperCase()}`]
-  const bootfs = partitions[`BOOTFS ${AB.toUpperCase()}`]
-  const path = join(bootfs.mountpoint, "cmdline.txt")
+// TODO: Investigate if we can replace cloud init with a simpler systemd solution
+async function setup_cloudinit(rpios_partitions, partitions) {
+  // By default RPI OS reads cloud init config from /boot/firmware
+  // since we don't mount /boot/firmware; we move the cloud-init config to /bootloader
 
-  const rpios_rootfs_partuuid = rpios_partitions["rootfs"].partuuid
+  const bootfs = rpios_partitions["bootfs"].mountpoint
+  const rootfs = rpios_partitions["rootfs"].mountpoint
+  const bootloader = partitions["BOOTLOADER"].mountpoint
 
-  const content = await readFile(path, "utf-8")
+  // meta-data
+  await copyFile(join(bootfs, "meta-data"), join(bootloader, "meta-data"))
+  for (const bootname of bootnames) {
+    const mp = partitions[`FIRMWARE_${bootname}`].mountpoint
+    await unlink(join(mp, "meta-data"))
+  }
+
+  // network-config
+  await copyFile(
+    join(bootfs, "network-config"),
+    join(bootloader, "network-config"),
+  )
+  for (const bootname of bootnames) {
+    const mp = partitions[`FIRMWARE_${bootname}`].mountpoint
+    await unlink(join(mp, "network-config"))
+  }
+
+  // user-data
+  await copyFile(
+    fileURLToPath(import.meta.resolve("./user-data.yaml")),
+    join(bootloader, "user-data"),
+  )
+  for (const bootname of bootnames) {
+    const mp = partitions[`FIRMWARE_${bootname}`].mountpoint
+    await unlink(join(mp, "user-data"))
+  }
+
+  // update cloud-init source
+  const path_cfg = "/etc/cloud/cloud.cfg.d/99_raspberry-pi.cfg"
+  let cfg = await readFile(join(rootfs, path_cfg), "utf8")
+  assert.ok(cfg.includes("seedfrom: file:///boot/firmware"))
+  cfg = cfg.replace(
+    "seedfrom: file:///boot/firmware",
+    "seedfrom: file:///bootloader",
+  )
+  for (const bootname of bootnames) {
+    const mp = partitions[`ROOT_${bootname}`].mountpoint
+    await writeFile(join(mp, path_cfg), cfg)
+  }
+
+  // make sure cloud-init-local runs after /bootloader is mounted
+  for (const bootname of bootnames) {
+    const mp = partitions[`ROOT_${bootname}`].mountpoint
+    const override_dir = join(
+      mp,
+      "/etc/systemd/system/cloud-init-local.service.d/",
+    )
+    await mkdir(override_dir, {
+      recursive: true,
+    })
+    await copyFile(
+      new URL("./cloud-init-local-override.ini", import.meta.url),
+      join(override_dir, "override.conf"),
+    )
+  }
+}
+
+async function setup_config(rpios_partitions, partitions) {
+  const content = await readFile(
+    join(rpios_partitions["bootfs"].mountpoint, "config.txt"),
+    "utf8",
+  )
+
+  let prefix = ""
+  for (const bootname of bootnames) {
+    const part = partitions[`FIRMWARE_${bootname}`]
+    prefix += `\n[boot_partition=${part.partn}]\ncmdline=cmdline-${bootname}.txt\n`
+  }
+
+  const config = prefix + `\n` + content
+
+  for (const bootname of bootnames) {
+    const part = partitions[`FIRMWARE_${bootname}`]
+    const path = join(part.mountpoint, "config.txt")
+    await writeFile(path, config)
+  }
+}
+
+async function setup_cmdline(rpios_partitions, partitions) {
+  const rpios_bootfs = rpios_partitions["bootfs"]
+  const rpios_rootfs = rpios_partitions["rootfs"]
+  const content = await readFile(
+    join(rpios_bootfs.mountpoint, "cmdline.txt"),
+    "utf8",
+  )
+
   const args = content.trim().split(" ")
-
   // remove resize
+  // undocumented, no idea what it does
+  // we also remove rpi-resize.service
   const resize_idx = args.findIndex((arg) => arg === "resize")
   assert.notEqual(resize_idx, -1)
   args.splice(resize_idx, 1)
 
-  // update root
+  // root needs to be updated
   const root_idx = args.findIndex(
-    (arg) => arg === `root=PARTUUID=${rpios_rootfs_partuuid}`,
+    (arg) => arg === `root=PARTUUID=${rpios_rootfs.partuuid}`,
   )
   assert.notEqual(resize_idx, -1)
-  args[root_idx] = `root=PARTUUID=${rootfs.partuuid}`
 
-  await backupAndReplace(path, args.join(" "))
+  // since we don't have / in /etc/fstab we need to specify rw
+  args.push("rw")
+
+  // generate a cmdline for each bootname
+  const cmdlines = []
+  for (const bootname of bootnames) {
+    const rootfs = partitions[`ROOT_${bootname}`]
+    const clone = structuredClone(args)
+    clone[root_idx] = `root=PARTUUID=${rootfs.partuuid}`
+    cmdlines.push([`cmdline-${bootname}.txt`, clone.join(" ")])
+  }
+
+  // write all cmdline files to all firmware partitions
+  // see config.txt
+  for (const bootname of bootnames) {
+    const firmware_mp = partitions[`FIRMWARE_${bootname}`].mountpoint
+    for (const [file, content] of cmdlines) {
+      await writeFile(join(firmware_mp, file), content)
+    }
+    // remove original cmdline.txt
+    await unlink(join(firmware_mp, "cmdline.txt"))
+  }
 }
 
-async function process_fstab(rpios_partitions, partitions, AB) {
-  const bootfs = partitions[`BOOTFS ${AB.toUpperCase()}`]
-  const rootfs = partitions[`ROOTFS ${AB.toUpperCase()}`]
-  const datafs = partitions[`DATA`]
-  const path = join(rootfs.mountpoint, "etc/fstab")
+// So the default of RPI OS is
+// mount rootfs to /
+// mount bootfs to /boot/firmware
+// in a A/B partition setup we want the same /etc/fstab on both A and B
+// but we don't know which one is rootfs A/B and which one is bootfs A/B
+// thankefully we don't need them in /etc/fstab
+// cmdline tells the kernel how to mount / (via root)
+// /boot/firmware does not need to be mounted in a image based updates filesystem
+// only apt upgrade and rpi specific tools would require /boot/firmware
+async function setup_fstab(partitions) {
+  const bootloader_partuuid = partitions[`BOOTLOADER`].partuuid
+  const datafs_partuuid = partitions[`DATA`].partuuid
+  const fstab = dedent`
+    PARTUUID=${bootloader_partuuid} /bootloader vfat  defaults,ro      0 2
+    PARTUUID=${datafs_partuuid} /data           ext4  defaults,noatime 0 2
+    /data/home                  /home           none  bind             0 0
+  `
+  // TODO: when we go readonly
+  // /data/varlib              /var/lib none  bind             0 0
+  // tmpfs                     /tmp     tmpfs defaults,nosuid,nodev,mode=1777 0 0
+  // tmpfs                     /var/tmp tmpfs defaults,nosuid,nodev,mode=1777 0 0
+  // tmpfs                     /run     tmpfs defaults,nosuid,nodev           0 0
+  // tmpfs                     /var/log tmpfs defaults,nosuid,nodev,mode=0755 0 0`
 
-  const rpios_bootfs_partuuid = rpios_partitions["bootfs"].partuuid
-  const rpios_rootfs_partuuid = rpios_partitions["rootfs"].partuuid
-
-  let content = await readFile(path, "utf-8")
-
-  content = content.trim()
-  content = assertReplace(
-    content,
-    `PARTUUID=${rpios_bootfs_partuuid} `,
-    `PARTUUID=${bootfs.partuuid} `,
-  )
-  content = assertReplace(
-    content,
-    `PARTUUID=${rpios_rootfs_partuuid} `,
-    `PARTUUID=${rootfs.partuuid} `,
-  )
-  content += `\nPARTUUID=${datafs.partuuid} /home/pi/data ${datafs.fstype} defaults,noatime 0 2`
-
-  await backupAndReplace(path, content)
+  for (const bootname of bootnames) {
+    const path = join(partitions[`ROOT_${bootname}`].mountpoint, "etc/fstab")
+    await writeFile(path, fstab)
+  }
 }
 
 async function getPartitions(device) {
@@ -219,30 +339,36 @@ async function getPartitions(device) {
     if (!dev.partuuid) continue
     partitions[dev.partlabel] = dev
   }
-  assert.equal(Object.keys(partitions).length, 6)
-  assert.ok(partitions["AUTOBOOT"])
-  assert.ok(partitions["BOOTFS A"])
-  assert.ok(partitions["BOOTFS B"])
-  assert.ok(partitions["ROOTFS A"])
-  assert.ok(partitions["ROOTFS A"])
+  assert.equal(Object.keys(partitions).length, bootnames.length * 2 + 2)
+  assert.ok(partitions["BOOTLOADER"])
+  for (const bootname of bootnames) {
+    assert.ok(partitions[`FIRMWARE_${bootname}`])
+    assert.ok(partitions[`ROOT_${bootname}`])
+  }
   assert.ok(partitions["DATA"])
   return partitions
 }
 
-async function process_autoboot(partitions) {
-  const autobootfs = partitions["AUTOBOOT"]
-  const bootfs_a = partitions["BOOTFS A"]
-  // const bootfs_b = partitions["BOOTFS B"]
+async function setup_autoboot(partitions) {
+  const bootloaderfs = partitions["BOOTLOADER"]
+
+  const bootname_active = bootnames[0]
+  const bootname_fallback = bootnames[1]
 
   let content = await readFile(
     fileURLToPath(import.meta.resolve("./autoboot.ini")),
     "utf-8",
   )
+
   const config = parse(content)
-  config.all.boot_partition = bootfs_a.partn
+  config.all.boot_partition = partitions[`FIRMWARE_${bootname_active}`].partn
+  if (bootname_fallback) {
+    config.tryboot.boot_partition =
+      partitions[`FIRMWARE_${bootname_fallback}`].partn
+  }
 
   await writeFile(
-    join(autobootfs.mountpoint, "autoboot.txt"),
+    join(bootloaderfs.mountpoint, "autoboot.txt"),
     stringify(config),
   )
 }

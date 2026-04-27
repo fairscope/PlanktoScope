@@ -1,9 +1,16 @@
 #cloud-config
 
 users:
+  # Adapted default user from /etc/cloud/cloud.cfg
   - name: pi
+    gecos: Raspberry Pi OS
+    groups: [adm, dialout, cdrom, audio, users, sudo, video, games, plugdev, input, gpio, spi, i2c, netdev, render, lpadmin]
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    shell: /bin/bash
     plain_text_passwd: copepode
     lock_passwd: false
 
+# rpi:
+#   enable_usb_gadget: true
+
 ssh_pwauth: true
-enable_ssh: true

@@ -1,7 +1,8 @@
-#!/usr/bin/env node
+import { mkdir } from "node:fs/promises"
+import { fileURLToPath } from "node:url"
+import { join } from "path"
 
 import { $ } from "execa"
-import { writeFile, rename } from "node:fs/promises"
 
 export async function getBlockDevices(device) {
   const { stdout } =
@@ -22,17 +23,19 @@ export async function umount(device) {
   )
 }
 
-export async function backupAndReplace(path, data) {
-  const backup = path + ".orig"
-  const temporary = path + ".tmp"
-
-  await writeFile(temporary, data)
-  await rename(path, backup)
-  await rename(temporary, path)
+const builddir = fileURLToPath(import.meta.resolve("./.build"))
+export async function getMountPoint(name) {
+  const mp = join(builddir, name.replace(" ", "_"))
+  await mkdir(mp, { recursive: true })
+  return mp
 }
 
-export function assertReplace(str, a, b) {
-  const new_str = str.replace(a, b)
-  if (new_str === str) throw new Error("String was not replaced")
-  return new_str
+let _booted_device
+export async function getBootedDevice() {
+  if (!_booted_device) {
+    const { stdout: source } = await $`findmnt -no SOURCE /`
+    const { stdout: pkname } = await $`lsblk -no PKNAME ${source.trim()}`
+    _booted_device = `/dev/${pkname}`
+  }
+  return _booted_device
 }

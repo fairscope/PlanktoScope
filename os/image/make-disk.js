@@ -8,7 +8,6 @@ import { umount } from "./lib.js"
 import { $ } from "execa"
 import {
   setupRaspberryPiOSDevice,
-  mountRaspberryPiOSPartitions,
   teardownRaspberryPiOSDevice,
 } from "./rpios.js"
 import { createPartitions, updateMountpoints } from "./planktoscope.js"
@@ -22,20 +21,16 @@ if (import.meta.main) {
   assert.ok(device)
   await umount(device)
 
-  let [rpios_device, rpios_partitions] = await setupRaspberryPiOSDevice()
-
+  let rpios_device, rpios_partitions
   try {
-    // With partclone the source cannot be mounted so we mount them after
+    ;[rpios_device, rpios_partitions] = await setupRaspberryPiOSDevice()
     await createPartitions(device, rpios_partitions)
-    rpios_partitions = await mountRaspberryPiOSPartitions(
-      rpios_device,
-      rpios_partitions,
-    )
     await updateMountpoints(device, rpios_partitions)
-    console.log("✅ Disk is ready.")
   } finally {
-    // await $`sync`
-    // await umount(device)
-    // await teardownRaspberryPiOSDevice(rpios_device)
+    await $`sync`
+    await umount(device)
+    rpios_device && (await teardownRaspberryPiOSDevice(rpios_device))
   }
+
+  console.log("✅ Disk is ready.")
 }

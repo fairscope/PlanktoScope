@@ -4,11 +4,11 @@
 # It is meant to be run on a specific Raspberry OS Pi OS standard installation.
 
 line=$(head -n 1 /etc/rpi-issue)
-date="2025-12-04"
-expected="Raspberry Pi reference $date"
+reference="2026-04-21"
+expected="Raspberry Pi reference $reference"
 
 if [ "$line" != "$expected" ]; then
-  echo "ERROR: Only Raspberry Pi OS $date is supported."
+  echo "ERROR: Only Raspberry Pi OS $reference is supported."
   exit 1
 fi
 

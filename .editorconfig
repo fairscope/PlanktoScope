@@ -14,10 +14,6 @@ indent_size = 2
 indent_style = space
 indent_size = 4
 
-[*.sh]
-indent_style = space
-indent_size = 2
-
 # Tab indentation (no size specified)
 [Makefile]
 indent_style = tab
