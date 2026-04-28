@@ -3,19 +3,19 @@
 import path from "node:path"
 
 import express from "express"
-import cors from "cors"
+
+import { readSoftwareConfig, removeConfig } from "../../lib/file-config.js"
+import { capture } from "../../lib/scope.js"
+
+import app from "./app.js"
 
 import "./factory.js"
 // import "./config.js"
 import "./led-operating-time.js"
 import "./network.js"
-import { readSoftwareConfig, removeConfig } from "../../lib/file-config.js"
-import { capture } from "../../lib/scope.js"
+import "./update.js"
 
 process.title = "planktoscope-org.backend"
-
-const app = express()
-app.use(cors())
 
 app.post("/api/capture", async (req, res) => {
   const result = await capture({ jpeg: true })

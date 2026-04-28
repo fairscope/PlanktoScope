@@ -4,9 +4,6 @@ This folder contains scripts and documentation to build the PlanktoScope OS imag
 
 The scripts should work on standard Linux installations, in case of doubt use Raspberry Pi OS.
 
-
-
-
 ## How to use
 
 ### Bootstrap Raspberry Pi OS
