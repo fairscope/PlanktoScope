@@ -18,3 +18,4 @@ setup-dev:
 test:
     npx eslint .
     validator rauc.ini
+    validator rauc.ini
