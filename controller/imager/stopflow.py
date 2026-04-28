@@ -99,6 +99,7 @@ class Routine:
 
         # Routine state
         self._interrupted = threading.Event()  # routine interrupted before completion
+        self._paused = threading.Event()  # routine paused between steps
         self._progress = 0  # the number of images acquired so far
         self._progress_lock = threading.Lock()
 
@@ -118,6 +119,12 @@ class Routine:
             return None
         with self._progress_lock:
             if self._progress >= self.settings.total_images:
+                return None
+
+        # Block while paused, checking for interruption every second
+        while self._paused.is_set():
+            if self._interrupted.wait(timeout=1.0):
+                loguru.logger.info("Image acquisition was interrupted while paused!")
                 return None
 
         self._pump.run_discrete(self.settings.pump)
@@ -150,6 +157,21 @@ class Routine:
             self._interrupted.set()
             self._pump.stop()
             loguru.logger.info("The image-acquisition routine has been interrupted!")
+
+    def pause(self) -> None:
+        """Pause the routine between steps."""
+        self._paused.set()
+        loguru.logger.info("The image-acquisition routine has been paused.")
+
+    def resume(self) -> None:
+        """Resume the routine after being paused."""
+        self._paused.clear()
+        loguru.logger.info("The image-acquisition routine has been resumed.")
+
+    @property
+    def paused(self) -> bool:
+        """Check whether the routine is currently paused."""
+        return self._paused.is_set()
 
     @property
     def interrupted(self) -> bool:

@@ -1,5 +1,6 @@
 """mqtt provides an MQTT worker to perform stop-flow image acquisition."""
 
+import base64
 import datetime
 import json
 import os
@@ -16,6 +17,26 @@ from imager.camera.hardware import ISO_CALIBRATION
 
 from . import stopflow
 from .camera import mqtt as camera
+
+HAT_CUSTOM_DATA_PATH = "/proc/device-tree/hat/custom_0"
+
+
+def _read_hat_serial_number() -> typing.Optional[str]:
+    """Read the FairScope HAT serial number from the HAT EEPROM.
+
+    The Raspberry Pi exposes HAT EEPROM custom data under /proc/device-tree/hat as a NUL-terminated
+    blob. FairScope HATs store a base64-encoded JSON object containing the serial_number key.
+    """
+    try:
+        with open(HAT_CUSTOM_DATA_PATH, "rb") as f:
+            blob = f.read().rstrip(b"\x00").strip()
+        if not blob:
+            return None
+        decoded = base64.b64decode(blob, validate=True)
+        serial = json.loads(decoded).get("serial_number")
+        return str(serial) if serial else None
+    except (OSError, ValueError, json.JSONDecodeError):
+        return None
 
 
 class Imager:
@@ -121,6 +142,10 @@ class Imager:
         elif action == "stop" and self._active_routine is not None:
             self._active_routine.stop()
             self._active_routine = None
+        elif action == "pause" and self._active_routine is not None:
+            self._active_routine.pause()
+        elif action == "resume" and self._active_routine is not None:
+            self._active_routine.resume()
 
     def _update_metadata(self, latest_message: dict[str, typing.Any]) -> None:
         """Handle a new imager command to update the configuration (i.e. the metadata)."""
@@ -172,6 +197,18 @@ class Imager:
             "acq_uuid": str(uuid4()),
             "sample_uuid": str(uuid4()),
         }
+        if (serial_number := _read_hat_serial_number()) is not None:
+            metadata["acq_instrument_serial_number"] = serial_number
+        # Resolve pixel size (µm/px) for the segmenter's unit conversion.
+        # Node-RED resolves the correct value from the per-preset calibration
+        # matrix and sends it as process_pixel.
+        pixel_size = metadata.get("process_pixel")
+        if pixel_size is not None:
+            metadata["process_pixel"] = float(pixel_size)
+        else:
+            loguru.logger.warning(
+                "process_pixel missing from config — measurements will be in pixels"
+            )
         loguru.logger.debug(f"Saving metadata: {metadata}")
         try:
             output_path = _initialize_acquisition_directory(
@@ -352,6 +389,16 @@ class ImageAcquisitionRoutine(threading.Thread):
                 ),
             )
 
+    def pause(self) -> None:
+        """Pause the acquisition between steps."""
+        self._routine.pause()
+        self._mqtt_client.publish("status/imager", '{"status":"Paused"}')
+
+    def resume(self) -> None:
+        """Resume the acquisition after being paused."""
+        self._routine.resume()
+        self._mqtt_client.publish("status/imager", '{"status":"Resumed"}')
+
     def stop(self) -> None:
         """Stop the thread.
 
@@ -413,7 +460,6 @@ class _PumpClient:
                 continue
 
             loguru.logger.debug(f"The pump has stopped: {self._mqtt.msg['payload']}")
-            self._mqtt.client.unsubscribe("status/pump")
             self._mqtt.read_message()
             self._done.set()
             if self._discrete_run.locked():
@@ -437,7 +483,6 @@ class _PumpClient:
         # thread (the thread which calls the `handle_status_update()` method):
         self._discrete_run.acquire()  # pylint: disable=consider-using-with
         self._done.clear()
-        self._mqtt.client.subscribe("status/pump")
         self._mqtt.client.publish(
             "actuator/pump",
             json.dumps(
@@ -456,7 +501,6 @@ class _PumpClient:
         if self._mqtt is None:
             raise RuntimeError("MQTT client was not initialized yet!")
 
-        self._mqtt.client.subscribe("status/pump")
         self._mqtt.client.publish("actuator/pump", '{"action": "stop"}')
 
     def close(self) -> None:

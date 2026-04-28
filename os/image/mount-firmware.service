@@ -1,0 +1,10 @@
+[Unit]
+Description=Mount firmware partition
+
+[Service]
+Type=oneshot
+ExecStart=/home/pi/PlanktoScope/os/image/mount-firmware.js
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

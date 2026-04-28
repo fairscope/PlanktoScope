@@ -237,6 +237,13 @@ def ecotaxa_export(archive_filepath, metadata, image_base_path, keep_files=False
             logger.error("No objects metadata recorded, cannot continue the export")
             return 0
 
+        # Concatenated sample+acq id for both TSV columns and the filename.
+        sample_id = metadata.get("sample_id", "unknown_sample").replace(" ", "_")
+        acquisition_id = metadata.get("acq_id", "unknown_acq").replace(" ", "_")
+        combined_id = f"{sample_id}_{acquisition_id}"
+        metadata["sample_id"] = combined_id
+        metadata["acq_id"] = combined_id
+
         # sometimes the camera resolution is not exported as string
         if not isinstance(metadata["acq_camera_resolution"], str):
             metadata["acq_camera_resolution"] = (
@@ -269,10 +276,7 @@ def ecotaxa_export(archive_filepath, metadata, image_base_path, keep_files=False
             list(zip(tsv_content.columns, tsv_type_header))
         )
 
-        # create the filename with the acquisition ID
-        acquisition_id = metadata.get("acq_id")
-        acquisition_id = acquisition_id.replace(" ", "_")
-        tsv_filename = f"ecotaxa_{acquisition_id}.tsv"
+        tsv_filename = f"Ecotaxa_{sample_id}_{acquisition_id}.tsv"
 
         # add the tsv to the archive
         archive.writestr(

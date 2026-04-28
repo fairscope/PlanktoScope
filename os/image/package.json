@@ -1,0 +1,19 @@
+{
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "dedent": "^1.7.2",
+    "execa": "^9.6.1",
+    "ini": "^6.0.0",
+    "write-file-atomic": "^7.0.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.2.0",
+    "eslint-plugin-n": "^17.24.0",
+    "globals": "^17.5.0"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  }
+}

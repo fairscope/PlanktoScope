@@ -46,7 +46,7 @@ jobs:
         run: uv python install
 
       - name: Install build dependencies
-        run: sudo apt -y install libcap-dev
+        run: sudo apt-get update && sudo apt-get install -y libcap-dev
 
       - name: Install dependencies
         working-directory: ./controller

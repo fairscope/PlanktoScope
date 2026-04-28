@@ -1,3 +1,4 @@
+.build
 *.img
 *.img.xz
-*.sha256
+*.img.xz.sha256

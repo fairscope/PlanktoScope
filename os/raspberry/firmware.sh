@@ -6,6 +6,14 @@ sudo bash -c "cat \"config.ini\" >> \"/boot/firmware/config.txt\""
 
 # Disable the 4 Raspberry logo in the top left corner
 # more space for kernel and system logs
-# sudo sed -i -e 's/$/ logo.nologo/' /boot/firmware/cmdline.txt
-grep -qw logo.nologo /boot/firmware/cmdline.txt || \
-sudo sed -i 's/$/ logo.nologo/' /boot/firmware/cmdline.txt
+[ ! -f /boot/firmware/cmdline-A.txt ] || \
+  grep -qw logo.nologo /boot/firmware/cmdline-A.txt || \
+  sudo sed -i 's/$/ logo.nologo/' /boot/firmware/cmdline-A.txt
+
+[ ! -f /boot/firmware/cmdline-B.txt ] || \
+  grep -qw logo.nologo /boot/firmware/cmdline-B.txt || \
+  sudo sed -i 's/$/ logo.nologo/' /boot/firmware/cmdline-B.txt
+
+[ ! -f /boot/firmware/cmdline.txt ] || \
+  grep -qw logo.nologo /boot/firmware/cmdline.txt || \
+  sudo sed -i 's/$/ logo.nologo/' /boot/firmware/cmdline.txt

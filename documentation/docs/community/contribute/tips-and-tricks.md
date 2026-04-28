@@ -8,7 +8,7 @@ This page provides useful snippets and how-tos while developing software for the
 
 ## Building the OS
 
-You will have to flash [2025-12-04-raspios-trixie-arm64-lite.img.xz](https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2025-12-04/).
+You will have to flash [2026-04-21-raspios-trixie-arm64-lite.img.xz](https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2026-04-21/).
 
 ⚠️ No other version is supported. ⚠️
 
@@ -20,19 +20,7 @@ You can use `Raspberry Pi Imager` (v2) -> `OS` -> `Use custom`
 1. Wait for the image to be written
 2. Re-insert the SDCard
 3. Open the `bootfs` partition
-4. Replace the content of the file `user-data` with:
-
-```yaml
-#cloud-config
-
-users:
-  - name: pi
-    plain_text_passwd: copepode
-    lock_passwd: false
-
-ssh_pwauth: true
-enable_ssh: true
-```
+4. Replace the content of the file `user-data` with [this](/os/image/user-data.yaml)
 
 Then boot into Raspberry Pi OS and type the following commands using SSH
 
