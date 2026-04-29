@@ -65,7 +65,7 @@ export async function getBootPartitionNumber(bootname) {
 }
 
 const systemconf = "/etc/rauc/system.conf"
-async function readRaucSystemConf(path = systemconf) {
+export async function readRaucSystemConf(path = systemconf) {
   const content = await readFile(path, "utf8")
   const conf = parse(content)
 

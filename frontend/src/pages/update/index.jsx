@@ -8,8 +8,7 @@ export default function Update() {
   const [upload_progress, set_upload_progress] = createSignal(0)
   const [install_progress, set_install_progress] = createSignal(0)
 
-  function progress(p) {
-    // console.log(p)
+  function handleUploadProgress(p) {
     set_upload_progress(p)
   }
 
@@ -34,9 +33,9 @@ export default function Update() {
     e.preventDefault()
     const file = e.currentTarget.elements.bundle.files[0]
     console.time("upload")
-    upload(file, progress)
-      .then(() => {
-        console.log("success")
+    upload(file, handleUploadProgress)
+      .then((bundle_info) => {
+        console.log("success", bundle_info)
       })
       .catch((err) => {
         console.error(err)
@@ -58,9 +57,9 @@ export default function Update() {
             readonly
             disabled
             name="progress-upload"
-            step="any"
+            step="1"
             min="0"
-            max="1"
+            max="100"
             value={upload_progress()}
           />
         </div>
@@ -71,9 +70,9 @@ export default function Update() {
             readonly
             disabled
             name="progress-install"
-            step="any"
+            step="1"
             min="0"
-            max="1"
+            max="100"
             value={install_progress()}
           />
         </div>
@@ -87,19 +86,33 @@ export default function Update() {
 // at the time of writing this
 async function upload(blob, progress) {
   const xhr = new XMLHttpRequest()
-  return await new Promise((resolve) => {
+  xhr.responseType = "json"
+  return await new Promise((resolve, reject) => {
     xhr.upload.addEventListener("progress", (event) => {
       if (event.lengthComputable) {
         progress(Math.round((event.loaded / event.total) * 100))
       }
     })
-    xhr.addEventListener("loadend", () => {
-      resolve(xhr.readyState === 4 && xhr.status === 200)
+
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(xhr.response)
+      } else {
+        reject(new Error(`Upload failed with status "${xhr.status}".`))
+      }
     })
+
+    xhr.addEventListener("error", () => {
+      reject(new Error("Network error"))
+    })
+
+    xhr.addEventListener("abort", () => {
+      reject(new Error("Upload aborted"))
+    })
+
     const url = new URL("/api/update", document.URL)
     url.port = 80
     xhr.open("POST", url, true)
-    // xhr.setRequestHeader("Content-Type", "application/octet-stream");
     const form = new FormData()
     form.append("bundle", blob)
     xhr.send(form)

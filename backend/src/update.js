@@ -1,15 +1,23 @@
+import { rm } from "node:fs/promises"
+import { readRaucSystemConf } from "../../os/rauc/rauc.js"
+
 import multer from "multer"
+import {
+  normalizeDbus,
+  readProperty,
+  systemBus,
+} from "../../lib/dbus-helpers.js"
 
 import app from "./app.js"
-import { status } from "../../lib/rauc.js"
+import { watchProperty } from "../../lib/dbus-helpers.js"
 
 const uploads = multer({
-  dest: "/home/pi/data/uploads",
+  dest: "/data/tmp",
 })
-app.post("/api/update", uploads.single("bundle"), (req, res) => {
-  console.log(req.file)
+app.post("/api/update/upload", uploads.single("bundle"), async (req, res) => {
+  const info = await getBundleInfo(req.file.path)
   res.status(200)
-  res.end()
+  res.json(info)
 })
 
 // Keep track of clients
@@ -40,6 +48,43 @@ function broadcast(data) {
   })
 }
 
-status.subscribe((progress) => {
+const service = systemBus().getService("de.pengutronix.rauc")
+const rauc = await service.getInterface("/", "de.pengutronix.rauc.Installer")
+
+watchProperty(rauc, "Progress").subscribe((progress) => {
+  console.log(progress)
   broadcast(progress)
 })
+
+console.log(rauc)
+
+// https://rauc.readthedocs.io/en/latest/reference.html#installbundle-method
+async function triggerInstall(path) {
+  await rauc.InstallBundle(path, [])
+  const current_operation = await readProperty(rauc, "Operation")
+  console.log({ current_operation })
+  if (current_operation !== "installing")
+    throw new Error(`Current rauc operation is "${current_operation}".`)
+}
+
+// https://rauc.readthedocs.io/en/latest/reference.html#inspectbundle-method
+async function getBundleInfo(path) {
+  const raw = await rauc.InspectBundle(path, [])
+  const normalized = normalizeDbus(raw)
+  const dictEntries = normalized[0]
+  const result = Object.fromEntries(dictEntries)
+
+  const { version, compatible, build } = result.update
+
+  return {
+    version,
+    build,
+    compatible,
+    path,
+  }
+}
+
+if (import.meta.main) {
+  // await triggerInstall("/data/tmp/fpp")
+  await getBundleInfo("/data/tmp/e5464c1b6a138ca358e9683cbe5d73f8")
+}
