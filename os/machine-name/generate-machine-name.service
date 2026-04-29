@@ -9,7 +9,7 @@ Before=systemd-hostnamed.service
 [Service]
 Type=oneshot
 ExecStartPre=sh -c "echo 'unknown' >/run/machine-name"
-ExecStart=/home/pi/PlanktoScope/os/machine-name/generate-machine-name.sh
+ExecStart=/opt/PlanktoScope/os/machine-name/generate-machine-name.sh
 
 [Install]
 WantedBy=sysinit.target

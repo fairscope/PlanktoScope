@@ -7,7 +7,7 @@ import aiofiles
 import aiomqtt
 import paho
 
-HARDWARE_CONFIG_PATH = "/home/pi/PlanktoScope/hardware.json"
+HARDWARE_CONFIG_PATH = "/opt/PlanktoScope/hardware.json"
 hardwre_config_lock = asyncio.Lock()
 
 

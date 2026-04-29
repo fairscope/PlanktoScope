@@ -108,7 +108,7 @@ else:
 #### `lib/file-config.js`
 
 Added:
-- `CALIBRATION_PATH` — `/home/pi/PlanktoScope/calibration.json`
+- `CALIBRATION_PATH` — `/opt/PlanktoScope/calibration.json`
 - `readCalibrationConfig()` — read the calibration matrix
 - `updateCalibrationConfig()` — update it
 - `hasCalibrationConfig()` — check existence
