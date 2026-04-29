@@ -99,7 +99,7 @@ You can now SSH into your PlanktoScope without username / password (using `ssh $
     <summary>On the PlanktoScope</summary>
 
 ```sh
-cd ~/PlanktoScope
+cd /opt/PlanktoScope
 just developer-mode
 git checkout main
 git status
