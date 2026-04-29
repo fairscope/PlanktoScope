@@ -75,6 +75,7 @@ developer-mode: setup-dev
 reset: base setup
     rm /home/pi/PlanktoScope/config.json
     rm /home/pi/PlanktoScope/hardware.json
+    rm /home/pi/PlanktoScope/calibration.json
     sudo reboot
 
 install-uv:

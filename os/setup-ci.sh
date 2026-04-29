@@ -7,10 +7,10 @@ export LANG="en_US.UTF-8"
 
 # The PlanktoScope monorepo is used for running and iterating on software components
 # https://github.com/fairscope/planktoscope
-sudo cp -r "$build_scripts_root"/.. "$HOME/PlanktoScope"
-sudo chown -R "$USER:$USER" "$HOME/PlanktoScope"
+sudo cp -r "$build_scripts_root"/.. "/opt/PlanktoScope"
+sudo chown -R "$USER:$USER" "/opt/PlanktoScope"
 
 sudo apt install -y just
-just --justfile "$HOME"/PlanktoScope/justfile
+just --justfile /opt/PlanktoScope/justfile
 ./postinstall.sh
 ./preimage.sh

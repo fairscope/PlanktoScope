@@ -16,7 +16,7 @@ Before you reset/upgrade/downgrade the software installed on your PlanktoScope, 
 
 Advanced users may also want to take the following actions, depending on what changes they have made:
 
-- If you don't want to write down your white balance gains and hardware settings/calibrations, you can instead back up your PlanktoScope's hardware settings file, which is saved at `/home/pi/PlanktoScope/hardware.json`, for example in the file browser at <http://planktoscope.local/admin/fs/files/home/pi/PlanktoScope/> . This file includes some hidden settings not exposed in the PlanktoScope's Node-RED dashboard - so if you have changed any such settings by editing this file, then you may want to back up this file.
+- If you don't want to write down your white balance gains and hardware settings/calibrations, you can instead back up your PlanktoScope's hardware settings file, which is saved at `/opt/PlanktoScope/hardware.json`, for example in the file browser at <http://planktoscope.local/admin/fs/files/opt/PlanktoScope/> . This file includes some hidden settings not exposed in the PlanktoScope's Node-RED dashboard - so if you have changed any such settings by editing this file, then you may want to back up this file.
 
 ## Reset the PlanktoScope OS
 

@@ -12,11 +12,13 @@ if [ "$line" != "$expected" ]; then
   exit 1
 fi
 
-cd /home/pi
 sudo apt install -y git just
+cd /opt
 if cd PlanktoScope; then
     git pull
 else
+    sudo mkdir PlanktoScope
+    sudo chown pi:pi PlanktoScope
     git clone https://github.com/fairscope/PlanktoScope.git
     cd PlanktoScope
 fi

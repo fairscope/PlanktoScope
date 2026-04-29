@@ -16,7 +16,7 @@ setup-dev:
 
 dev:
     -sudo systemctl stop nodered
-    node --watch-path ~/PlanktoScope/node-red/nodes/ ~/.local/bin/node-red --settings ~/PlanktoScope/node-red/settings.cjs
+    node --watch-path /opt/PlanktoScope/node-red/nodes/ ~/.local/bin/node-red --settings /opt/PlanktoScope/node-red/settings.cjs
 
 test:
     validator projects/dashboard/flows.json

@@ -42,7 +42,7 @@
 
 	# We want everyrthing else /* to frontend
 	handle /* {
-        root * /home/pi/PlanktoScope/frontend/dist
+        root * /opt/PlanktoScope/frontend/dist
         try_files {path} /index.html
         file_server
 	}

@@ -39,7 +39,7 @@ PlanktoScope OS is ready.
 Type the following commands
 
 ```sh
-cd /home/pi/PlanktoScope
+cd /opt/PlanktoScope
 just update
 # don't forget to copy default configs if needed/wanted
 # cp default-configs/v3.0.hardware.json hardware.json
@@ -99,7 +99,7 @@ You can now SSH into your PlanktoScope without username / password (using `ssh $
     <summary>On the PlanktoScope</summary>
 
 ```sh
-cd ~/PlanktoScope
+cd /opt/PlanktoScope
 just developer-mode
 git checkout main
 git status
@@ -107,7 +107,7 @@ git status
 
 </details>
 
-We recommend developping directly from the PlanktoScope using [Visual Studio Code and the Remote - SSH extension](https://code.visualstudio.com/docs/remote/ssh) or [Zed - Remote Development](https://zed.dev/docs/remote-development). Use `$planktoscope` as the host to connect to and open the `/home/pi/PlanktoScope` directory.
+We recommend developping directly from the PlanktoScope using [Visual Studio Code and the Remote - SSH extension](https://code.visualstudio.com/docs/remote/ssh) or [Zed - Remote Development](https://zed.dev/docs/remote-development). Use `$planktoscope` as the host to connect to and open the `/opt/PlanktoScope` directory.
 
 ## Connect to router
 
