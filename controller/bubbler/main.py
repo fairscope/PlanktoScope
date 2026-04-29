@@ -1,9 +1,7 @@
 import asyncio
 import json
-import math
 import signal
 import sys
-import time
 from pprint import pprint
 
 import aiomqtt  # type: ignore
@@ -15,24 +13,13 @@ loop = asyncio.new_event_loop()
 bubbler = None
 
 # ============== ADJUST THESE VALUES ==============
-# La moyenne exacte entre ton Peak (0.275) et ta Valley (0.265)
-OSCILLATION_AVERAGE = 0.264
-
-# L'amplitude pour atteindre exactement tes limites
-# 0.270 + 0.005 = 0.275 (Peak)
-# 0.270 - 0.005 = 0.265 (Valley)
-OSCILLATION_AMPLITUDE = 0.005
-
-# Vitesse de l'oscillation en Hertz (cycles par seconde).
-# 5.0 correspond à ton ancien cycle de 0.2 seconde.
-OSCILLATION_FREQUENCY = 4
-
-# Fréquence de mise à jour du DAC (en secondes).
-# 0.01 offre une courbe très fluide à 100fps.
-UPDATE_INTERVAL = 0.02
+# These can probably be improved, but it works nicely around 2 bubbles a second.
+RAMP_VALUES = [0.275, 0.265, 0.265, 0.275]  # Current levels to ramp through
+RAMP_STEP_TIME = 0.1  # Seconds at each level
+PAUSE_TIME = 0.2  # Seconds to pause (off) between cycles
 # =================================================
 
-oscillation_task = None
+ramp_task = None
 
 
 async def start() -> None:
@@ -103,60 +90,51 @@ async def handle_action(action: str, payload) -> None:
 
 
 async def on() -> None:
-    global oscillation_task
+    global ramp_task
     assert bubbler is not None
 
-    if oscillation_task:
-        oscillation_task.cancel()
+    if ramp_task:
+        ramp_task.cancel()
         try:
-            await oscillation_task
+            await ramp_task
         except asyncio.CancelledError:
             pass
-        oscillation_task = None
+        ramp_task = None
 
-    # Kick-start: high intensity to prime the pump
-    bubbler.set_value(0.275)
-    await asyncio.sleep(2)
-
-    # Start oscillation mode
-    oscillation_task = asyncio.create_task(run_oscillate())
+    # Start ramp mode
+    ramp_task = asyncio.create_task(run_ramp())
     await publish_status()
 
 
-async def run_oscillate():
-    """Smoothly oscillate current using a sine wave to pulse the bubbler."""
+async def run_ramp():
+    """Ramp up through values at the top, ramp down, pause, repeat."""
     assert bubbler is not None
-    start_time = time.time()
     try:
         while True:
-            # Calculate elapsed time
-            t = time.time() - start_time
-
-            # Generate sine wave value between -1 and 1
-            sine_wave = math.sin(2 * math.pi * OSCILLATION_FREQUENCY * t)
-
-            # Scale to our desired amplitude and shift to our average
-            current_val = OSCILLATION_AVERAGE + (OSCILLATION_AMPLITUDE * sine_wave)
-
-            # Safety clamp to ensure we never pass invalid values to the DAC
-            current_val = max(0.0, min(1.0, current_val))
-
-            bubbler.set_value(current_val)
-
-            await asyncio.sleep(UPDATE_INTERVAL)
+            # Ramp up
+            for v in RAMP_VALUES:
+                bubbler.set_value(v)
+                await asyncio.sleep(RAMP_STEP_TIME)
+            # Ramp down
+            for v in reversed(RAMP_VALUES[:-1]):
+                bubbler.set_value(v)
+                await asyncio.sleep(RAMP_STEP_TIME)
+            # Off and pause
+            bubbler.set_value(0)
+            await asyncio.sleep(PAUSE_TIME)
     except asyncio.CancelledError:
         pass
 
 
 async def off() -> None:
-    global oscillation_task
-    if oscillation_task:
-        oscillation_task.cancel()
+    global ramp_task
+    if ramp_task:
+        ramp_task.cancel()
         try:
-            await oscillation_task
+            await ramp_task
         except asyncio.CancelledError:
             pass
-        oscillation_task = None
+        ramp_task = None
     assert bubbler is not None
     bubbler.off()
     await publish_status()
