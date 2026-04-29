@@ -9,6 +9,6 @@ watch("status/bubbler").then(async (messages) => {
 
 await startBubbler()
 
-await setTimeout(4000)
+await setTimeout(2000)
 
 await stopBubbler()
