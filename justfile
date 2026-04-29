@@ -73,9 +73,9 @@ developer-mode: setup-dev
     ./os/developer-mode/configure.mjs
 
 reset: base setup
-    rm /home/pi/config.json
-    rm /home/pi/hardware.json
-    rm /home/pi/calibration.json
+    rm /home/pi/PlanktoScope/config.json
+    rm /home/pi/PlanktoScope/hardware.json
+    rm /home/pi/PlanktoScope/calibration.json
     sudo reboot
 
 install-uv:
