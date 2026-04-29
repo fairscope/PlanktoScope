@@ -34,7 +34,7 @@ async def start() -> None:
 
     hardware_config = None
     try:
-        async with aiofiles.open("/home/pi/PlanktoScope/hardware.json", mode="r") as file:
+        async with aiofiles.open("/opt/PlanktoScope/hardware.json", mode="r") as file:
             hardware_config = json.loads(await file.read())
     except FileNotFoundError:
         return None

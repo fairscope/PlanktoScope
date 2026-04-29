@@ -1,5 +1,7 @@
 #!/bin/bash -eux
 
+sudo mount -o remount,rw /boot/firmware
+
 # Configure firmware
 # https://www.raspberrypi.com/documentation/computers/config_txt.html
 sudo bash -c "cat \"config.ini\" >> \"/boot/firmware/config.txt\""
@@ -17,3 +19,5 @@ sudo bash -c "cat \"config.ini\" >> \"/boot/firmware/config.txt\""
 [ ! -f /boot/firmware/cmdline.txt ] || \
   grep -qw logo.nologo /boot/firmware/cmdline.txt || \
   sudo sed -i 's/$/ logo.nologo/' /boot/firmware/cmdline.txt
+
+sudo mount -o remount,ro /boot/firmware

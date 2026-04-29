@@ -200,7 +200,7 @@ jobs:
           user: pi
           run: |
             export DEBIAN_FRONTEND=noninteractive
-            cd /home/pi/PlanktoScope
+            cd /opt/PlanktoScope
             just ci
 
       # UPLOAD OS IMAGE
