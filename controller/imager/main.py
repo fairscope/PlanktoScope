@@ -529,7 +529,7 @@ class _PumpClient:
 def read_config() -> typing.Any:
     config = {}
     try:
-        with open("/opt/PlanktoScope/hardware.json", "r") as file:
+        with open("/home/pi/PlanktoScope/hardware.json", "r") as file:
             try:
                 config = json.load(file)
             except Exception:

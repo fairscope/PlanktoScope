@@ -24,7 +24,7 @@ class i2c_led:
     DEFAULT_CURRENT = 10
 
     def __init__(self):
-        with open("/opt/PlanktoScope/hardware.json", "r") as file:
+        with open("/home/pi/PlanktoScope/hardware.json", "r") as file:
             config = json.load(file)
             hat_version = float(config.get("hat_version") or 0)
             # The led is controlled by LM36011
