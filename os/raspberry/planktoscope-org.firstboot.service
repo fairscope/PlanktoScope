@@ -4,7 +4,7 @@ ConditionFirstBoot=yes
 
 [Service]
 Type=oneshot
-ExecStart=/home/pi/PlanktoScope/os/raspberry/firstboot.sh
+ExecStart=/opt/PlanktoScope/os/raspberry/firstboot.sh
 
 [Install]
 WantedBy=sysinit.target

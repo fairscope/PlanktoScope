@@ -1,5 +1,5 @@
 setup:
-    npm list -g node-red@v5.0.0-beta.4 || npm install -g node-red@v5.0.0-beta.4
+    sudo npm list -g node-red@v5.0.0-beta.4 || sudo npm install -g node-red@v5.0.0-beta.4
     npm ci --omit=dev
     sudo cp nodered.service /etc/systemd/system/
     sudo mkdir -p /etc/systemd/system/nodered.service.d
@@ -16,7 +16,7 @@ setup-dev:
 
 dev:
     -sudo systemctl stop nodered
-    node --watch-path ~/PlanktoScope/node-red/nodes/ ~/.local/bin/node-red --settings ~/PlanktoScope/node-red/settings.cjs
+    node --watch-path /opt/PlanktoScope/node-red/nodes/ /usr/local/bin/node-red --settings /opt/PlanktoScope/node-red/settings.cjs
 
 test:
     validator projects/dashboard/flows.json

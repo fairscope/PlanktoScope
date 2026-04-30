@@ -17,6 +17,8 @@ Start service for development:
 just dev
 ```
 
+Use `http://planktoscope-sponge-bob:3000/bookmarks` for preview.
+
 Run the code auto-formatter on the project:
 
 ```sh

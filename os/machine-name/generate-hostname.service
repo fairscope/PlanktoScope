@@ -10,7 +10,7 @@ Before=sysinit.target
 
 [Service]
 Type=oneshot
-ExecStart=/home/pi/PlanktoScope/os/machine-name/generate-hostname.sh
+ExecStart=/opt/PlanktoScope/os/machine-name/generate-hostname.sh
 
 [Install]
 WantedBy=sysinit.target

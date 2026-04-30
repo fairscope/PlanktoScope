@@ -3,7 +3,7 @@ Description=Mount firmware partition
 
 [Service]
 Type=oneshot
-ExecStart=/home/pi/PlanktoScope/os/image/mount-firmware.js
+ExecStart=/opt/PlanktoScope/os/image/mount-firmware.js
 RemainAfterExit=yes
 
 [Install]
