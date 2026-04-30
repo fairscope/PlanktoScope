@@ -1,5 +1,3 @@
-export PATH := x"${PATH}:/home/$USER/.local/bin"
-
 default: base setup
 
 base: install-uv
@@ -8,8 +6,8 @@ base: install-uv
     echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_24.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list
     sudo apt update
     sudo apt install -y git nodejs
-    mkdir -p /home/pi/.local
-    npm config set prefix /home/pi/.local
+    npm config set prefix /usr/local
+    sudo npm config set prefix /usr/local
 
 update:
     git checkout main
@@ -75,6 +73,7 @@ developer-mode: setup-dev
 reset: base setup
     rm /home/pi/PlanktoScope/config.json
     rm /home/pi/PlanktoScope/hardware.json
+    rm /home/pi/PlanktoScope/calibration.json
     sudo reboot
 
 install-uv:

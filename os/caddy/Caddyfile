@@ -31,8 +31,20 @@
 		file_server
 	}
 
-	handle /* {
+	handle /api/* {
 		reverse_proxy localhost:4000
+	}
+
+	# We want exact path / to go to backend where we have a redirect
+	handle / {
+		reverse_proxy localhost:4000
+	}
+
+	# We want everyrthing else /* to frontend
+	handle /* {
+        root * /opt/PlanktoScope/frontend/dist
+        try_files {path} /index.html
+        file_server
 	}
 
 	# https://github.com/ecotaxa/ecotaxa_back/issues/64

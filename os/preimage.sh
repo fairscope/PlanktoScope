@@ -18,8 +18,9 @@ rm -f "$HOME"/.gitconfig
 rm -rf "$HOME"/.ssh
 rm -rf "$HOME"/data
 rm -f "$HOME"/filebrowser.db
-rm -f "$HOME"/planktoScope/hardware.json
+rm -f "$HOME"/PlanktoScope/hardware.json
 rm -f "$HOME"/PlanktoScope/config.json
+rm -f "$HOME"/PlanktoScope/calibartion.json
 
 # Clear machine-id so that it will be regenerated on the next boot
 # This is also the condition for ConditionFirstBoot=yes

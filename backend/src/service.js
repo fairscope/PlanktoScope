@@ -47,10 +47,4 @@ app.get("/", async (req, res) => {
   return res.redirect(302, "/ps/node-red-v2/dashboard")
 })
 
-const path_spa = "/home/pi/PlanktoScope/frontend/dist"
-app.use("/", express.static(path_spa))
-app.get("/{*splat}", (req, res) => {
-  res.sendFile(path.join(path_spa, "index.html"))
-})
-
 app.listen(4000)

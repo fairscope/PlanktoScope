@@ -3,6 +3,7 @@ setup:
     sudo cp Caddyfile /etc/caddy/
     sudo systemctl reenable caddy
     sudo systemctl restart caddy
+    chmod o+x /home/pi
 
 format:
     caddy fmt --overwrite Caddyfile
