@@ -5,7 +5,7 @@ setup:
     sudo cp polkit.js /etc/polkit-1/rules.d/planktoscope.rules
     sudo systemctl reenable planktoscope-org.backend.service
     sudo systemctl restart planktoscope-org.backend.service
-    sudo mkdir /data/tmp
+    sudo mkdir -p /data/tmp
     sudo chown -R pi:pi /data/tmp
 
 setup-dev:

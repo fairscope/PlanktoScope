@@ -2,40 +2,33 @@ import "../../index.css"
 
 // import styles from "./styles.module.css"
 
-import { createSignal } from "solid-js"
+import { createSignal, Show, Match, Switch } from "solid-js"
 
 export default function Update() {
   const [upload_progress, set_upload_progress] = createSignal(0)
   const [install_progress, set_install_progress] = createSignal(0)
+  const [bundle_info, set_bundle_info] = createSignal(null)
 
-  function handleUploadProgress(p) {
-    set_upload_progress(p)
-  }
-
-  const url = new URL("/api/update/events", document.URL)
-  url.port = 80
-  const es = new EventSource(url)
-  es.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data)
-      console.log(data)
-      set_install_progress(data[0])
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
-  es.onerror = (err) => {
-    console.error(err)
-  }
-
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
-    const file = e.currentTarget.elements.bundle.files[0]
+    console.time("install")
+    install(bundle_info().path, (p) => set_install_progress(p))
+      .catch((err) => {
+        console.error(err)
+      })
+      .finally(() => {
+        console.timeEnd("install")
+      })
+  }
+
+  function handleFileChange(e) {
+    e.preventDefault()
+    const file = e.currentTarget.files[0]
     console.time("upload")
-    upload(file, handleUploadProgress)
+    upload(file, (p) => set_upload_progress(p))
       .then((bundle_info) => {
-        console.log("success", bundle_info)
+        console.log(bundle_info)
+        set_bundle_info(bundle_info)
       })
       .catch((err) => {
         console.error(err)
@@ -49,7 +42,13 @@ export default function Update() {
     <div>
       <h1>Software update</h1>
       <form onSubmit={handleSubmit}>
-        <input type="file" name="bundle" required accept=".raucb" />
+        <input
+          type="file"
+          name="bundle"
+          onChange={handleFileChange}
+          required
+          accept=".raucb"
+        />
         <div>
           <label for="progress-upload">{`Upload: ${upload_progress()}%`}</label>
           <input
@@ -63,6 +62,13 @@ export default function Update() {
             value={upload_progress()}
           />
         </div>
+        <Show when={bundle_info()}>
+          <div>
+            <p>{`version: ${bundle_info().version}`}</p>
+            <p>{`build id: ${bundle_info().build}`}</p>
+            <p>{`compatible: ${bundle_info().compatible}`}</p>
+          </div>
+        </Show>
         <div>
           <label for="progress-install">{`Install: ${install_progress()}%`}</label>
           <input
@@ -76,7 +82,7 @@ export default function Update() {
             value={install_progress()}
           />
         </div>
-        <input type="submit" value="Update" />
+        <input type="submit" disabled={!bundle_info()} value="Install" />
       </form>
     </div>
   )
@@ -110,7 +116,7 @@ async function upload(blob, progress) {
       reject(new Error("Upload aborted"))
     })
 
-    const url = new URL("/api/update", document.URL)
+    const url = new URL("/api/update/upload", document.URL)
     url.port = 80
     xhr.open("POST", url, true)
     const form = new FormData()
@@ -118,3 +124,41 @@ async function upload(blob, progress) {
     xhr.send(form)
   })
 }
+
+async function install(path, progress) {
+  const url = new URL("/api/update/install", document.URL)
+  url.port = 80
+  await fetch(url, {
+    method: "POST",
+    body: JSON.stringify({ path }),
+    headers: { "Content-Type": "application/json" },
+  })
+  watchProgress(progress)
+
+  const deferred = Promise.withResolvers()
+  ;(() => {
+    const url = new URL("/api/update/events", document.URL)
+    url.port = 80
+    const es = new EventSource(url)
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        progress(data[0])
+        if (data[0] === 100) {
+          deferred.resolve()
+          es.close()
+        }
+      } catch (err) {
+        deferred.reject(err)
+      }
+    }
+
+    es.onerror = (err) => {
+      deferred.reject(err)
+    }
+  })()
+
+  return deferred.promise
+}
+
+async function watchProgress(progress) {}

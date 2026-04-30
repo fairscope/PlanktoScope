@@ -1,6 +1,7 @@
 import { rm } from "node:fs/promises"
 import { readRaucSystemConf } from "../../os/rauc/rauc.js"
 
+import express from "express"
 import multer from "multer"
 import {
   normalizeDbus,
@@ -18,6 +19,20 @@ app.post("/api/update/upload", uploads.single("bundle"), async (req, res) => {
   const info = await getBundleInfo(req.file.path)
   res.status(200)
   res.json(info)
+})
+
+app.post("/api/update/install", express.json(), async (req, res) => {
+  const { path } = req.body
+  if (!path) {
+    res.status(404)
+    res.end()
+    return
+  }
+
+  await triggerInstall(path)
+
+  res.status(200)
+  res.end()
 })
 
 // Keep track of clients
@@ -55,8 +70,6 @@ watchProperty(rauc, "Progress").subscribe((progress) => {
   console.log(progress)
   broadcast(progress)
 })
-
-console.log(rauc)
 
 // https://rauc.readthedocs.io/en/latest/reference.html#installbundle-method
 async function triggerInstall(path) {
