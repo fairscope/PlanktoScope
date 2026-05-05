@@ -46,11 +46,8 @@ export default function Update() {
       })
   }
 
-  let done = false
-  const url = new URL("/api/update/events", document.URL)
-  url.port = 80
   createEventSource({
-    url,
+    url: makeUrl("/api/update/events"),
     onMessage: ({ data, event, id }) => {
       // console.log({ data, event, id })
       set_status(JSON.parse(data))
@@ -71,6 +68,7 @@ export default function Update() {
         <input
           type="file"
           name="bundle"
+          disabled={status()?.Operation !== "idle"}
           onChange={handleFileChange}
           required
           accept=".raucb"
@@ -139,9 +137,7 @@ async function upload(blob, progress) {
       reject(new Error("Upload aborted"))
     })
 
-    const url = new URL("/api/update/upload", document.URL)
-    url.port = 80
-    xhr.open("POST", url, true)
+    xhr.open("POST", makeUrl("/api/update/upload"), true)
     const form = new FormData()
     form.append("bundle", blob)
     xhr.send(form)
@@ -149,11 +145,7 @@ async function upload(blob, progress) {
 }
 
 async function install(path, progress) {
-  const result = window.confirm("Install and reboot")
-  console.log(result)
-  const url = new URL("/api/update/install", document.URL)
-  url.port = 80
-  await fetch(url, {
+  await fetch(makeUrl("/api/update/install"), {
     method: "POST",
     body: JSON.stringify({ path }),
     headers: { "Content-Type": "application/json" },
