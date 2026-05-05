@@ -8,6 +8,7 @@ setup:
     npm ci --omit=dev
     sudo mkdir -p /etc/rauc
     sudo node rauc.js create-configuration
+    sudo systemctl restart rauc
     sudo cp rauc-mark-good.service /etc/systemd/system/
     sudo systemctl reenable rauc-mark-good
     sudo systemctl restart rauc-mark-good
@@ -17,4 +18,5 @@ setup-dev:
 
 test:
     npx eslint .
+    validator rauc.ini
     validator rauc.ini
