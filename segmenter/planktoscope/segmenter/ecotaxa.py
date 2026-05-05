@@ -238,9 +238,16 @@ def ecotaxa_export(archive_filepath, metadata, image_base_path, keep_files=False
             return 0
 
         # Concatenated sample+acq id for both TSV columns and the filename.
+        # acq_id is built downstream of sample_id (the imager directory layout
+        # produces acq_id = "<sample_id>_<suffix>"), so naively joining them
+        # duplicates the sample_id; strip the redundant prefix when present.
         sample_id = metadata.get("sample_id", "unknown_sample").replace(" ", "_")
         acquisition_id = metadata.get("acq_id", "unknown_acq").replace(" ", "_")
-        combined_id = f"{sample_id}_{acquisition_id}"
+        if acquisition_id.startswith(sample_id + "_"):
+            acq_suffix = acquisition_id[len(sample_id) + 1 :]
+        else:
+            acq_suffix = acquisition_id
+        combined_id = f"{sample_id}_{acq_suffix}"
         metadata["sample_id"] = combined_id
         metadata["acq_id"] = combined_id
 
@@ -254,7 +261,12 @@ def ecotaxa_export(archive_filepath, metadata, image_base_path, keep_files=False
         for rank, roi in enumerate(object_list, start=1):
             tsv_line = {}
             tsv_line.update(metadata)
-            tsv_line.update(("object_" + k, v) for k, v in roi["metadata"].items())
+            # Exclude `object_contour` from the TSV — EcoTaxa rejects fields > 250
+            # chars and the polygon JSON exceeds that for moderately complex shapes.
+            # The contour stays in the per-object metadata.json for the audit visualizer.
+            tsv_line.update(
+                ("object_" + k, v) for k, v in roi["metadata"].items() if k != "contour"
+            )
             tsv_line["object_id"] = roi["name"]
 
             filename = roi["name"] + ".jpg"
@@ -276,7 +288,9 @@ def ecotaxa_export(archive_filepath, metadata, image_base_path, keep_files=False
             list(zip(tsv_content.columns, tsv_type_header))
         )
 
-        tsv_filename = f"Ecotaxa_{sample_id}_{acquisition_id}.tsv"
+        # Lowercase `ecotaxa_` prefix — EcoTaxa rejects archives whose TSV starts
+        # with a capital E.
+        tsv_filename = f"ecotaxa_{combined_id}.tsv"
 
         # add the tsv to the archive
         archive.writestr(
