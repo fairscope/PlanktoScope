@@ -2,7 +2,7 @@ import { Temporal } from "@js-temporal/polyfill"
 
 import { getHardwareVersion } from "../../lib/hardware.js"
 import { getSoftwareVersioning } from "../../lib/software.js"
-import { getName } from "../../lib/identity.js"
+import { getMachineName } from "../../lib/identity.js"
 import {
   acquire,
   configure,
@@ -20,7 +20,7 @@ watch("status/imager").then(async (messages) => {
 })
 
 const hardware_version = await getHardwareVersion()
-const machine_name = await getName()
+const machine_name = await getMachineName()
 const software = await getSoftwareVersioning()
 
 const t = Temporal.Now.plainDateTimeISO("UTC")

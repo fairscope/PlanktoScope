@@ -1,4 +1,5 @@
 import { createAsync, query } from "@solidjs/router"
+import { getMachineName } from "../../../lib/identity"
 
 function wait(ms, data) {
   return new Promise((resolve) => setTimeout(resolve, ms, data))
@@ -11,7 +12,7 @@ function random(min, max) {
 const getName = query(() => wait(random(500, 1000), "Solid"), "aboutName")
 
 const AboutData = () => {
-  return createAsync(() => getName())
+  return createAsync(() => getMachineName())
 }
 
 export default AboutData
