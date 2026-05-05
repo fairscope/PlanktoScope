@@ -1,18 +1,26 @@
 import "../../index.css"
 
 // import styles from "./styles.module.css"
+//
+import { makeUrl } from "../../helpers.js"
+
+// import "observable-polyfill"
+import { createEventSource } from "eventsource-client"
 
 import { createSignal, Show, Match, Switch } from "solid-js"
 
 export default function Update() {
   const [upload_progress, set_upload_progress] = createSignal(0)
-  const [install_progress, set_install_progress] = createSignal(0)
   const [bundle_info, set_bundle_info] = createSignal(null)
+  const [status, set_status] = createSignal(null)
 
   async function handleSubmit(e) {
     e.preventDefault()
     console.time("install")
-    install(bundle_info().path, (p) => set_install_progress(p))
+    install(bundle_info().path, ({ percentage, message, nesting_depth }) => {
+      set_install_progress(percentage)
+      set_install_message(message)
+    })
       .catch((err) => {
         console.error(err)
       })
@@ -38,9 +46,27 @@ export default function Update() {
       })
   }
 
+  let done = false
+  const url = new URL("/api/update/events", document.URL)
+  url.port = 80
+  createEventSource({
+    url,
+    onMessage: ({ data, event, id }) => {
+      // console.log({ data, event, id })
+      set_status(JSON.parse(data))
+    },
+  })
+
   return (
     <div>
       <h1>Software update</h1>
+      <Show when={status() !== null}>
+        <ul>
+          <li>{`Operation: ${status().Operation}`}</li>
+          <li>{`Last Error: ${status().LastError || "none"}`}</li>
+        </ul>
+      </Show>
+
       <form onSubmit={handleSubmit}>
         <input
           type="file"
@@ -50,17 +76,8 @@ export default function Update() {
           accept=".raucb"
         />
         <div>
-          <label for="progress-upload">{`Upload: ${upload_progress()}%`}</label>
-          <input
-            type="range"
-            readonly
-            disabled
-            name="progress-upload"
-            step="1"
-            min="0"
-            max="100"
-            value={upload_progress()}
-          />
+          <p>{`Upload: ${upload_progress()}%`}</p>
+          <progress max="100" value={upload_progress()} />
         </div>
         <Show when={bundle_info()}>
           <div>
@@ -69,20 +86,26 @@ export default function Update() {
             <p>{`compatible: ${bundle_info().compatible}`}</p>
           </div>
         </Show>
-        <div>
-          <label for="progress-install">{`Install: ${install_progress()}%`}</label>
-          <input
-            type="range"
-            readonly
-            disabled
-            name="progress-install"
-            step="1"
-            min="0"
-            max="100"
-            value={install_progress()}
-          />
-        </div>
-        <input type="submit" disabled={!bundle_info()} value="Install" />
+        <Show when={status()?.Progress[1] !== "Checking bundle done."}>
+          <div>
+            <p>
+              {`Status: ${status()?.Progress[0]}%`}{" "}
+              <small>{status()?.Progress[1]}</small>
+            </p>
+            <progress max="100" value={status()?.Progress[0] || 0} />
+          </div>
+        </Show>
+        <input
+          type="submit"
+          disabled={!bundle_info() || status()?.Operation !== "idle"}
+          value="Install"
+        />
+        <input
+          type="button"
+          onClick={handleReboot}
+          disabled={status()?.Progress[1] !== "Installing done."}
+          value="Reboot"
+        />
       </form>
     </div>
   )
@@ -126,6 +149,8 @@ async function upload(blob, progress) {
 }
 
 async function install(path, progress) {
+  const result = window.confirm("Install and reboot")
+  console.log(result)
   const url = new URL("/api/update/install", document.URL)
   url.port = 80
   await fetch(url, {
@@ -133,32 +158,11 @@ async function install(path, progress) {
     body: JSON.stringify({ path }),
     headers: { "Content-Type": "application/json" },
   })
-  watchProgress(progress)
-
-  const deferred = Promise.withResolvers()
-  ;(() => {
-    const url = new URL("/api/update/events", document.URL)
-    url.port = 80
-    const es = new EventSource(url)
-    es.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data)
-        progress(data[0])
-        if (data[0] === 100) {
-          deferred.resolve()
-          es.close()
-        }
-      } catch (err) {
-        deferred.reject(err)
-      }
-    }
-
-    es.onerror = (err) => {
-      deferred.reject(err)
-    }
-  })()
-
-  return deferred.promise
 }
 
-async function watchProgress(progress) {}
+async function handleReboot() {
+  await fetch(makeUrl("/api/update/reboot"), {
+    method: "POST",
+  })
+  window.location = makeUrl("/")
+}

@@ -8,9 +8,13 @@ import {
   readProperty,
   systemBus,
 } from "../../lib/dbus-helpers.js"
+import { reboot } from "../../lib/hardware.js"
 
 import app from "./app.js"
 import { watchProperty } from "../../lib/dbus-helpers.js"
+
+const service = systemBus().getService("de.pengutronix.rauc")
+const rauc = await service.getInterface("/", "de.pengutronix.rauc.Installer")
 
 const uploads = multer({
   dest: "/data/tmp",
@@ -35,6 +39,31 @@ app.post("/api/update/install", express.json(), async (req, res) => {
   res.end()
 })
 
+app.post("/api/update/reboot", async (req, res) => {
+  res.status(201)
+  res.end()
+
+  setTimeout(() => {
+    reboot().catch(console.error)
+  }, 1000)
+})
+
+const props = [
+  "Operation",
+  "LastError",
+  "Progress",
+  /* "Compatible", "Variant", */
+]
+const signals = ["Completed"]
+
+async function getStatus() {
+  const values = await Promise.all(
+    props.map((prop) => readProperty(rauc, prop)),
+  )
+  const obj = Object.fromEntries(props.map((key, i) => [key, values[i]]))
+  return obj
+}
+
 // Keep track of clients
 const clients = new Set()
 app.get("/api/update/events", (req, res) => {
@@ -52,6 +81,12 @@ app.get("/api/update/events", (req, res) => {
   }
   clients.add(client)
 
+  getStatus()
+    .then((data) => {
+      client.res.write(`data: ${JSON.stringify(data)}\n\n`)
+    })
+    .catch(console.error)
+
   req.on("close", () => {
     clients.delete(client)
   })
@@ -63,19 +98,17 @@ function broadcast(data) {
   })
 }
 
-const service = systemBus().getService("de.pengutronix.rauc")
-const rauc = await service.getInterface("/", "de.pengutronix.rauc.Installer")
-
-watchProperty(rauc, "Progress").subscribe((progress) => {
-  console.log(progress)
-  broadcast(progress)
+props.forEach((prop) => {
+  watchProperty(rauc, prop).subscribe(async () => {
+    const status = await getStatus()
+    broadcast(status)
+  })
 })
 
 // https://rauc.readthedocs.io/en/latest/reference.html#installbundle-method
 async function triggerInstall(path) {
   await rauc.InstallBundle(path, [])
   const current_operation = await readProperty(rauc, "Operation")
-  console.log({ current_operation })
   if (current_operation !== "installing")
     throw new Error(`Current rauc operation is "${current_operation}".`)
 }
@@ -98,6 +131,7 @@ async function getBundleInfo(path) {
 }
 
 if (import.meta.main) {
+  console.log(await getStatus())
   // await triggerInstall("/data/tmp/fpp")
-  await getBundleInfo("/data/tmp/e5464c1b6a138ca358e9683cbe5d73f8")
+  // await getBundleInfo("/data/tmp/e5464c1b6a138ca358e9683cbe5d73f8")
 }
