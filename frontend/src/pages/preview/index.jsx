@@ -8,9 +8,7 @@ import {
   watch,
   stopBubbler,
 } from "../../../../lib/scope.js"
-import { triggerDownload } from "../../helpers.js"
-
-import cameraIcon from "./camera.svg"
+import { triggerDownload, makeUrl } from "../../helpers.js"
 
 import NumberInput from "./NumberInput.jsx"
 import { createSignal } from "solid-js"
@@ -56,34 +54,10 @@ export default function Preview() {
         </div>
       </div>
       <div class={styles.preview}>
-        <Stream
-          controls={
-            <button
-              tooltip="Take capture"
-              class={styles.button_capture}
-              onClick={takeImage}
-            >
-              {cameraIcon}
-            </button>
-          }
-        />
+        <Stream />
       </div>
     </>
   )
-}
-
-async function takeImage() {
-  const url = new URL("/api/capture", document.URL)
-  url.port = 80
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-    })
-    const body = await res.json()
-    triggerDownload(body.url_jpeg)
-  } catch (err) {
-    console.error(err)
-  }
 }
 
 function onLightChange(value) {

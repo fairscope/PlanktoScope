@@ -79,14 +79,6 @@ export default function Bookmarks() {
             </a>
           </li>
           <li>
-            <a
-              href={makeUrl("/ps/processing/segmenter/streams/object.mjpg")}
-              target="_blank"
-            >
-              Last segmented object
-            </a>
-          </li>
-          <li>
             <a href={makeLocalUrl("/factory")} target="_blank">
               Factory
             </a>
