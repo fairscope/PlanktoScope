@@ -101,6 +101,7 @@ class SegmenterProcess(multiprocessing.Process):
         self.__process_min_ESD = 20  # microns
         # https://planktoscope.slack.com/archives/C01V5ENKG0M/p1714146253356569
         self.__remove_previous_mask = False
+        self._interrupt_requested = False
 
         # create all base path
         for path in [
@@ -594,6 +595,22 @@ class SegmenterProcess(multiprocessing.Process):
                 )
         return (object_number, len(regionprops))
 
+    def _check_for_stop(self):
+        """Check if a stop request arrived via MQTT during the pipeline.
+
+        Idempotent — once True, stays True until segment_list() resets it.
+        """
+        if self._interrupt_requested:
+            return True
+        if self.segmenter_client.new_message_received():
+            peek = self.segmenter_client.msg
+            if peek and peek.get("payload", {}).get("action") == "stop":
+                logger.info("Stop requested during active segmentation")
+                self.segmenter_client.read_message()
+                self._interrupt_requested = True
+                return True
+        return False
+
     def _pipe(self, ecotaxa_export):
         logger.info("Finding images")
         images_list = self._find_files(self.__working_path, ("JPG", "jpg", "JPEG", "jpeg"))
@@ -636,6 +653,8 @@ class SegmenterProcess(multiprocessing.Process):
 
         # TODO here would be a good place to parallelize the computation
         for i, filename in enumerate(images_list):
+            if self._check_for_stop():
+                break
             name = os.path.splitext(filename)[0]
 
             # Publish the object_id to via MQTT to Node-RED
@@ -775,6 +794,12 @@ class SegmenterProcess(multiprocessing.Process):
         logger.info(f"The pipeline will be run in {len(path_list)} directories")
         logger.debug(f"Those are {path_list}")
 
+        # Drain any stop/garbage messages buffered between runs and reset the
+        # interrupt flag so a stale click from a previous run can't kill this one.
+        while self.segmenter_client.new_message_received():
+            self.segmenter_client.read_message()
+        self._interrupt_requested = False
+
         self.__process_uuid = str(uuid4())
 
         if self.__process_id == "":
@@ -785,6 +810,9 @@ class SegmenterProcess(multiprocessing.Process):
         exception = None
 
         for path in path_list:
+            if self._check_for_stop():
+                logger.info("Stop honored — skipping remaining paths")
+                break
             logger.debug(f"{path}: Checking for the presence of metadata.json")
             if os.path.exists(os.path.join(path, "metadata.json")):
                 # The file exists, let's check if we force or not
@@ -802,8 +830,11 @@ class SegmenterProcess(multiprocessing.Process):
             else:
                 logger.debug(f"Moving to the next folder, {path} has no metadata.json")
         if exception is None:
-            # Publish the status "Done" to via MQTT to Node-RED
-            self.segmenter_client.client.publish("status/segmenter", '{"status":"Done"}')
+            # Publish "Interrupted" if user-stopped, otherwise "Done"
+            if self._interrupt_requested:
+                self.segmenter_client.client.publish("status/segmenter", '{"status":"Interrupted"}')
+            else:
+                self.segmenter_client.client.publish("status/segmenter", '{"status":"Done"}')
         else:
             self.segmenter_client.client.publish(
                 "status/segmenter",
@@ -922,10 +953,13 @@ class SegmenterProcess(multiprocessing.Process):
             logger.exception(f"There was an error in the pipeline {e}")
             raise e
 
-        # Add file 'done' to path to mark the folder as already segmented
-        with open(os.path.join(self.__working_path, "done.txt"), "w") as done_file:
-            done_file.writelines(datetime.datetime.utcnow().isoformat())
-        logger.info(f"Pipeline has been run for {path}")
+        if self._interrupt_requested:
+            logger.info(f"Pipeline interrupted by user for {path}, not marking as done")
+        else:
+            # Add file 'done' to path to mark the folder as already segmented
+            with open(os.path.join(self.__working_path, "done.txt"), "w") as done_file:
+                done_file.writelines(datetime.datetime.utcnow().isoformat())
+            logger.info(f"Pipeline has been run for {path}")
 
         return True
 
