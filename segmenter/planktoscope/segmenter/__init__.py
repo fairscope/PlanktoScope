@@ -872,11 +872,19 @@ class SegmenterProcess(multiprocessing.Process):
             "parameters": {"kernel_size": 8, "kernel_shape": "ellipse"},
         }
 
-        # Define the name of the .zip file that will contain the images and the .tsv table for EcoTaxa
+        # Define the name of the .zip file that will contain the images and the .tsv table for EcoTaxa.
+        # acq_id is built downstream of sample_id (the imager directory layout
+        # produces acq_id = "<sample_id>_<suffix>"), so naively joining them
+        # duplicates the sample_id; strip the redundant prefix when present.
+        # Lowercase `ecotaxa_` prefix — EcoTaxa rejects archives starting with capital E.
+        if acquisition.startswith(sample + "_"):
+            acq_suffix = acquisition[len(sample) + 1 :]
+        else:
+            acq_suffix = acquisition
         self.__archive_fn = os.path.join(
             self.__ecotaxa_path,
             # TODO #102 sanitize the filename to remove potential problems with spaces and special characters
-            f"Ecotaxa_{sample}_{acquisition}.zip",
+            f"ecotaxa_{sample}_{acq_suffix}.zip",
         )
 
         self.__working_path = path
