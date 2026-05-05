@@ -354,6 +354,12 @@ class SegmenterProcess(multiprocessing.Process):
             "bx": prop.bbox[1],
             # Y coordinates of the top left point of the smallest rectangle enclosing the object (pixels)
             "by": prop.bbox[0],
+            # Width of the bounding box (pixels). Companion to bx/by/x/y for
+            # consumers that draw in pixel space (e.g. the audit visualizer);
+            # `width` above is in µm when calibrated for EcoTaxa compatibility.
+            "bw": prop.bbox[3] - prop.bbox[1],
+            # Height of the bounding box (pixels). See `bw` above.
+            "bh": prop.bbox[2] - prop.bbox[0],
             # circularity : (4∗π ∗Area)/Perim^2 — dimensionless ratio, unaffected by scaling
             "circ.": (4 * np.pi * prop.filled_area) / prop.perimeter**2,
             # Surface area of the object excluding holes (µm² if calibrated)

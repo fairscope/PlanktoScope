@@ -28,6 +28,11 @@ export default function Bookmarks() {
               Docs
             </a>
           </li>
+          <li>
+            <a href={makeLocalUrl("/update")} target="_blank">
+              Update software
+            </a>
+          </li>
         </ul>
 
         <h2>Developers</h2>
