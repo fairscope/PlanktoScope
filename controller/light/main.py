@@ -71,28 +71,14 @@ async def handle_action(action: str, payload) -> None:
         await on(payload)
     elif action == "off":
         await off()
-    # elif action == "settings":
-    #     await handle_settings(payload)
     elif action == "save":
-        if hasattr(led, "save"):
-            led.save()
-
-
-# async def handle_settings(payload) -> None:
-#     assert led is not None
-
-#     if "current" in payload["settings"]:
-#         # {"settings":{"current":"20"}}
-#         current = payload["settings"]["current"]
-#         if led.is_on():
-#             return
-#         led.set_current(current)
+        await save()
 
 
 async def on(payload) -> None:
     assert led is not None
     value = payload.get("value", 1)
-    assert 0.0 <= value <= 1.0
+    value = max(0.0, min(value, 1))
 
     if value == 0:
         await off()
@@ -118,6 +104,13 @@ async def off() -> None:
         await save_operating_time()
     except Exception as e:
         print(e)
+
+
+async def save() -> None:
+    assert led is not None
+
+    if hasattr(led, "save"):
+        led.save()
 
 
 async def publish_status() -> None:
