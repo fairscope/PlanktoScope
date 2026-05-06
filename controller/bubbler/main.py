@@ -1,9 +1,7 @@
 import asyncio
 import json
-import math
 import signal
 import sys
-import time
 from pprint import pprint
 
 import aiomqtt  # type: ignore
@@ -13,26 +11,41 @@ import helpers
 client = None
 loop = asyncio.new_event_loop()
 bubbler = None
+state_value = 0
 
-# ============== ADJUST THESE VALUES ==============
-# La moyenne exacte entre ton Peak (0.275) et ta Valley (0.265)
-OSCILLATION_AVERAGE = 0.264
+# Calibrated configuration
+DAC_MIN_START = 1114  # Value at 25%
+DAC_MAX_POWER = 1433  # Value at 100%
+KICKSTART_DURATION = 0.1  # 100ms to overcome inertia
 
-# L'amplitude pour atteindre exactement tes limites
-# 0.270 + 0.005 = 0.275 (Peak)
-# 0.270 - 0.005 = 0.265 (Valley)
-OSCILLATION_AMPLITUDE = 0.005
 
-# Vitesse de l'oscillation en Hertz (cycles par seconde).
-# 5.0 correspond à ton ancien cycle de 0.2 seconde.
-OSCILLATION_FREQUENCY = 4
+# Translate a normalized value 0-1 to a DAC value with a special calibration : 0.25 -> 0.272, 1.0 -> 0.350.
+def map_value_to_dac(value: float) -> int:
+    value = max(0.0, min(value, 1.0))
 
-# Fréquence de mise à jour du DAC (en secondes).
-# 0.01 offre une courbe très fluide à 100fps.
-UPDATE_INTERVAL = 0.02
-# =================================================
+    # For values between 1% and 24% (e.g. via slider)
+    # we slowly increase between 0 and DAC_MIN_START
+    if value < 0.25:
+        dac = (value / 0.25) * DAC_MIN_START
+    # Strict linear interpolation for range [25% - 100%]
+    # At 25%, the right hand side is 0, we've got DAC_MIN_START
+    # At 100%, the fraction equals 1, we've got DAC_MAX_POWER
+    else:
+        dac = DAC_MIN_START + ((value - 0.25) / 0.75) * (DAC_MAX_POWER - DAC_MIN_START)
 
-oscillation_task = None
+    return int(round(max(0, min(dac, DAC_MAX_POWER))))
+
+
+# Reverse of map_value_to_dac
+def map_dac_to_value(dac: int) -> float:
+    dac = max(0, min(dac, DAC_MAX_POWER))
+
+    if dac < DAC_MIN_START:
+        value = (dac / DAC_MIN_START) * 0.25
+    else:
+        value = 0.25 + ((dac - DAC_MIN_START) / (DAC_MAX_POWER - DAC_MIN_START)) * 0.75
+
+    return max(0.0, min(value, 1.0))
 
 
 async def start() -> None:
@@ -45,6 +58,10 @@ async def start() -> None:
     import MCP4725 as bubbler
 
     bubbler.init(address=0x60)
+    global state_value
+    # Restore value from DAC
+    state_value = map_dac_to_value(bubbler.get_raw_value())
+
     global client
     client = aiomqtt.Client(hostname="localhost", port=1883, protocol=aiomqtt.ProtocolVersion.V5)
     task_group = asyncio.TaskGroup()
@@ -81,96 +98,53 @@ async def handle_action(action: str, payload) -> None:
     assert bubbler is not None
 
     if action == "on":
-        await on()
+        await on(payload)
     elif action == "off":
         await off()
-    # elif action == "settings":
-    #     await handle_settings(payload)
     elif action == "save":
-        if hasattr(bubbler, "save"):
-            bubbler.save()
+        await save()
 
 
-# async def handle_settings(payload) -> None:
-#     assert bubbler is not None
-
-#     if "current" in payload["settings"]:
-#         # {"settings":{"current":"20"}}
-#         current = payload["settings"]["current"]
-#         if bubbler.is_on():
-#             return
-#         bubbler.set_current(current)
-
-
-async def on() -> None:
-    global oscillation_task
+async def on(payload) -> None:
     assert bubbler is not None
+    value = payload.get("value", 1)
+    value = max(0.0, min(value, 1))
 
-    if oscillation_task:
-        oscillation_task.cancel()
-        try:
-            await oscillation_task
-        except asyncio.CancelledError:
-            pass
-        oscillation_task = None
+    if value == 0:
+        await off()
+        return
 
-    # Kick-start: high intensity to prime the pump
-    bubbler.set_value(0.275)
-    await asyncio.sleep(2)
+    global state_value
+    state_value = value
 
-    # Start oscillation mode
-    oscillation_task = asyncio.create_task(run_oscillate())
+    # If pump was off, kickstart
+    if value >= 0.25 and bubbler.is_off():
+        bubbler.set_raw_value(DAC_MAX_POWER)  # Kickstart with max power
+        await asyncio.sleep(KICKSTART_DURATION)
+
+    bubbler.set_raw_value(map_value_to_dac(value))
     await publish_status()
-
-
-async def run_oscillate():
-    """Smoothly oscillate current using a sine wave to pulse the bubbler."""
-    assert bubbler is not None
-    start_time = time.time()
-    try:
-        while True:
-            # Calculate elapsed time
-            t = time.time() - start_time
-
-            # Generate sine wave value between -1 and 1
-            sine_wave = math.sin(2 * math.pi * OSCILLATION_FREQUENCY * t)
-
-            # Scale to our desired amplitude and shift to our average
-            current_val = OSCILLATION_AVERAGE + (OSCILLATION_AMPLITUDE * sine_wave)
-
-            # Safety clamp to ensure we never pass invalid values to the DAC
-            current_val = max(0.0, min(1.0, current_val))
-
-            bubbler.set_value(current_val)
-
-            await asyncio.sleep(UPDATE_INTERVAL)
-    except asyncio.CancelledError:
-        pass
 
 
 async def off() -> None:
-    global oscillation_task
-    if oscillation_task:
-        oscillation_task.cancel()
-        try:
-            await oscillation_task
-        except asyncio.CancelledError:
-            pass
-        oscillation_task = None
     assert bubbler is not None
     bubbler.off()
+    global state_value
+    state_value = 0
     await publish_status()
+
+
+async def save() -> None:
+    bubbler.save()
 
 
 async def publish_status() -> None:
     assert bubbler is not None
     assert client is not None
 
-    value = bubbler.get_value()
-
     payload = {
         "status": "Off" if bubbler.is_off() else "On",
-        "value": value,
+        "value": state_value,
     }
     await client.publish(topic="status/bubbler", payload=json.dumps(payload), retain=True)
 

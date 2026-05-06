@@ -31,8 +31,11 @@ just dev
 ```json
 {
   "action": "on",
+  "value": 0.5,
 }
 ```
+
+`value` is a float >= `0` <= `1` that will adjust the bubbler intensity. The default is `1`.
 
 ### Stop the bubbler:
 
@@ -49,14 +52,15 @@ just dev
 
 **topic** `status/bubbler`
 
-**payload when started:**
+**payload when on:**
 ```json
 {
   "status": "On",
+  "value": 0.5,
 }
 ```
 
-**payload when stopped:**
+**payload when off:**
 ```json
 {
   "status": "Off",
