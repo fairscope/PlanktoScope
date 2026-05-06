@@ -14,9 +14,10 @@ bubbler = None
 state_value = 0
 
 # Calibrated configuration
-DAC_MIN_START = 1114 # Value at 25%
-DAC_MAX_POWER = 1433 # Value at 100%
-KICKSTART_DURATION = 0.1 # 100ms to overcome inertia
+DAC_MIN_START = 1114  # Value at 25%
+DAC_MAX_POWER = 1433  # Value at 100%
+KICKSTART_DURATION = 0.1  # 100ms to overcome inertia
+
 
 # Translate a normalized value 0-1 to a DAC value with a special calibration : 0.25 -> 0.272, 1.0 -> 0.350.
 def map_value_to_dac(value: float) -> int:
@@ -34,6 +35,7 @@ def map_value_to_dac(value: float) -> int:
 
     return int(round(max(0, min(dac, DAC_MAX_POWER))))
 
+
 # Reverse of map_value_to_dac
 def map_dac_to_value(dac: int) -> float:
     dac = max(0, min(dac, DAC_MAX_POWER))
@@ -44,6 +46,7 @@ def map_dac_to_value(dac: int) -> float:
         value = 0.25 + ((dac - DAC_MIN_START) / (DAC_MAX_POWER - DAC_MIN_START)) * 0.75
 
     return max(0.0, min(value, 1.0))
+
 
 async def start() -> None:
     # There is no GPIO bubbler on PlanktoScope HAT < 3.3
@@ -101,6 +104,7 @@ async def handle_action(action: str, payload) -> None:
     elif action == "save":
         await save()
 
+
 async def on(payload) -> None:
     assert bubbler is not None
     value = payload.get("value", 1)
@@ -115,7 +119,7 @@ async def on(payload) -> None:
 
     # If pump was off, kickstart
     if value >= 0.25 and bubbler.is_off():
-        bubbler.set_raw_value(DAC_MAX_POWER) # Kickstart with max power
+        bubbler.set_raw_value(DAC_MAX_POWER)  # Kickstart with max power
         await asyncio.sleep(KICKSTART_DURATION)
 
     bubbler.set_raw_value(map_value_to_dac(value))
@@ -129,8 +133,10 @@ async def off() -> None:
     state_value = 0
     await publish_status()
 
+
 async def save() -> None:
     bubbler.save()
+
 
 async def publish_status() -> None:
     assert bubbler is not None

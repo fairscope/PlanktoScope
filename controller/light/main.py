@@ -74,6 +74,7 @@ async def handle_action(action: str, payload) -> None:
     elif action == "save":
         await save()
 
+
 async def on(payload) -> None:
     assert led is not None
     value = payload.get("value", 1)
@@ -104,11 +105,13 @@ async def off() -> None:
     except Exception as e:
         print(e)
 
+
 async def save() -> None:
     assert led is not None
 
     if hasattr(led, "save"):
         led.save()
+
 
 async def publish_status() -> None:
     assert client is not None
