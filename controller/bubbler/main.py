@@ -14,8 +14,8 @@ bubbler = None
 state_value = 0
 
 # Calibrated configuration
-DAC_MIN_START = 1114  # Value at 25%
-DAC_MAX_POWER = 1433  # Value at 100%
+DAC_MIN_START = 1030  # Value at 25%
+DAC_MAX_POWER = 1300  # Value at 100%
 KICKSTART_DURATION = 0.1  # 100ms to overcome inertia
 
 
