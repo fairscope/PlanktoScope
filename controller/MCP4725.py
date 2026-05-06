@@ -71,7 +71,7 @@ def set_value(value: float) -> None:
 
 def get_raw_value() -> int:
     assert dac is not None
-    return dac.raw_value
+    return int(dac.raw_value)
 
 
 def set_raw_value(value: int) -> None:
