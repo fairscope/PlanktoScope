@@ -161,7 +161,7 @@ export async function createBundle(device, bootname) {
   // then rsync files into it
   await $`dd if=${part_root.path} of=${join(bundle_dir, manifest.image.ROOT.filename)} bs=64M`
   const bundle_path = join(tmpdir, `PlanktoScope-update-${version}.raucb`)
-  await $`rauc --cert demo.cert.pem --key demo.key.pem bundle ${bundle_dir} ${bundle_path}`
+  await $`rauc --cert /etc/rauc/cert.pem --key planktoscope-rauc-key.pem bundle ${bundle_dir} ${bundle_path}`
   await rm(bundle_dir, {
     recursive: true,
     force: true,
