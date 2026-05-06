@@ -10,13 +10,10 @@ export default function Update() {
   const [bundle_info, set_bundle_info] = createSignal(null)
   const [status, set_status] = createSignal(null)
 
-  async function handleSubmit(e) {
+  function handleSubmit(e) {
     e.preventDefault()
     console.time("install")
-    install(bundle_info().path, ({ percentage, message, nesting_depth }) => {
-      set_install_progress(percentage)
-      set_install_message(message)
-    })
+    request("software-updater", { action: "install", uri: bundle_info().uri })
       .catch((err) => {
         console.error(err)
       })
@@ -139,17 +136,7 @@ async function upload(blob, progress) {
   })
 }
 
-async function install(path, progress) {
-  await fetch(makeUrl("/api/update/install"), {
-    method: "POST",
-    body: JSON.stringify({ path }),
-    headers: { "Content-Type": "application/json" },
-  })
-}
-
 async function handleReboot() {
-  await fetch(makeUrl("/api/update/reboot"), {
-    method: "POST",
-  })
+  await request("software-updater", { action: "reboot" })
   window.location = makeUrl("/")
 }

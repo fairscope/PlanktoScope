@@ -24,29 +24,6 @@ app.post("/api/update/upload", uploads.single("bundle"), async (req, res) => {
   res.json(info)
 })
 
-app.post("/api/update/install", express.json(), async (req, res) => {
-  const { path } = req.body
-  if (!path) {
-    res.status(404)
-    res.end()
-    return
-  }
-
-  await triggerInstall(path)
-
-  res.status(200)
-  res.end()
-})
-
-app.post("/api/update/reboot", async (req, res) => {
-  res.status(201)
-  res.end()
-
-  setTimeout(() => {
-    reboot().catch(console.error)
-  }, 1000)
-})
-
 const props = [
   "Operation",
   "LastError",
@@ -62,40 +39,6 @@ async function getStatus() {
   const obj = Object.fromEntries(props.map((key, i) => [key, values[i]]))
   return obj
 }
-
-// // Keep track of clients
-// const clients = new Set()
-// app.get("/api/update/events", (req, res) => {
-//   // Required SSE headers
-//   res.setHeader("Content-Type", "text/event-stream")
-//   res.setHeader("Cache-Control", "no-cache")
-//   res.setHeader("Connection", "keep-alive")
-
-//   // Send initial comment to establish connection in some proxies
-//   res.flushHeaders?.()
-
-//   const client = {
-//     id: Date.now(),
-//     res,
-//   }
-//   clients.add(client)
-
-//   getStatus()
-//     .then((data) => {
-//       client.res.write(`data: ${JSON.stringify(data)}\n\n`)
-//     })
-//     .catch(console.error)
-
-//   req.on("close", () => {
-//     clients.delete(client)
-//   })
-// })
-
-// function broadcast(data) {
-//   clients.forEach((client) => {
-//     client.res.write(`data: ${JSON.stringify(data)}\n\n`)
-//   })
-// }
 
 async function publishStatus() {
   const status = await getStatus()
@@ -124,6 +67,13 @@ await procedure("software-updater", async (data) => {
 
   if (data.action == "info") {
     return getBundleInfo(data.uri)
+  }
+
+  if (data.action == "reboot") {
+    setTimeout(() => {
+      reboot().catch(console.error)
+    }, 1000)
+    return
   }
 })
 
