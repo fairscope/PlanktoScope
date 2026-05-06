@@ -13,7 +13,7 @@ import "./factory.js"
 // import "./config.js"
 import "./led-operating-time.js"
 import "./network.js"
-import "./update.js"
+//import "./update.js"
 
 process.title = "planktoscope-org.backend"
 
