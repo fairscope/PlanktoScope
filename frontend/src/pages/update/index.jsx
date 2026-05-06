@@ -1,11 +1,7 @@
 import "../../index.css"
 
-// import styles from "./styles.module.css"
-//
 import { makeUrl } from "../../helpers.js"
-
-// import "observable-polyfill"
-import { createEventSource } from "eventsource-client"
+import { client, subscribe, request, watch } from "../../../../lib/mqtt.js"
 
 import { createSignal, Show, Match, Switch } from "solid-js"
 
@@ -46,13 +42,12 @@ export default function Update() {
       })
   }
 
-  createEventSource({
-    url: makeUrl("/api/update/events"),
-    onMessage: ({ data, event, id }) => {
-      // console.log({ data, event, id })
-      set_status(JSON.parse(data))
-    },
-  })
+  ;(async () => {
+    // await subscribe('status/software-updater')
+    for await (const message of await watch("status/software-updater")) {
+      set_status(message)
+    }
+  })()
 
   return (
     <div>
