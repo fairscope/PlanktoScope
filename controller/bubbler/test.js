@@ -7,7 +7,7 @@ watch("status/bubbler").then(async (messages) => {
   }
 })
 
-await startBubbler()
+await startBubbler({ value: 50 })
 
 await setTimeout(2000)
 

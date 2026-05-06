@@ -11,7 +11,42 @@ import helpers
 client = None
 loop = asyncio.new_event_loop()
 bubbler = None
+state_value = 0
 
+# Calibrated configuration
+DAC_MIN_START = 0.2544  # Value at 25%
+DAC_MAX_POWER = 0.350  # Value at 100%
+KICKSTART_DURATION = 0.1 # 100ms to overcome inertia
+
+# Translate 0-100% to a DAC value with a special calibration : 25% -> 0.272, 100% -> 0.350.
+def map_flow_to_dac(percent):
+    percent = max(0.0, min(percent, 100.0))
+
+    # For values between 1% and 24% (e.g. via slider)
+    # we slowly increase between 0 and DAC_MIN_START
+    if percent < 25.0:
+        dac = (percent / 25.0) * DAC_MIN_START
+    # Strict linear interpolation for range [25% - 100%]
+    # At 25%, the right hand side is 0, we've got DAC_MIN_START
+    # At 100%, the fraction equals 1, we've got DAC_MAX_POWER
+    else:
+        dac = DAC_MIN_START + ((percent - 25.0) / 75.0) * (DAC_MAX_POWER - DAC_MIN_START)
+
+    # Clamp to eliminate float drift
+    return max(0.0, min(dac, DAC_MAX_POWER))
+
+# And reverse - see map_flow_to_dac
+def map_dac_to_flow(dac):
+    dac = max(0.0, min(dac, DAC_MAX_POWER))
+
+    if dac < DAC_MIN_START:
+        percent = (dac / DAC_MIN_START) * 25.0
+    else:
+        percent = 25.0 + ((dac - DAC_MIN_START) / (DAC_MAX_POWER - DAC_MIN_START)) * 75.0
+
+    # Clamp to eliminate float drift
+    percent = max(0.0, min(percent, 100.0))
+    return int(round(percent))
 
 async def start() -> None:
     # There is no GPIO bubbler on PlanktoScope HAT < 3.3
@@ -23,6 +58,10 @@ async def start() -> None:
     import MCP4725 as bubbler
 
     bubbler.init(address=0x60)
+    global state_value
+    # Restore value from DAC
+    state_value = map_dac_to_flow(bubbler.get_value())
+
     global client
     client = aiomqtt.Client(hostname="localhost", port=1883, protocol=aiomqtt.ProtocolVersion.V5)
     task_group = asyncio.TaskGroup()
@@ -62,53 +101,47 @@ async def handle_action(action: str, payload) -> None:
         await on(payload)
     elif action == "off":
         await off()
-    # elif action == "settings":
-    #     await handle_settings(payload)
     elif action == "save":
-        if hasattr(bubbler, "save"):
-            bubbler.save()
-
-
-# async def handle_settings(payload) -> None:
-#     assert bubbler is not None
-
-#     if "current" in payload["settings"]:
-#         # {"settings":{"current":"20"}}
-#         current = payload["settings"]["current"]
-#         if bubbler.is_on():
-#             return
-#         bubbler.set_current(current)
-
+        await save()
 
 async def on(payload) -> None:
     assert bubbler is not None
-    value = payload.get("value", 1)
-    assert 0.0 <= value <= 1.0
+    value = payload.get("value", 100)
+    assert 0.0 <= value <= 100.0
 
     if value == 0:
         await off()
         return
 
-    bubbler.set_value(value)
+    global state_value
+    state_value = value
 
+    # If pump was off, kickstart
+    if value >= 25 and bubbler.is_off():
+        bubbler.set_value(DAC_MAX_POWER) # Kickstart with max power
+        await asyncio.sleep(KICKSTART_DURATION)
+
+    bubbler.set_value(map_flow_to_dac(value))
     await publish_status()
 
 
 async def off() -> None:
     assert bubbler is not None
     bubbler.off()
+    global state_value
+    state_value = 0
     await publish_status()
 
+async def save() -> None:
+    bubbler.save()
 
 async def publish_status() -> None:
     assert bubbler is not None
     assert client is not None
 
-    value = bubbler.get_value()
-
     payload = {
         "status": "Off" if bubbler.is_off() else "On",
-        "value": value,
+        "value": state_value,
     }
     await client.publish(topic="status/bubbler", payload=json.dumps(payload), retain=True)
 
