@@ -177,3 +177,9 @@ class Routine:
     def interrupted(self) -> bool:
         """Check whether the routine was manually interrupted."""
         return self._interrupted.is_set()
+
+    @property
+    def progress(self) -> int:
+        """The number of images actually captured so far."""
+        with self._progress_lock:
+            return self._progress
