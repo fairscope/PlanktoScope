@@ -31,7 +31,7 @@ just dev
 ```json
 {
   "action": "on",
-  // integer between 0 and 100
+  // float between 0 and 1.0
   // 0 is same as "action": "off"
   "value": 0.5,
 }

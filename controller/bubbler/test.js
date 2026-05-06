@@ -7,8 +7,11 @@ watch("status/bubbler").then(async (messages) => {
   }
 })
 
-await startBubbler({ value: 50 })
+await stopBubbler()
 
-await setTimeout(2000)
+for (const value of [0.25, 0.5, 0.75, 100]) {
+  await startBubbler({ value })
+  await setTimeout(2000)
+}
 
 await stopBubbler()
