@@ -39,7 +39,7 @@ Here are some key features of the PlanktoScope:
 
 ## How do I get one?
 
-You can access the complete documentation here: https://planktoscope.github.io/PlanktoScope/
+You can access the complete documentation here: [https://planktoscope.github.io/PlanktoScope/](https://docs.planktoscope.community/)
 |Get the kit|Assemble your kit|Start your machine|
 |--|--|--|
 |![Get the kit](documentation/docs/images/readme/get_kit.png)|![Assemble your kit](documentation/docs/images/readme/assemble_kit.png)|![Start your machine](documentation/docs/images/readme/start_pscope.png)|

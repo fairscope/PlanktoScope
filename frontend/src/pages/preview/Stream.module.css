@@ -89,3 +89,23 @@
 .button_capture svg {
   fill: var(--zoomist-zoomer-icon-color);
 }
+
+.button_capture {
+  position: absolute;
+  bottom: 0;
+  z-index: 9;
+  right: 0;
+  width: var(--zoomist-zoomer-button-size);
+  height: var(--zoomist-zoomer-button-size);
+  border: none;
+  background-color: var(--zoomist-zoomer-button-color);
+  cursor: pointer;
+}
+
+.button_capture:hover {
+  background-color: var(--zoomist-zoomer-button-color-hover);
+}
+
+.button_capture svg {
+  fill: var(--zoomist-zoomer-icon-color);
+}

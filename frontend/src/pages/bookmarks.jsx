@@ -28,6 +28,11 @@ export default function Bookmarks() {
               Docs
             </a>
           </li>
+          <li>
+            <a href={makeLocalUrl("/update")} target="_blank">
+              Update software
+            </a>
+          </li>
         </ul>
 
         <h2>Developers</h2>
@@ -71,14 +76,6 @@ export default function Bookmarks() {
           <li>
             <a href={makeUrl("/admin/ps/node-red-v2/")} target="_blank">
               Node-RED flow editor
-            </a>
-          </li>
-          <li>
-            <a
-              href={makeUrl("/ps/processing/segmenter/streams/object.mjpg")}
-              target="_blank"
-            >
-              Last segmented object
             </a>
           </li>
           <li>

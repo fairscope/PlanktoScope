@@ -7,6 +7,9 @@ import styles from "./Stream.module.css"
 import "./reader.js"
 
 import fullscreenIcon from "./fullscreen.svg"
+import cameraIcon from "./camera.svg"
+
+import { makeUrl } from "../../helpers.js"
 
 export default function Stream(props) {
   let zoomist_container
@@ -84,15 +87,33 @@ export default function Stream(props) {
             <div class="zoomist-image">{video}</div>
           </div>
           <button
-            tooltip="Take capture"
+            tooltip="Fullscreen"
             class={styles.button_fullscreen}
             onClick={fullscreen}
           >
             {fullscreenIcon}
           </button>
-          {props.controls}
+          <button
+            tooltip="Take capture"
+            class={styles.button_capture}
+            onClick={takeImage}
+          >
+            {cameraIcon}
+          </button>
         </div>
       </div>
     </>
   )
+}
+
+async function takeImage() {
+  try {
+    const res = await fetch(makeUrl("/api/capture"), {
+      method: "POST",
+    })
+    const body = await res.json()
+    triggerDownload(body.url_jpeg)
+  } catch (err) {
+    console.error(err)
+  }
 }

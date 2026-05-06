@@ -1,14 +1,24 @@
+# RAUC
+
+[RAUC](https://rauc.readthedocs.io/en/latest/) is the software we use to handle software updates on the PlanktoScope.
+
+We have an A/B partitioning setup see [os/image](../image) for which RAUC is aware of.
+
+## Create an bundle
+
+A bundle is an update that will be installed on a slot.
+
 ```sh
-openssl req -x509 -newkey rsa:4096 -nodes -keyout demo.key.pem -out demo.cert.pem -subj "/O=rauc Inc./CN=rauc-demo"
-
-
-
-# TODO: move to /etc/rauc/system.conf (yes on both partitions)
-sudo rauc service --conf system.conf
-# it knows which slot booted by reading cmdline on first run
-# rauc-event-Message: 10:09:25.769: Booted into root.1 ()
-# but you can override with
-# sudo rauc service --override-boot-slot=A --conf system.conf
-
-rauc install update-2015.04-1.raucb
+cd os/rauc
+sudo ./rauc.js create-bundle /dev/device B
 ```
+
+This will create a bundle from partitions `FIRMWARE_B` and `ROOT_B` on device `/dev/device`.
+
+## Install a bundle
+
+```sh
+rauc install PlanktoScope-update-xxx-xx-xx.raucb
+```
+
+This will install the update on the slot that is not the booted one. See `rauc status`.
