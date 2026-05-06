@@ -107,7 +107,7 @@ async def handle_action(action: str, payload) -> None:
 async def on(payload) -> None:
     assert bubbler is not None
     value = payload.get("value", 100)
-    assert 0.0 <= value <= 100.0
+    value = max(0.0, min(value, 100))
 
     if value == 0:
         await off()

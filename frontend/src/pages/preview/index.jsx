@@ -39,6 +39,9 @@ export default function Preview() {
             name="light"
             value={light_dac}
             onChange={onLightChange}
+            min="0"
+            max="1"
+            step="0.1"
           />
         </div>
         <div>
@@ -47,6 +50,9 @@ export default function Preview() {
             name="bubler"
             value={bubbler_dac}
             onChange={onBubblerChange}
+            min="0"
+            max="100"
+            step="25"
           />
         </div>
       </div>

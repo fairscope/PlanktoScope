@@ -19,18 +19,18 @@ export default function NumberInput(props) {
         name={props.name}
         value={props.value()}
         onInput={onInput}
-        min="0"
-        max="1"
-        step="0.01"
+        min={props.min}
+        max={props.max}
+        step={props.step}
       />
       <input
         ref={number}
         onInput={onInput}
         value={props.value()}
         type="number"
-        min="0"
-        max="1"
-        step="0.01"
+        min={props.min}
+        max={props.max}
+        step={props.step}
       />
     </div>
   )
