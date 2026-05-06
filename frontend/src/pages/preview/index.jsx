@@ -5,8 +5,6 @@ import "./reader.js"
 import { startLight, startBubbler, watch } from "../../../../lib/scope.js"
 import { triggerDownload, makeUrl } from "../../helpers.js"
 
-import cameraIcon from "./camera.svg"
-
 import NumberInput from "./NumberInput.jsx"
 import { createSignal } from "solid-js"
 
