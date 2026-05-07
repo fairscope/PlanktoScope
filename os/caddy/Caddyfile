@@ -25,12 +25,6 @@
 		reverse_proxy localhost:9090
 	}
 
-	redir /ps/docs /ps/docs/
-	handle_path /ps/docs/* {
-		root * /srv/docs
-		file_server
-	}
-
 	# We want exact path / to go to backend where we have a redirect
 	@root path /
 	handle @root {

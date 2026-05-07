@@ -20,7 +20,10 @@ rm -rf "$HOME"/data
 rm -f "$HOME"/filebrowser.db
 rm -f "$HOME"/PlanktoScope/hardware.json
 rm -f "$HOME"/PlanktoScope/config.json
-rm -f "$HOME"/PlanktoScope/calibartion.json
+rm -f "$HOME"/PlanktoScope/calibration.json
+
+rm -rf /opt/PlanktoScope/documentation
+sudo rm -rf /srv/docs
 
 # Clear machine-id so that it will be regenerated on the next boot
 # This is also the condition for ConditionFirstBoot=yes
