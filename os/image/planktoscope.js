@@ -332,7 +332,7 @@ async function setup_fstab(partitions) {
   }
 }
 
-async function getPartitions(device) {
+export async function getPartitions(device) {
   const devices = await getBlockDevices(device)
   const partitions = Object.create(null)
   for (const dev of devices) {
