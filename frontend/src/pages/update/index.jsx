@@ -1,9 +1,9 @@
 import "../../index.css"
 
 import { makeUrl } from "../../helpers.js"
-import { client, subscribe, request, observe } from "../../../../lib/mqtt.js"
+import { request, observe } from "../../../../lib/mqtt.js"
 
-import { createSignal, Show, Match, Switch } from "solid-js"
+import { createSignal, Show } from "solid-js"
 
 export default function Update() {
   const [upload_progress, set_upload_progress] = createSignal(0)

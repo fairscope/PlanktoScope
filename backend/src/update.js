@@ -1,19 +1,11 @@
-import { rm } from "node:fs/promises"
-import { readRaucSystemConf } from "../../os/rauc/rauc.js"
-
-import express from "express"
 import multer from "multer"
-import {
-  normalizeDbus,
-  readProperty,
-  systemBus,
-} from "../../lib/dbus-helpers.js"
+import { readProperty } from "../../lib/dbus-helpers.js"
 import { reboot } from "../../lib/hardware.js"
 
 import app from "./app.js"
 import { watchProperty } from "../../lib/dbus-helpers.js"
 import {
-  installer,
+  getInstaller,
   getBundleInfo,
   triggerInstall,
   checkForUpdate,
@@ -35,9 +27,10 @@ const props = [
   "Progress",
   /* "Compatible", "Variant", */
 ]
-const signals = ["Completed"]
+// const signals = ["Completed"]
 
 async function getStatus() {
+  const installer = await getInstaller()
   const values = await Promise.all(
     props.map((prop) => readProperty(installer, prop)),
   )
@@ -51,12 +44,6 @@ async function publishStatus() {
     retain: true,
   })
 }
-
-props.forEach((prop) => {
-  watchProperty(installer, prop).subscribe(() => publishStatus())
-})
-
-await publishStatus()
 
 await procedure("software-updater", async (data) => {
   if (data.action == "poll") {
@@ -93,8 +80,19 @@ async function poll() {
   )
 }
 
+;(async () => {
+  const installer = await getInstaller()
+  if (!installer) return console.log("Installer not available")
+
+  await publishStatus()
+
+  props.forEach((prop) => {
+    watchProperty(installer, prop).subscribe(() => publishStatus())
+  })
+})()
+
 if (import.meta.main) {
   console.log(await getStatus())
-  const bundle_info = await getBundleInfo(url)
-  console.log(bundle_info)
+  // const bundle_info = await getBundleInfo(url)
+  // console.log(bundle_info)
 }

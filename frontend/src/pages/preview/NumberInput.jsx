@@ -11,9 +11,9 @@ export default function NumberInput(props) {
     props.onChange?.(evt.target.valueAsNumber)
   }
 
-  const min = props.min || "0"
-  const max = props.max || "1"
-  const step = props.step || "0.1"
+  const min = () => props.min ?? "0"
+  const max = () => props.max ?? "1"
+  const step = () => props.step ?? "0.1"
 
   return (
     <div class={styles.div}>
@@ -23,18 +23,18 @@ export default function NumberInput(props) {
         name={props.name}
         value={props.value()}
         onInput={onInput}
-        min={min}
-        max={max}
-        step={step}
+        min={min()}
+        max={max()}
+        step={step()}
       />
       <input
         ref={number}
         onInput={onInput}
         value={props.value()}
         type="number"
-        min={min}
-        max={max}
-        step={step}
+        min={min()}
+        max={max()}
+        step={step()}
       />
     </div>
   )

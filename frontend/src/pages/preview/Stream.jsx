@@ -9,9 +9,9 @@ import "./reader.js"
 import fullscreenIcon from "./fullscreen.svg"
 import cameraIcon from "./camera.svg"
 
-import { makeUrl } from "../../helpers.js"
+import { makeUrl, triggerDownload } from "../../helpers.js"
 
-export default function Stream(props) {
+export default function Stream() {
   let zoomist_container
   let loader_container
   let stream_container

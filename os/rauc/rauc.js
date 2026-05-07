@@ -172,6 +172,13 @@ export async function createBundle(device, bootname) {
 if (import.meta.main) {
   const [, , command, ...args] = process.argv
   if (command === "create-configuration") {
+    try {
+      await getPartitions(device)
+    } catch (err) {
+      console.log(err)
+      console.log("Skipping rauc configuration")
+      process.exit()
+    }
     await setup_system_conf()
   } else if (command === "create-bundle") {
     const [device_path, bootname] = args
