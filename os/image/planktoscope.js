@@ -77,9 +77,9 @@ async function createPartitionTable(device) {
     await $`sgdisk --new=${partn}:0:+10G --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${"ROOT_" + bootname} ${device}`
   }
 
-  // "DATA"
+  // "DATA" will be grown by x-systemd.growfs
   partn++
-  await $`sgdisk --new=${partn}:0:0 --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1  -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:DATA ${device}`
+  await $`sgdisk --new=${partn}:0:+32M --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1  -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:DATA ${device}`
 
   await $`sgdisk --verify ${device}`
 
@@ -315,9 +315,9 @@ async function setup_fstab(partitions) {
   const bootloader_partuuid = partitions[`BOOTLOADER`].partuuid
   const datafs_partuuid = partitions[`DATA`].partuuid
   const fstab = dedent`
-    PARTUUID=${bootloader_partuuid} /bootloader vfat  defaults,ro      0 2
-    PARTUUID=${datafs_partuuid} /data           ext4  defaults,noatime 0 2
-    /data/home                  /home           none  bind             0 0
+    PARTUUID=${bootloader_partuuid} /bootloader vfat  defaults,ro           0 2
+    PARTUUID=${datafs_partuuid} /data           ext4  defaults,noatime      0 2
+    /data/home                  /home           none  bind,x-systemd.growfs 0 0
   `
   // TODO: when we go readonly
   // /data/varlib              /var/lib none  bind             0 0
