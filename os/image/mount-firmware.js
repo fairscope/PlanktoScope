@@ -28,7 +28,7 @@ async function get_firmware_partition() {
 async function mount_active_firmware() {
   if (await is_mounted()) return
   const partition = await get_firmware_partition()
-  await $`mount -o defaults,ro ${partition.path} /boot/firmware`
+  await $`mount -o defaults,noatime,ro ${partition.path} /boot/firmware`
 }
 
 if (import.meta.main) {

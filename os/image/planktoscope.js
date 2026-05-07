@@ -315,9 +315,9 @@ async function setup_fstab(partitions) {
   const bootloader_partuuid = partitions[`BOOTLOADER`].partuuid
   const datafs_partuuid = partitions[`DATA`].partuuid
   const fstab = dedent`
-    PARTUUID=${bootloader_partuuid} /bootloader vfat  defaults,ro           0 2
-    PARTUUID=${datafs_partuuid} /data           ext4  defaults,noatime      0 2
-    /data/home                  /home           none  bind,x-systemd.growfs 0 0
+    PARTUUID=${bootloader_partuuid} /bootloader  vfat  defaults,noatime,ro  0 2
+    PARTUUID=${datafs_partuuid}     /data        ext4  defaults,noatime,x-systemd.growfs  0 2
+    /data/home                      /home        none  bind  0 0
   `
   // TODO: when we go readonly
   // /data/varlib              /var/lib none  bind             0 0
