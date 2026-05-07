@@ -21,7 +21,6 @@ setup:
     just --justfile controller/justfile    setup
     just --justfile segmenter/justfile     setup
     just --justfile os/justfile            setup
-    just --justfile documentation/justfile setup
     just --justfile backend/justfile       setup
     just --justfile frontend/justfile      setup
 
@@ -31,7 +30,6 @@ setup-dev:
     just --justfile controller/justfile    setup-dev
     just --justfile segmenter/justfile     setup-dev
     just --justfile os/justfile            setup-dev
-    just --justfile documentation/justfile setup-dev
     just --justfile backend/justfile       setup-dev
     just --justfile frontend/justfile      setup-dev
     ./os/developer-mode/install-actionlint.sh
@@ -47,7 +45,6 @@ test:
     just --justfile controller/justfile    test
     just --justfile segmenter/justfile     test
     just --justfile os/justfile            test
-    just --justfile documentation/justfile test
     just --justfile backend/justfile       test
     just --justfile frontend/justfile      test
     actionlint --shellcheck="" # TODO: Enable shelcheck for actionlint

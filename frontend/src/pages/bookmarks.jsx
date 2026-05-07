@@ -24,11 +24,6 @@ export default function Bookmarks() {
             </a>
           </li>
           <li>
-            <a href={makeUrl("/ps/docs/")} target="_blank">
-              Docs
-            </a>
-          </li>
-          <li>
             <a href={makeLocalUrl("/update")} target="_blank">
               Update software
             </a>
