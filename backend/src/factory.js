@@ -16,8 +16,8 @@ await procedure("factory/init", async () => {
   if (eeprom?.custom_data?.eeprom_version !== 0) {
     return {
       product_uuid: crypto.randomUUID(),
-      product_id: "0x0000", // TODO
-      product_ver: "0x0000", //TODO
+      product_id: "0x5053", // PS in hexadecimal
+      product_ver: "0x0001", // first revision of the PlanktoScope HAT 0x5053
       vendor: "FairScope",
       product: "PlanktoScope HAT v3",
       current_supply: 0,
