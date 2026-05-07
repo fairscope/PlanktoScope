@@ -4,11 +4,17 @@ setup:
     sudo chmod o+r /usr/share/keyrings/caddy-stable-archive-keyring.gpg
     sudo chmod o+r /etc/apt/sources.list.d/caddy-stable.list
     sudo apt update
-    sudo apt install -y caddy
+    sudo apt install -y caddy acl
     sudo cp Caddyfile /etc/caddy/
     sudo systemctl reenable caddy
     sudo systemctl restart caddy
-    chmod o+x /home/pi
+    # allow traversal
+    sudo setfacl -m u:caddy:x /home/pi/data
+    # existing files
+    sudo setfacl -R -m u:caddy:rx /home/pi/data
+    # future files
+    sudo setfacl -R -m d:u:caddy:rx /home/pi/data
+    chmod o+x /opt/PlanktoScope
 
 format:
     caddy fmt --overwrite Caddyfile

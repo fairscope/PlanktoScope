@@ -29,8 +29,6 @@ app.post("/api/capture", async (req, res) => {
   res.json({ url_jpeg: url })
 })
 
-app.use("/api/files", express.static("/home/pi/data"))
-
 app.post("/api/reset", async (req, res) => {
   await removeConfig()
   res.status(200)

@@ -13,7 +13,6 @@
     "@solidjs/router": "^0.15.4",
     "array-shuffle": "^4.0.0",
     "autoprefixer": "^10.4.22",
-    "eventsource-client": "^1.2.0",
     "medium-zoom": "^1.1.0",
     "mqtt": "^5.14.1",
     "observable-polyfill": "^0.0.29",

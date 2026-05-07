@@ -1,11 +1,7 @@
 import "../../index.css"
 
-// import styles from "./styles.module.css"
-//
 import { makeUrl } from "../../helpers.js"
-
-// import "observable-polyfill"
-import { createEventSource } from "eventsource-client"
+import { client, subscribe, request, observe } from "../../../../lib/mqtt.js"
 
 import { createSignal, Show, Match, Switch } from "solid-js"
 
@@ -13,14 +9,12 @@ export default function Update() {
   const [upload_progress, set_upload_progress] = createSignal(0)
   const [bundle_info, set_bundle_info] = createSignal(null)
   const [status, set_status] = createSignal(null)
+  const [update_available, set_update_available] = createSignal(null)
+  const [checking_for_update, set_checking_for_update] = createSignal(false)
 
-  async function handleSubmit(e) {
-    e.preventDefault()
+  function handleInstall() {
     console.time("install")
-    install(bundle_info().path, ({ percentage, message, nesting_depth }) => {
-      set_install_progress(percentage)
-      set_install_message(message)
-    })
+    request("software-updater", { action: "install", uri: bundle_info().uri })
       .catch((err) => {
         console.error(err)
       })
@@ -29,9 +23,8 @@ export default function Update() {
       })
   }
 
-  function handleFileChange(e) {
-    e.preventDefault()
-    const file = e.currentTarget.files[0]
+  function handleFileChange(evt) {
+    const file = evt.currentTarget.files[0]
     console.time("upload")
     upload(file, (p) => set_upload_progress(p))
       .then((bundle_info) => {
@@ -46,25 +39,103 @@ export default function Update() {
       })
   }
 
-  createEventSource({
-    url: makeUrl("/api/update/events"),
-    onMessage: ({ data, event, id }) => {
-      // console.log({ data, event, id })
-      set_status(JSON.parse(data))
-    },
+  function handlePoll() {
+    set_checking_for_update(true)
+    request("software-updater", { action: "poll" })
+      .catch(console.error)
+      .finally(() => {
+        set_checking_for_update(false)
+      })
+  }
+
+  observe("software-updater/status").forEach(set_status)
+  observe("software-updater/update-available").forEach(([bool, bundle]) => {
+    set_update_available(bool)
+    set_bundle_info(bundle)
   })
 
   return (
     <div>
       <h1>Software update</h1>
-      <Show when={status() !== null}>
-        <ul>
-          <li>{`Operation: ${status().Operation}`}</li>
-          <li>{`Last Error: ${status().LastError || "none"}`}</li>
-        </ul>
-      </Show>
+      <div>
+        <h2>Status</h2>
+        <Show when={status() !== null}>
+          <ul>
+            <li>{`Operation: ${status().Operation}`}</li>
+            <li>{`Last Error: ${status().LastError || "none"}`}</li>
+          </ul>
+          <p>
+            {`Progress: ${status()?.Progress[0] ?? 0}%`}{" "}
+            <small>{status()?.Progress[1]}</small>
+          </p>
+          <progress max="100" value={status()?.Progress[0] || 0} />
+        </Show>
 
-      <form onSubmit={handleSubmit}>
+        <Show when={bundle_info()}>
+          <ul>
+            <li>
+              {`version: `}
+              <code>{bundle_info().version}</code>
+            </li>{" "}
+            <li>
+              {`build id: `}
+              <code>{bundle_info().build}</code>
+            </li>
+            <li>
+              {`compatible: `}
+              <code>{bundle_info().compatible}</code>
+            </li>
+            <li>
+              {`uri: `}
+              <code>{bundle_info().uri}</code>
+            </li>
+          </ul>
+        </Show>
+      </div>
+
+      <hr />
+
+      <div>
+        <h2>Actions</h2>
+        <p>
+          <button
+            onClick={handleInstall}
+            disabled={!bundle_info() || status()?.Operation !== "idle"}
+          >
+            Install
+          </button>
+        </p>
+        <p>
+          <button
+            onClick={handleReboot}
+            disabled={status()?.Progress[1] !== "Installing done."}
+          >
+            Reboot
+          </button>
+        </p>
+      </div>
+
+      <hr />
+
+      <div>
+        <h2>Online update</h2>
+        <p>
+          Update available:{" "}
+          {update_available() === null
+            ? "unknown"
+            : update_available()
+              ? "yes"
+              : "no"}
+        </p>
+        <button onClick={handlePoll} aria-busy={checking_for_update()}>
+          Check for update
+        </button>
+      </div>
+
+      <hr />
+
+      <div>
+        <h2>Offline update</h2>
         <input
           type="file"
           name="bundle"
@@ -77,34 +148,7 @@ export default function Update() {
           <p>{`Upload: ${upload_progress()}%`}</p>
           <progress max="100" value={upload_progress()} />
         </div>
-        <Show when={bundle_info()}>
-          <div>
-            <p>{`version: ${bundle_info().version}`}</p>
-            <p>{`build id: ${bundle_info().build}`}</p>
-            <p>{`compatible: ${bundle_info().compatible}`}</p>
-          </div>
-        </Show>
-        <Show when={status()?.Progress[1] !== "Checking bundle done."}>
-          <div>
-            <p>
-              {`Status: ${status()?.Progress[0]}%`}{" "}
-              <small>{status()?.Progress[1]}</small>
-            </p>
-            <progress max="100" value={status()?.Progress[0] || 0} />
-          </div>
-        </Show>
-        <input
-          type="submit"
-          disabled={!bundle_info() || status()?.Operation !== "idle"}
-          value="Install"
-        />
-        <input
-          type="button"
-          onClick={handleReboot}
-          disabled={status()?.Progress[1] !== "Installing done."}
-          value="Reboot"
-        />
-      </form>
+      </div>
     </div>
   )
 }
@@ -144,17 +188,7 @@ async function upload(blob, progress) {
   })
 }
 
-async function install(path, progress) {
-  await fetch(makeUrl("/api/update/install"), {
-    method: "POST",
-    body: JSON.stringify({ path }),
-    headers: { "Content-Type": "application/json" },
-  })
-}
-
 async function handleReboot() {
-  await fetch(makeUrl("/api/update/reboot"), {
-    method: "POST",
-  })
+  await request("software-updater", { action: "reboot" })
   window.location = makeUrl("/")
 }
