@@ -12,7 +12,12 @@ import { reboot } from "../../lib/hardware.js"
 
 import app from "./app.js"
 import { watchProperty } from "../../lib/dbus-helpers.js"
-import { installer, getBundleInfo, triggerInstall } from "../../lib/software.js"
+import {
+  installer,
+  getBundleInfo,
+  triggerInstall,
+  checkForUpdate,
+} from "../../lib/software.js"
 import { procedure, publish } from "../../lib/mqtt.js"
 
 const uploads = multer({
@@ -42,8 +47,7 @@ async function getStatus() {
 
 async function publishStatus() {
   const status = await getStatus()
-  // broadcast(status)
-  await publish("status/software-updater", status, null, {
+  await publish("software-updater/status", status, null, {
     retain: true,
   })
 }
@@ -79,9 +83,14 @@ await procedure("software-updater", async (data) => {
 
 async function poll() {
   const bundle_info = await checkForUpdate()
-  await publish("status/software-updater/update-available", bundle_info, null, {
-    retain: true,
-  })
+  await publish(
+    "software-updater/update-available",
+    [!!bundle_info, bundle_info],
+    null,
+    {
+      retain: true,
+    },
+  )
 }
 
 if (import.meta.main) {
