@@ -106,7 +106,7 @@ sudo mount -o remound,ro /boot/firmware/
 
 - Update cloud-init to read configuration from `BOOTLOADER`
 - A/B compatible `/etc/fstab`
-- `/etc/machine-id` is a symlink to `/data/machine-id`
+- `/etc/machine-id` is a bind mount to `/data/machine-id`
 
 ---
 
