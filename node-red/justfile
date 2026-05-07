@@ -1,6 +1,8 @@
 setup:
     sudo npm list -g node-red@v5.0.0-beta.4 || sudo npm install -g node-red@v5.0.0-beta.4
     npm ci --omit=dev
+    mkdir -p context/global/
+    cp global.json context/global/global.json
     sudo cp nodered.service /etc/systemd/system/
     sudo mkdir -p /etc/systemd/system/nodered.service.d
     sudo cp 30-override.conf /etc/systemd/system/nodered.service.d/
@@ -20,6 +22,7 @@ dev:
 
 test:
     validator projects/dashboard/flows.json
+    validator global.json
     npx eslint .
     cd nodes && node --test
 

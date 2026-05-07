@@ -1,0 +1,33 @@
+{
+  "focus_distance": 150,
+  "pump_flowrate": 2,
+  "pump_manual_volume": 0.2,
+  "process_min_ESD": 20,
+  "acq_magnification": "medium",
+
+  "calibration_wbg_red": 199,
+  "calibration_wbg_blue": 163,
+
+  "sample_project": "ProjetName",
+  "sample_operator": "OperatorName",
+  "sample_id": "SampleID",
+  "sample_gear": "Horizontal Net",
+  "object_lat": -90,
+  "object_lon": 0,
+  "object_date": "",
+  "object_time": "",
+  "sample_comment": "",
+  "acq_id": "A_001",
+  "acq_nb_frame": 10,
+  "acq_comment": "",
+  "acq_led_intensity": 0.4,
+  "sample_concentration_factor": 1,
+  "sample_sieve_mesh_size": "",
+  "sample_depth_min": "",
+  "sample_depth_max": "",
+  "sample_collected_volume": "",
+  "sample_net_mouth_diameter": "",
+  "sample_net_length": "",
+  "sample_net_mesh_size": "",
+  "sample_filtered_volume": ""
+}
