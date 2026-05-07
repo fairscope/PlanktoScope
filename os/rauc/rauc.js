@@ -8,6 +8,7 @@ import { $ } from "execa"
 
 import { getBootedDevice, getBlockDevices } from "../image/lib.js"
 import { getBootedPartitionNumber } from "../image/rpi.js"
+import { getPartitions } from "../image/planktoscope.js"
 import { fileURLToPath } from "node:url"
 import { join } from "node:path"
 
