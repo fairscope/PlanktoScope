@@ -22,3 +22,20 @@ rauc install PlanktoScope-update-xxx-xx-xx.raucb
 ```
 
 This will install the update on the slot that is not the booted one. See `rauc status`.
+
+## Signing
+
+We are using the simplest possible form/method of bundle signing. Efforts to improve security is tracked [here](https://github.com/fairscope/PlanktoScope/issues/811).
+
+The certificate/key was created with:
+
+```sh
+openssl req -x509 -newkey rsa:2048 -nodes \
+  -keyout planktoscope-rauc-key.pem \
+  -out planktoscope-rauc-cert.pem \
+  -days 7305 \
+  -subj "/C=FR/O=PlanktoScope/CN=PlanktoScope RAUC"
+sudo cp planktoscope-rauc-cert.pem /etc/rauc/cert.pem
+# ⚠️ keep planktoscope-rauc-key.pem private and use it to generate bundle with 
+# rauc --key demo.key.pem bundle
+```

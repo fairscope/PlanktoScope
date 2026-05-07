@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { readFile, writeFile, rm, mkdir } from "node:fs/promises"
+import { homedir } from "node:os"
 
 import { parse, stringify } from "ini"
 import { $ } from "execa"
@@ -134,13 +135,14 @@ export async function createBundle(device, bootname) {
     ),
   )
 
-  const temp_dir = fileURLToPath(import.meta.resolve("./temp-dir"))
-  await rm(temp_dir, {
+  const tmpdir = "/data/tmp"
+  const bundle_dir = join(tmpdir, "rauc-bundle")
+  await rm(bundle_dir, {
     recursive: true,
     force: true,
   })
-  await mkdir(temp_dir)
-  const manifest_path = join(temp_dir, "manifest.raucm")
+  await mkdir(bundle_dir, { recursive: true })
+  const manifest_path = join(bundle_dir, "manifest.raucm")
   manifest.update.build = build
   manifest.update.version = version
   await writeFile(manifest_path, stringify(manifest))
@@ -152,17 +154,19 @@ export async function createBundle(device, bootname) {
     (part) => part.partlabel === `ROOT_${bootname}`,
   )
 
-  await $`dd if=${part_firmware.path} of=${join(temp_dir, manifest.image.FIRMWARE.filename)} bs=64M`
+  await $`dd if=${part_firmware.path} of=${join(bundle_dir, manifest.image.FIRMWARE.filename)} bs=64M`
 
   // TODO: Create a img file instead with "mkfs.ext4 rootfs.img"
   // mount it as loop device "mount -o loop rootfs.img /mnt"
   // then rsync files into it
-  await $`dd if=${part_root.path} of=${join(temp_dir, manifest.image.ROOT.filename)} bs=64M`
-  await $`rauc --cert demo.cert.pem --key demo.key.pem bundle temp-dir/ PlanktoScope-update-${version}.raucb`
-  await rm(temp_dir, {
+  await $`dd if=${part_root.path} of=${join(bundle_dir, manifest.image.ROOT.filename)} bs=64M`
+  const bundle_path = join(tmpdir, `PlanktoScope-update-${version}.raucb`)
+  await $`rauc --cert /etc/rauc/cert.pem --key planktoscope-rauc-key.pem bundle ${bundle_dir} ${bundle_path}`
+  await rm(bundle_dir, {
     recursive: true,
     force: true,
   })
+  return bundle_path
 }
 
 if (import.meta.main) {
@@ -180,7 +184,8 @@ if (import.meta.main) {
         `Cannot create a bundle for booted ${device} ${bootname} slot.`,
       )
     }
-    await createBundle(device_path, bootname)
+    const bundle_path = await createBundle(device_path, bootname)
+    console.log(bundle_path)
   } else {
     throw new Error(`Unknwon command "${command}".`)
   }

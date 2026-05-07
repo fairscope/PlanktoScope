@@ -67,3 +67,13 @@ def get_value() -> float:
 def set_value(value: float) -> None:
     assert dac is not None
     dac.normalized_value = value
+
+
+def get_raw_value() -> int:
+    assert dac is not None
+    return int(dac.raw_value)
+
+
+def set_raw_value(value: int) -> None:
+    assert dac is not None
+    dac.raw_value = value
