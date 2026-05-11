@@ -2,6 +2,7 @@ import assert from "node:assert"
 import { readFile, writeFile, mkdir, copyFile, unlink } from "node:fs/promises"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
+import crypto from "node:crypto"
 
 import { $ } from "execa"
 import { stringify, parse } from "ini"
@@ -277,6 +278,10 @@ async function setup_cmdline(rpios_partitions, partitions) {
   // since we don't have / in /etc/fstab we need to specify rw
   args.push("rw")
 
+  // Generate an arbitrary machine id, it's the same for all slots
+  const machine_id = crypto.randomBytes(16).toString("hex")
+  args.push(`systemd.machine_id=${machine_id}`)
+
   // generate a cmdline for each bootname
   const cmdlines = []
   for (const bootname of bootnames) {
@@ -314,7 +319,6 @@ async function setup_fstab(partitions) {
     PARTUUID=${bootloader_partuuid} /bootloader      vfat  defaults,noatime,ro  0 2
     PARTUUID=${datafs_partuuid}     /data            ext4  defaults,noatime,x-systemd.growfs  0 2
     /data/home                      /home            none  bind  0 0
-    /data/machine-id                /etc/machine-id  none  bind,x-systemd.requires=/data.mount,x-systemd.after=/data.mount   0 0
   `
   // TODO: when we go readonly
   // /data/varlib              /var/lib none  bind             0 0
