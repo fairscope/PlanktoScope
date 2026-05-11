@@ -77,9 +77,8 @@ async function createPartitionTable(device) {
     await $`sgdisk --new=${partn}:0:+10G --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${"ROOT_" + bootname} ${device}`
   }
 
-  // "DATA" will be grown by x-systemd.growfs
   partn++
-  await $`sgdisk --new=${partn}:0:+32M --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1  -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:DATA ${device}`
+  await $`sgdisk --new=${partn}:0:0 --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1  -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:DATA ${device}`
 
   await $`sgdisk --verify ${device}`
 
@@ -147,6 +146,9 @@ async function create_datafs(device, rootfs) {
   const mountpoint = await getMountPoint(partlabel)
   await $`wipefs -a ${path}`
   await $`mkfs.ext4 -q ${path}`
+  // will be grown by x-systemd.growfs
+  // see fstab
+  await $`resize2fs ${path} 32M`
   await $`mount ${path} ${mountpoint}`
 
   // /data/home
