@@ -1,7 +1,8 @@
 [Unit]
 Description=Enable wifi on firstboot
 ConditionFirstBoot=yes
-After=network.target
+After=NetworkManager.service
+Requires=NetworkManager.service
 
 [Service]
 Type=oneshot

@@ -1,5 +1,12 @@
 import assert from "node:assert"
-import { readFile, writeFile, mkdir, copyFile, unlink } from "node:fs/promises"
+import {
+  readFile,
+  writeFile,
+  mkdir,
+  copyFile,
+  unlink,
+  rm,
+} from "node:fs/promises"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -147,25 +154,36 @@ async function create_datafs(device, rootfs) {
   const mountpoint = await getMountPoint(partlabel)
   await $`wipefs -a ${path}`
   await $`mkfs.ext4 -q ${path}`
+
+  // will be grown by x-systemd.growfs, see fstab
+  await $`resize2fs -M ${path}`
+  await $`e2fsck -f -p ${path}`
+
   await $`mount ${path} ${mountpoint}`
 
   // /data/home
   await $`rsync -axHAXES --filter=${"-x security.selinux"} ${join(rootfs.mountpoint, "/home")}/ ${join(mountpoint, "/home")}/`
 }
 
-// We need to share /etc/machine-id so we create it and symlink it on both slots
-// in order for systemd to consider firstboot we use systemd.condition_first_boot= cmd line argument
+// We need to share /etc/machine-id so we symlink it from `/data/machine-id` on both slots
+// machine-id-setup.service will create it if target does not exist
 // https://www.freedesktop.org/software/systemd/man/latest/machine-id.html
 async function setup_machineid(partitions) {
-  const data = partitions["DATA"].mountpoint
-
-  const { stdout } = await $`systemd-machine-id-setup --print`
-  await writeFile(join(data, "machine-id"), stdout.trim())
-
   for (const bootname of bootnames) {
     const root = partitions[`ROOT_${bootname}`].mountpoint
-    await unlink(join(root, "/etc/machine-id"))
+
+    await rm(join(root, "/etc/machine-id"), { force: true })
     await $`ln -s /data/machine-id ${join(root, "/etc/machine-id")}`
+
+    await rm(join(root, "/var/lib/dbus/machine-id"), { force: true })
+    await $`ln -s /data/machine-id ${join(root, "/var/lib/dbus/machine-id")}`
+
+    await copyFile(
+      fileURLToPath(import.meta.resolve("./machine-id-setup.service")),
+      join(root, "/etc/systemd/system/machine-id-setup.service"),
+    )
+
+    await $`ln -s ${join(root, "/etc/systemd/system/machine-id-setup.service")} ${join(root, "/etc/systemd/system/sysinit.target.wants/machine-id-setup.service")}`
   }
 }
 
@@ -315,9 +333,9 @@ async function setup_fstab(partitions) {
   const bootloader_partuuid = partitions[`BOOTLOADER`].partuuid
   const datafs_partuuid = partitions[`DATA`].partuuid
   const fstab = dedent`
-    PARTUUID=${bootloader_partuuid} /bootloader vfat  defaults,ro      0 2
-    PARTUUID=${datafs_partuuid} /data           ext4  defaults,noatime 0 2
-    /data/home                  /home           none  bind             0 0
+    PARTUUID=${bootloader_partuuid} /bootloader      vfat  defaults,noatime,ro  0 2
+    PARTUUID=${datafs_partuuid}     /data            ext4  defaults,noatime,x-systemd.growfs  0 2
+    /data/home                      /home            none  bind  0 0
   `
   // TODO: when we go readonly
   // /data/varlib              /var/lib none  bind             0 0
