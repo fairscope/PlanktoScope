@@ -1,5 +1,6 @@
 setup:
-    ./firmware.sh
+    npm install
+    sudo NODE_DEBUG=execa ./firmware.js
     ./bootloader.sh
 
 test:
