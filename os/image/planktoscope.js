@@ -314,7 +314,7 @@ async function setup_fstab(partitions) {
     PARTUUID=${bootloader_partuuid} /bootloader      vfat  defaults,noatime,ro  0 2
     PARTUUID=${datafs_partuuid}     /data            ext4  defaults,noatime,x-systemd.growfs  0 2
     /data/home                      /home            none  bind  0 0
-    /data/machine-id                /etc/machine-id  none  bind  0 0
+    /data/machine-id                /etc/machine-id  none  bind,x-systemd.requires=/data.mount,x-systemd.after=/data.mount   0 0
   `
   // TODO: when we go readonly
   // /data/varlib              /var/lib none  bind             0 0
