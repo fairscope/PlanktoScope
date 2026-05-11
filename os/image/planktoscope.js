@@ -165,8 +165,8 @@ async function create_datafs(device, rootfs) {
   await $`rsync -axHAXES --filter=${"-x security.selinux"} ${join(rootfs.mountpoint, "/home")}/ ${join(mountpoint, "/home")}/`
 }
 
-// We need to share /etc/machine-id so we symlink it from `/data/persist` on both slots
-// a service will create it if target does not exist
+// We need to share /etc/machine-id so we symlink it from `/data/machine-id` on both slots
+// machine-id-setup.service will create it if target does not exist
 // https://www.freedesktop.org/software/systemd/man/latest/machine-id.html
 async function setup_machineid(partitions) {
   for (const bootname of bootnames) {
