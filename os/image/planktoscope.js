@@ -1,12 +1,5 @@
 import assert from "node:assert"
-import {
-  readFile,
-  writeFile,
-  mkdir,
-  copyFile,
-  unlink,
-  symlink,
-} from "node:fs/promises"
+import { readFile, writeFile, mkdir, copyFile, unlink } from "node:fs/promises"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import crypto from "node:crypto"
@@ -49,7 +42,6 @@ export async function updateMountpoints(device, rpios_partitions) {
   await setup_config(rpios_partitions, partitions)
   await setup_cloudinit(rpios_partitions, partitions)
   await setup_fstab(partitions)
-  await setup_firmware_mount(partitions)
   await setup_autoboot(partitions)
 }
 
@@ -372,23 +364,4 @@ async function setup_autoboot(partitions) {
     join(bootloaderfs.mountpoint, "autoboot.txt"),
     stringify(config),
   )
-}
-
-async function setup_firmware_mount(partitions) {
-  const service = fileURLToPath(import.meta.resolve("./mount-firmware.service"))
-
-  for (const bootname of bootnames) {
-    const path = join(
-      partitions[`ROOT_${bootname}`].mountpoint,
-      "etc/systemd/system/mount-firmware.service",
-    )
-    await copyFile(service, path)
-    await symlink(
-      path,
-      join(
-        partitions[`ROOT_${bootname}`].mountpoint,
-        "etc/systemd/system/multi-user.target.wants/mount-firmware.service",
-      ),
-    )
-  }
 }
