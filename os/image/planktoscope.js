@@ -1,5 +1,12 @@
 import assert from "node:assert"
-import { readFile, writeFile, mkdir, copyFile, unlink } from "node:fs/promises"
+import {
+  readFile,
+  writeFile,
+  mkdir,
+  copyFile,
+  unlink,
+  symlink,
+} from "node:fs/promises"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import crypto from "node:crypto"
@@ -42,8 +49,8 @@ export async function updateMountpoints(device, rpios_partitions) {
   await setup_config(rpios_partitions, partitions)
   await setup_cloudinit(rpios_partitions, partitions)
   await setup_fstab(partitions)
+  await setup_firmware_mount(partitions)
   await setup_autoboot(partitions)
-  await setup_machineid(partitions)
 }
 
 async function createPartitionTable(device) {
@@ -158,14 +165,6 @@ async function create_datafs(device, rootfs) {
   await $`rsync -axHAXES --filter=${"-x security.selinux"} ${join(rootfs.mountpoint, "/home")}/ ${join(mountpoint, "/home")}/`
 }
 
-// We need to share /etc/machine-id
-// we create /data/machine-id and /etc/machine-id is a bind mount - see fstab
-// https://www.freedesktop.org/software/systemd/man/latest/machine-id.html
-async function setup_machineid(partitions) {
-  const data = partitions["DATA"].mountpoint
-  await writeFile(join(data, "machine-id"), "uninitialized\n")
-}
-
 // TODO: Investigate if we can replace cloud init with a simpler systemd solution
 async function setup_cloudinit(rpios_partitions, partitions) {
   // By default RPI OS reads cloud init config from /boot/firmware
@@ -278,7 +277,8 @@ async function setup_cmdline(rpios_partitions, partitions) {
   // since we don't have / in /etc/fstab we need to specify rw
   args.push("rw")
 
-  // Generate an arbitrary machine id, it's the same for all slots
+  // Generate an arbitrary machine-id, it's the same for all slots
+  // https://www.freedesktop.org/software/systemd/man/latest/machine-id.html
   const machine_id = crypto.randomBytes(16).toString("hex")
   args.push(`systemd.machine_id=${machine_id}`)
 
@@ -372,4 +372,23 @@ async function setup_autoboot(partitions) {
     join(bootloaderfs.mountpoint, "autoboot.txt"),
     stringify(config),
   )
+}
+
+async function setup_firmware_mount(partitions) {
+  const service = fileURLToPath(import.meta.resolve("./mount-firmware.service"))
+
+  for (const bootname of bootnames) {
+    const path = join(
+      partitions[`ROOT_${bootname}`].mountpoint,
+      "etc/systemd/system/mount-firmware.service",
+    )
+    await copyFile(service, path)
+    await symlink(
+      path,
+      join(
+        partitions[`ROOT_${bootname}`].mountpoint,
+        "etc/systemd/system/multi-user.target.wants/mount-firmware.service",
+      ),
+    )
+  }
 }
