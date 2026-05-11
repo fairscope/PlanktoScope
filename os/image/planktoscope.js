@@ -149,7 +149,7 @@ async function create_datafs(device, rootfs) {
 
   // will be grown by x-systemd.growfs, see fstab
   await $`resize2fs -M ${path}`
-  await $`e2fsck -f ${path}`
+  await $`e2fsck -f -p ${path}`
 
   await $`mount ${path} ${mountpoint}`
 
