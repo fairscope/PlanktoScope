@@ -146,9 +146,11 @@ async function create_datafs(device, rootfs) {
   const mountpoint = await getMountPoint(partlabel)
   await $`wipefs -a ${path}`
   await $`mkfs.ext4 -q ${path}`
-  // will be grown by x-systemd.growfs
-  // see fstab
-  await $`resize2fs ${path} 32M`
+
+  // will be grown by x-systemd.growfs, see fstab
+  await $`resize2fs -M ${path}`
+  await $`e2fsck -f ${path}`
+
   await $`mount ${path} ${mountpoint}`
 
   // /data/home
