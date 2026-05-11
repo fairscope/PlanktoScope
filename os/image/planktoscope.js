@@ -269,11 +269,6 @@ async function setup_cmdline(rpios_partitions, partitions) {
   // since we don't have / in /etc/fstab we need to specify rw
   args.push("rw")
 
-  // Generate an arbitrary machine-id, it's the same for all slots
-  // https://www.freedesktop.org/software/systemd/man/latest/machine-id.html
-  const machine_id = crypto.randomBytes(16).toString("hex")
-  args.push(`systemd.machine_id=${machine_id}`)
-
   // generate a cmdline for each bootname
   const cmdlines = []
   for (const bootname of bootnames) {

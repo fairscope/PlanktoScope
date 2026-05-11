@@ -1,0 +1,15 @@
+[Unit]
+Description=Initialize shared machine-id on first boot
+DefaultDependencies=no
+Before=sysinit.target
+After=data.mount
+Requires=data.mount
+ConditionPathExists=!/data/machine-id
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'systemd-id128 new > /data/machine-id && chmod 444 /data/machine-id'
+
+[Install]
+WantedBy=sysinit.target
