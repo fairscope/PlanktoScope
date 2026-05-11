@@ -1,5 +1,12 @@
 import assert from "node:assert"
-import { readFile, writeFile, mkdir, copyFile, unlink } from "node:fs/promises"
+import {
+  readFile,
+  writeFile,
+  mkdir,
+  copyFile,
+  unlink,
+  rm,
+} from "node:fs/promises"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -165,10 +172,12 @@ async function setup_machineid(partitions) {
   for (const bootname of bootnames) {
     const root = partitions[`ROOT_${bootname}`].mountpoint
 
-    await unlink(join(root, "/etc/machine-id"))
+    await $`cat ${join(root, "/etc/machine-id")}`
+
+    await rm(join(root, "/etc/machine-id"), { force: true })
     await $`ln -s /data/machine-id ${join(root, "/etc/machine-id")}`
 
-    await unlink(join(root, "/var/lib/dbus/machine-id"))
+    await rm(join(root, "/var/lib/dbus/machine-id"), { force: true })
     await $`ln -s /data/machine-id ${join(root, "/var/lib/dbus/machine-id")}`
 
     await copyFile(
