@@ -172,8 +172,6 @@ async function setup_machineid(partitions) {
   for (const bootname of bootnames) {
     const root = partitions[`ROOT_${bootname}`].mountpoint
 
-    await $`cat ${join(root, "/etc/machine-id")}`
-
     await rm(join(root, "/etc/machine-id"), { force: true })
     await $`ln -s /data/machine-id ${join(root, "/etc/machine-id")}`
 
