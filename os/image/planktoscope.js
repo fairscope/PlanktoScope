@@ -2,7 +2,6 @@ import assert from "node:assert"
 import { readFile, writeFile, mkdir, copyFile, unlink } from "node:fs/promises"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
-import crypto from "node:crypto"
 
 import { $ } from "execa"
 import { stringify, parse } from "ini"
@@ -43,6 +42,7 @@ export async function updateMountpoints(device, rpios_partitions) {
   await setup_cloudinit(rpios_partitions, partitions)
   await setup_fstab(partitions)
   await setup_autoboot(partitions)
+  await setup_machineid(partitions)
 }
 
 async function createPartitionTable(device) {
@@ -77,6 +77,7 @@ async function createPartitionTable(device) {
     await $`sgdisk --new=${partn}:0:+10G --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${"ROOT_" + bootname} ${device}`
   }
 
+  // "DATA"
   partn++
   await $`sgdisk --new=${partn}:0:0 --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1  -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:DATA ${device}`
 
@@ -155,6 +156,28 @@ async function create_datafs(device, rootfs) {
 
   // /data/home
   await $`rsync -axHAXES --filter=${"-x security.selinux"} ${join(rootfs.mountpoint, "/home")}/ ${join(mountpoint, "/home")}/`
+}
+
+// We need to share /etc/machine-id so we symlink it from `/data/persist` on both slots
+// a service will create it if target does not exist
+// https://www.freedesktop.org/software/systemd/man/latest/machine-id.html
+async function setup_machineid(partitions) {
+  for (const bootname of bootnames) {
+    const root = partitions[`ROOT_${bootname}`].mountpoint
+
+    await unlink(join(root, "/etc/machine-id"))
+    await $`ln -s /data/machine-id ${join(root, "/etc/machine-id")}`
+
+    await unlink(join(root, "/var/lib/dbus/machine-id"))
+    await $`ln -s /data/machine-id ${join(root, "/var/lib/dbus/machine-id")}`
+
+    await copyFile(
+      fileURLToPath(import.meta.resolve("./machine-id-setup.service")),
+      join(root, "/etc/systemd/system/machine-id-setup.service"),
+    )
+
+    await $`ln -s ${join(root, "/etc/systemd/system/machine-id-setup.service")} ${join(root, "/etc/systemd/system/sysinit.target.wants/machine-id-setup.service")}`
+  }
 }
 
 // TODO: Investigate if we can replace cloud init with a simpler systemd solution
