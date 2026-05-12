@@ -2,8 +2,6 @@
 
 import path from "node:path"
 
-import express from "express"
-
 import { readSoftwareConfig, removeConfig } from "../../lib/file-config.js"
 import { capture } from "../../lib/scope.js"
 
@@ -28,8 +26,6 @@ app.post("/api/capture", async (req, res) => {
 
   res.json({ url_jpeg: url })
 })
-
-app.use("/api/files", express.static("/home/pi/data"))
 
 app.post("/api/reset", async (req, res) => {
   await removeConfig()
