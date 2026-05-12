@@ -8,13 +8,8 @@ setup:
     sudo cp Caddyfile /etc/caddy/
     sudo systemctl reenable caddy
     sudo systemctl restart caddy
-    # allow traversal
-    sudo setfacl -m u:caddy:x /home/pi/data
-    # existing files
-    sudo setfacl -R -m u:caddy:rx /home/pi/data
-    # future files
-    sudo setfacl -R -m d:u:caddy:rx /home/pi/data
-    chmod o+x /opt/PlanktoScope
+    # allow caddy access to /home/pi and /opt/PlanktoScope files
+    sudo usermod -aG pi caddy
 
 format:
     caddy fmt --overwrite Caddyfile

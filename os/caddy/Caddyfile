@@ -28,13 +28,13 @@
 	# We want exact path / to go to backend where we have a redirect
 	@root path /
 	handle @root {
-    reverse_proxy localhost:4000
-  }
+		reverse_proxy localhost:4000
+	}
 
 	handle_path /api/files/* {
-    root * /home/pi/data
-    file_server
-  }
+		root * /home/pi/data
+		file_server
+	}
 
 	handle /api/* {
 		reverse_proxy localhost:4000
@@ -74,8 +74,8 @@
 
 	# Frontend fallback (everything else)
 	handle {
-  	root * /opt/PlanktoScope/frontend/dist
-    try_files {path} /index.html
-    file_server
+		root * /opt/PlanktoScope/frontend/dist
+		try_files {path} /index.html
+		file_server
 	}
 }
