@@ -110,7 +110,7 @@ export default function Update() {
             onClick={handleReboot}
             disabled={status()?.Progress[1] !== "Installing done."}
           >
-            Reboot
+            Restart
           </button>
         </p>
       </div>
