@@ -25,9 +25,9 @@ setup:
     sudo rm -f /etc/profile.d/wifi-check.sh
 
     # Enable wifi by default without selecting a country (will use global)
-    sudo cp planktoscope-org.firstboot-wifi.service /etc/systemd/system/
-    sudo systemctl reenable planktoscope-org.firstboot-wifi.service
-    sudo systemctl restart planktoscope-org.firstboot-wifi.service
+    sudo cp planktoscope-org.wifi.service /etc/systemd/system/
+    sudo systemctl reenable planktoscope-org.wifi.service
+    sudo systemctl restart planktoscope-org.wifi.service
 
     wget https://github.com/grishy/go-avahi-cname/releases/download/v2.3.0/go-avahi-cname_2.3.0_linux_arm64.tar.gz -P /tmp
     cd /tmp && tar -xzf /tmp/go-avahi-cname_2.3.0_linux_arm64.tar.gz go-avahi-cname

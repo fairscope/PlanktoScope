@@ -1,6 +1,5 @@
 [Unit]
-Description=Enable wifi on firstboot
-ConditionFirstBoot=yes
+Description=Enable wifi on boot
 After=NetworkManager.service
 Requires=NetworkManager.service
 
