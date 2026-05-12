@@ -3,7 +3,8 @@
 
 [Unit]
 Description=Node-RED graphical event wiring tool
-Wants=network.target
+Wants=mosquitto.service
+Before=mosquitto.service
 Documentation=http://nodered.org/docs/hardware/raspberrypi.html
 
 [Service]
@@ -24,8 +25,8 @@ EnvironmentFile=-/home/pi/.node-red/environment
 # uncomment next line if you need to wait for time sync before starting
 #ExecStartPre=/bin/bash -c '/bin/journalctl -b -u systemd-timesyncd | /bin/grep -q "systemd-timesyncd.* Synchronized to time server"'
 
-ExecStart=/usr/bin/env node-red-pi $NODE_OPTIONS -- $NODE_RED_OPTIONS
-#ExecStart=/usr/bin/env node $NODE_OPTIONS red.js -- $NODE_RED_OPTIONS
+ExecStart=/usr/local/bin/node-red-pi $NODE_OPTIONS --settings /opt/PlanktoScope/node-red/settings.cjs $NODE_RED_OPTIONS
+
 # Use SIGINT to stop
 KillSignal=SIGINT
 # Auto restart on crash

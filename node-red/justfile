@@ -4,8 +4,6 @@ setup:
     mkdir -p context/global/
     cp global.json context/global/global.json
     sudo cp nodered.service /etc/systemd/system/
-    sudo mkdir -p /etc/systemd/system/nodered.service.d
-    sudo cp 30-override.conf /etc/systemd/system/nodered.service.d/
     sudo systemctl reenable nodered
     sudo systemctl restart nodered
     rm -rf /home/pi/.node-red

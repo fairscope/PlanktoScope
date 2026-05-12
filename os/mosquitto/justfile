@@ -1,5 +1,8 @@
 setup:
     sudo apt install -y mosquitto
     sudo cp mosquitto.conf /etc/mosquitto/
+    # For some reason override did not work
+    sudo sed -i 's/After=network-online.target/After=network.target/; s/Wants=network-online.target/Wants=network.target/' /usr/lib/systemd/system/mosquitto.service
+    sudo systemctl daemon-reload
     sudo systemctl reenable mosquitto
     sudo systemctl restart mosquitto

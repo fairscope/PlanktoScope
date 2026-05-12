@@ -6,6 +6,10 @@ setup:
     sudo apt update
     sudo apt install -y caddy
     sudo cp Caddyfile /etc/caddy/
+    # For some reason override did not work
+    sudo sed -i 's/After=network.target network-online.target/After=network.target/; s/Requires=network-online.target/Requires=network.target/' /usr/lib/systemd/system/caddy.service
+    sudo sed -i 's/After=network.target network-online.target/After=network.target/; s/Requires=network-online.target/Requires=network.target/' /usr/lib/systemd/system/caddy-api.service
+    sudo systemctl daemon-reload
     sudo systemctl reenable caddy
     sudo systemctl restart caddy
     # allow group traversal

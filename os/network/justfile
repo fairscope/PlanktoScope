@@ -1,7 +1,12 @@
 setup:
     sudo apt install -y network-manager dnsmasq-base avahi-utils
-    sudo systemctl reenable NetworkManager
-    sudo systemctl restart NetworkManager
+
+    # systemd-networkd -> NetworkManager
+    sudo systemctl disable --now systemd-networkd systemd-networkd-wait-online
+    sudo systemctl mask systemd-networkd systemd-networkd-wait-online
+    sudo systemctl reenable NetworkManager NetworkManager-wait-online
+    sudo systemctl restart NetworkManager NetworkManager-wait-online
+
     sudo cp -r cfg80211_regdomain.conf /etc/modprobe.d/
     sudo chown pi:pi /etc/modprobe.d/cfg80211_regdomain.conf
     sudo nmcli connection down wlan0-hotspot || true
