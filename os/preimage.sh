@@ -15,4 +15,4 @@ rm -rf /opt/PlanktoScope/hardware
 
 # Clear machine-id so that it will be regenerated on the next boot
 # This is also the condition for ConditionFirstBoot=yes
-sudo rm /data/machine-id
+sudo rm -f /data/machine-id
