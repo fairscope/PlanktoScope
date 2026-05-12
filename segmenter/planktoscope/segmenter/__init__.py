@@ -955,6 +955,19 @@ class SegmenterProcess(multiprocessing.Process):
 
         if self._interrupt_requested:
             logger.info(f"Pipeline interrupted by user for {path}, not marking as done")
+            # Persist an interrupted flag in metadata.json so downstream consumers
+            # (lib/db.js reads `metadata.interrupted`) can distinguish a partial
+            # segmentation from a clean one.
+            metadata_path = os.path.join(self.__working_path, "metadata.json")
+            try:
+                with open(metadata_path, "r", encoding="utf-8") as f:
+                    metadata = json.load(f)
+                metadata["interrupted"] = True
+                with open(metadata_path, "w", encoding="utf-8") as f:
+                    json.dump(metadata, f, indent=4)
+                logger.info(f"Marked {metadata_path} with interrupted=true")
+            except (OSError, json.JSONDecodeError) as exc:
+                logger.error(f"Could not mark {metadata_path} as interrupted: {exc}")
         else:
             # Add file 'done' to path to mark the folder as already segmented
             with open(os.path.join(self.__working_path, "done.txt"), "w") as done_file:
