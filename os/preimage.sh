@@ -8,19 +8,6 @@ sudo rm -f /etc/ssh/ssh_host_*_key*
 
 uv clean --force
 npm cache clean --force
-rm -rf "$HOME"/.cache
-mkdir "$HOME"/.cache
-
-rm -f "$HOME"/.python_history
-rm -f "$HOME"/.bash_history
-rm -f "$HOME"/.gitconfig
-
-rm -rf "$HOME"/.ssh
-rm -rf "$HOME"/data
-rm -f "$HOME"/filebrowser.db
-rm -f "$HOME"/PlanktoScope/hardware.json
-rm -f "$HOME"/PlanktoScope/config.json
-rm -f "$HOME"/PlanktoScope/calibration.json
 
 rm -rf /opt/PlanktoScope/documentation
 sudo rm -rf /srv/docs
