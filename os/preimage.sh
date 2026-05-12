@@ -25,6 +25,9 @@ rm -f "$HOME"/PlanktoScope/calibration.json
 rm -rf /opt/PlanktoScope/documentation
 sudo rm -rf /srv/docs
 
+
+# FIXME: wrong method
+
 # Clear machine-id so that it will be regenerated on the next boot
 # This is also the condition for ConditionFirstBoot=yes
 # (refer to https://www.freedesktop.org/software/systemd/man/latest/machine-id.html):
