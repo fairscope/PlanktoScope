@@ -122,10 +122,10 @@ export async function setup_system_conf() {
   await writeRaucSystemConf(conf)
 }
 
-export async function createBundle(device, bootname) {
+export async function createBundle(device, bootname, version) {
   const date = new Date().toISOString()
   const build = date
-  const version = date.split("T")[0]
+  version ??= date.split("T")[0]
 
   const partitions = await getBlockDevices(device)
 
@@ -161,7 +161,7 @@ export async function createBundle(device, bootname) {
   // mount it as loop device "mount -o loop rootfs.img /mnt"
   // then rsync files into it
   await $`dd if=${part_root.path} of=${join(bundle_dir, manifest.image.ROOT.filename)} bs=64M`
-  const bundle_path = join(tmpdir, `PlanktoScope-update-${version}.raucb`)
+  const bundle_path = join(tmpdir, `PlanktoScopeOS-${version}.raucb`)
   await $`rauc --cert /etc/rauc/cert.pem --key planktoscope-rauc-key.pem bundle ${bundle_dir} ${bundle_path}`
   await rm(bundle_dir, {
     recursive: true,
@@ -182,9 +182,9 @@ if (import.meta.main) {
     }
     await setup_system_conf()
   } else if (command === "create-bundle") {
-    const [device_path, bootname] = args
+    const [device_path, bootname, version] = args
     if (!device_path || !bootname) {
-      throw new Error("create-bundle /dev/device A|B")
+      throw new Error("create-bundle /dev/device A|B [version]")
     }
     const booted_slot = await getBootedSlot()
     if (device_path === device && bootname === booted_slot) {
@@ -192,7 +192,7 @@ if (import.meta.main) {
         `Cannot create a bundle for booted ${device} ${bootname} slot.`,
       )
     }
-    const bundle_path = await createBundle(device_path, bootname)
+    const bundle_path = await createBundle(device_path, bootname, version)
     console.log(bundle_path)
   } else {
     throw new Error(`Unknwon command "${command}".`)
