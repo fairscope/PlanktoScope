@@ -6,6 +6,7 @@ setup:
     -sudo systemctl stop mediamtx
     sudo cp /tmp/mediamtx /usr/local/bin/mediamtx
     sudo cp mediamtx.service /etc/systemd/system/
+    sudo cp mediamtx.yaml /etc/mediamtx.yaml
     node ../../lib/mediamtx.js
     sudo systemctl reenable mediamtx
     sudo systemctl restart mediamtx
@@ -15,4 +16,4 @@ test:
 
 dev:
     -sudo systemctl stop mediamtx
-    mediamtx mediamtx.yaml
+    mediamtx /etc/mediamtx.yaml
