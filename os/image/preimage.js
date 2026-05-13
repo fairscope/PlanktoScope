@@ -28,12 +28,13 @@ if (import.meta.main) {
   await copyFile("../network/hosts", "/etc/hosts")
   await copyFile("../cockpit/cockpit.ini", "/etc/cockpit/cockpit.conf")
   await copyFile("../mediamtx/mediamtx.yaml", "/etc/mediamtx.yaml")
-  await copyFile(
-    "../network/wlan0-hotspot.ini",
-    "/etc/NetworkManager/system-connections/wlan0-hotspot.nmconnection",
-  )
+
+  const wlan_path =
+    "/etc/NetworkManager/system-connections/wlan0-hotspot.nmconnection"
+  await copyFile("../network/wlan0-hotspot.ini", wlan_path)
+  await $`chown root:root ${wlan_path}`
   // "failed to load connection: File permissions (100644) are insecure"
-  await $`chmod 0600 /etc/NetworkManager/system-connections/wlan0-hotspot.nmconnection`
+  await $`chmod 0600 ${wlan_path}`
 
   // await rm("/opt/PlanktoScope/documentation", { force: true, recursive: true })
   // await rm("/opt/PlanktoScope/hardware", { force: true, recursive: true })
