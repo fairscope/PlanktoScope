@@ -1,13 +1,18 @@
 setup:
     sudo apt install -y network-manager dnsmasq-base avahi-utils
-    sudo systemctl reenable NetworkManager
-    sudo systemctl restart NetworkManager
+
+    # systemd-networkd -> NetworkManager
+    sudo systemctl disable --now systemd-networkd systemd-networkd-wait-online
+    sudo systemctl mask systemd-networkd systemd-networkd-wait-online
+    sudo systemctl reenable NetworkManager NetworkManager-wait-online
+    sudo systemctl restart NetworkManager NetworkManager-wait-online
+
     sudo cp -r cfg80211_regdomain.conf /etc/modprobe.d/
     sudo chown pi:pi /etc/modprobe.d/cfg80211_regdomain.conf
     sudo nmcli connection down wlan0-hotspot || true
     sudo cp wlan0-hotspot.ini /etc/NetworkManager/system-connections/wlan0-hotspot.nmconnection
-    machine_name=$(cat /run/machine-name) && sudo sed -i "s/raspberrypi/PlanktoScope $machine_name/g" /etc/NetworkManager/system-connections/wlan0-hotspot.nmconnection
-    sudo sed -i "s/raspberrypi/$(hostname)/g" /etc/NetworkManager/system-connections/wlan0-hotspot.nmconnection
+    # failed to load connection: File owner (1000) is insecure
+    sudo chown root:root /etc/NetworkManager/system-connections/wlan0-hotspot.nmconnection
     # "failed to load connection: File permissions (100644) are insecure"
     sudo chmod 0600 /etc/NetworkManager/system-connections/wlan0-hotspot.nmconnection
     sudo nmcli connection reload
@@ -20,9 +25,9 @@ setup:
     sudo rm -f /etc/profile.d/wifi-check.sh
 
     # Enable wifi by default without selecting a country (will use global)
-    sudo cp planktoscope-org.firstboot-wifi.service /etc/systemd/system/
-    sudo systemctl reenable planktoscope-org.firstboot-wifi.service
-    sudo systemctl restart planktoscope-org.firstboot-wifi.service
+    sudo cp planktoscope-org.wifi.service /etc/systemd/system/
+    sudo systemctl reenable planktoscope-org.wifi.service
+    sudo systemctl restart planktoscope-org.wifi.service
 
     wget https://github.com/grishy/go-avahi-cname/releases/download/v2.3.0/go-avahi-cname_2.3.0_linux_arm64.tar.gz -P /tmp
     cd /tmp && tar -xzf /tmp/go-avahi-cname_2.3.0_linux_arm64.tar.gz go-avahi-cname
@@ -36,7 +41,6 @@ setup:
 
     sudo cp hosts /etc/
     sudo cp dnsmasq-shared.properties /etc/NetworkManager/dnsmasq-shared.d/40-config.conf
-    sudo ./setup-hostname.sh
 
 test:
     validator wlan0-hotspot.ini

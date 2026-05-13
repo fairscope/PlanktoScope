@@ -12,4 +12,4 @@ sudo chown -R "$USER:$USER" "/opt/PlanktoScope"
 sudo apt install -y just
 just --justfile /opt/PlanktoScope/justfile
 ./postinstall.sh
-./preimage.sh
+../os/image/preimage.sh

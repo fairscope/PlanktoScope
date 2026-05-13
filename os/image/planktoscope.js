@@ -163,6 +163,10 @@ async function create_datafs(device, rootfs) {
 
   // /data/home
   await $`rsync -axHAXES --filter=${"-x security.selinux"} ${join(rootfs.mountpoint, "/home")}/ ${join(mountpoint, "/home")}/`
+
+  // allow group traversal
+  // used to serve files from caddy
+  await $`chmod g+x ${join(mountpoint, "/home/pi")}`
 }
 
 // We need to share /etc/machine-id so we symlink it from `/data/machine-id` on both slots
