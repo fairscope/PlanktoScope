@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-import { updateName } from "../lib/identity.js"
+import { readFile } from "node:fs/promises"
+import { updateName } from "../../lib/identity.js"
 
 if (import.meta.main) {
   if (process.getuid() !== 0) {
