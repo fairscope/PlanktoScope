@@ -2,6 +2,7 @@
 
 import { $ } from "execa"
 import { rm, writeFile, copyFile } from "node:fs/promises"
+import { getCommit, getUrl } from "../../lib/software.js"
 
 if (import.meta.main) {
   if (process.getuid() !== 0) {
@@ -35,6 +36,9 @@ if (import.meta.main) {
   await $`chown root:root ${wlan_path}`
   // "failed to load connection: File permissions (100644) are insecure"
   await $`chmod 0600 ${wlan_path}`
+
+  const [commit, url] = await Promise.all([getCommit(), getUrl()])
+  console.log(commit, url)
 
   // await rm("/opt/PlanktoScope/documentation", { force: true, recursive: true })
   // await rm("/opt/PlanktoScope/hardware", { force: true, recursive: true })
