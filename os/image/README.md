@@ -132,3 +132,25 @@ Here is a simplified "high level" sequence of what happens:
    - `DATA` to `/data` - readwrite
    - `DATA/home` to `/home`
 6. systemd executes `mount-firmware.service` and `/boot/firmware` becomes available
+
+## Create full disk image
+
+Besides Rauc updates, we need full disk images.
+
+Proceed as such:
+
+1. Make a new disk
+2. Setup PlanktoScope as usual on one of the slot
+3. Create a bundle
+4. Install bundle to B
+5. Restart on B
+6. Run preimage.js
+7. Install bundle to A
+8. Restart on A
+9. Run preimage.js
+10. Poweroff
+11. Boot to sdcard
+12. Cleanup /data
+  * keep `/data/home/pi` folder (nothing inside)
+  * keep `/data/rauc`
+13. `sudo dd bs=4M if=/dev/nvme0n1 status=progress conv=fsync | xz > PlanktoScopeOS-2026.1.0.img.xz`
