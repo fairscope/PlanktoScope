@@ -3,6 +3,7 @@
 import { $ } from "execa"
 import { rm, writeFile, copyFile } from "node:fs/promises"
 import { getCommit, getUrl } from "../../lib/software.js"
+import { fileURLToPath } from "node:url"
 
 if (import.meta.main) {
   if (process.getuid() !== 0) {
@@ -26,21 +27,36 @@ if (import.meta.main) {
 
   // restore hostname files
   await writeFile("/etc/hostname", "raspberrypi")
-  await copyFile("../network/hosts", "/etc/hosts")
-  await copyFile("../cockpit/cockpit.ini", "/etc/cockpit/cockpit.conf")
-  await copyFile("../mediamtx/mediamtx.yaml", "/etc/mediamtx.yaml")
+  await copyFile(
+    fileURLToPath(import.meta.resolve("../network/hosts")),
+    "/etc/hosts",
+  )
+  await copyFile(
+    fileURLToPath(import.meta.resolve("../cockpit/cockpit.ini")),
+    "/etc/cockpit/cockpit.conf",
+  )
+  await copyFile(
+    fileURLToPath(import.meta.resolve("../mediamtx/mediamtx.yaml")),
+    "/etc/mediamtx.yaml",
+  )
 
   const wlan_path =
     "/etc/NetworkManager/system-connections/wlan0-hotspot.nmconnection"
-  await copyFile("../network/wlan0-hotspot.ini", wlan_path)
+  await copyFile(
+    fileURLToPath(import.meta.resolve("../network/wlan0-hotspot.ini")),
+    wlan_path,
+  )
   await $`chown root:root ${wlan_path}`
   // "failed to load connection: File permissions (100644) are insecure"
   await $`chmod 0600 ${wlan_path}`
 
-  const [commit, url] = await Promise.all([getCommit(), getUrl()])
-  console.log(commit, url)
+  await rm("/opt/PlanktoScope/documentation", { force: true, recursive: true })
+  await rm("/opt/PlanktoScope/hardware", { force: true, recursive: true })
 
-  // await rm("/opt/PlanktoScope/documentation", { force: true, recursive: true })
-  // await rm("/opt/PlanktoScope/hardware", { force: true, recursive: true })
-  // await rm("/opt/PlanktoScope/.git", { force: true, recursive: true })
+  const [commit, url] = await Promise.all([getCommit(), getUrl()])
+  await writeFile(
+    "/opt/PlanktoScope/gitinfo.json",
+    JSON.stringify({ commit, url }, null, 2),
+  )
+  await rm("/opt/PlanktoScope/.git", { force: true, recursive: true })
 }
