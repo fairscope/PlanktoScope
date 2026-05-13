@@ -11,8 +11,8 @@ setup:
     sudo chown pi:pi /etc/modprobe.d/cfg80211_regdomain.conf
     sudo nmcli connection down wlan0-hotspot || true
     sudo cp wlan0-hotspot.ini /etc/NetworkManager/system-connections/wlan0-hotspot.nmconnection
-    machine_name=$(cat /run/machine-name) && sudo sed -i "s/raspberrypi/PlanktoScope $machine_name/g" /etc/NetworkManager/system-connections/wlan0-hotspot.nmconnection
-    sudo sed -i "s/raspberrypi/$(hostname)/g" /etc/NetworkManager/system-connections/wlan0-hotspot.nmconnection
+    # failed to load connection: File owner (1000) is insecure
+    sudo chown root:root /etc/NetworkManager/system-connections/wlan0-hotspot.nmconnection
     # "failed to load connection: File permissions (100644) are insecure"
     sudo chmod 0600 /etc/NetworkManager/system-connections/wlan0-hotspot.nmconnection
     sudo nmcli connection reload
@@ -41,7 +41,6 @@ setup:
 
     sudo cp hosts /etc/
     sudo cp dnsmasq-shared.properties /etc/NetworkManager/dnsmasq-shared.d/40-config.conf
-    sudo ./setup-hostname.sh
 
 test:
     validator wlan0-hotspot.ini
