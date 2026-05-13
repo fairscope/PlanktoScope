@@ -25,7 +25,7 @@ if (import.meta.main) {
   await writeFile("/etc/hostname", "raspberrypi")
   await cp("../network/hosts", "/etc/hosts")
   await cp("../cockpit/cockpit.ini", "/etc/cockpit/cockpit.conf")
-  await cp("../mediamtx/cockpit.ini", "/etc/cockpit/cockpit.conf")
+  await cp("../mediamtx/mediamtx.yaml", "/etc/mediamtx.yaml")
   await cp(
     "../network/wlan0-hotspot.ini",
     "/etc/NetworkManager/system-connections/wlan0-hotspot.nmconnection",
