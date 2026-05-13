@@ -278,7 +278,7 @@ def _initialize_acquisition_directory(
     """Make the directory where images will be saved for the current image-acquisition routine.
 
     This also initializes a file integrity log in the directory. The metadata is not written
-    here — it is finalized at the end of acquisition so that `nb_frame` reflects the actual
+    here — it is finalized at the end of acquisition so that `acq_nb_frame` reflects the actual
     number of frames captured (which may be less than planned if the run is interrupted).
 
     Args:
@@ -335,7 +335,8 @@ class ImageAcquisitionRoutine(threading.Thread):
             routine: the image-acquisition routine to run.
             mqtt_client: an MQTT client which will be used to broadcast updates.
             metadata: the acquisition metadata to write to `metadata.json` once the routine
-              finishes. `nb_frame` is overwritten with the actual number of frames captured.
+              finishes. `acq_nb_frame` is written with the actual number of frames captured;
+              any stale `nb_frame` (the requested count from the imaging command) is removed.
         """
         super().__init__()
         self._routine = routine
@@ -346,11 +347,13 @@ class ImageAcquisitionRoutine(threading.Thread):
         """Run a stop-flow image-acquisition routine until completion or interruption."""
         self._mqtt_client.publish("status/imager", '{"status":"Started"}')
         final_status: str = ""
+        interrupted: bool = False
         while True:
             if (result := self._routine.run_step()) is None:
                 if self._routine.interrupted:
                     loguru.logger.debug("Image-acquisition routine was interrupted!")
                     final_status = '{"status":"Interrupted"}'
+                    interrupted = True
                     break
                 loguru.logger.debug("Image-acquisition routine ran to completion!")
                 final_status = json.dumps(
@@ -390,16 +393,20 @@ class ImageAcquisitionRoutine(threading.Thread):
                 ),
             )
 
+        self._metadata["interrupted"] = interrupted
         # Finalize metadata.json with the actual frame count before announcing the final
         # status, so that downstream consumers (e.g. the segmenter) cannot observe the
         # acquisition as finished without a metadata file on disk.
-        self._metadata["nb_frame"] = self._routine.progress
+        # `acq_nb_frame` carries the count of frames actually captured (may be less than the
+        # requested count if the run was interrupted). `nb_frame` was the *requested* count
+        # from the imaging command
+        self._metadata["acq_nb_frame"] = self._routine.progress
         metadata_filepath = os.path.join(self._routine.output_path, "metadata.json")
         with open(metadata_filepath, "w", encoding="utf-8") as metadata_file:
             json.dump(self._metadata, metadata_file, indent=4)
         integrity.append_to_integrity_file(metadata_filepath)
         loguru.logger.debug(
-            f"Saved metadata to {metadata_filepath} with nb_frame={self._routine.progress}"
+            f"Saved metadata to {metadata_filepath} with acq_nb_frame={self._routine.progress}"
         )
 
         if final_status:
