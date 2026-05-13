@@ -391,6 +391,7 @@ class ImageAcquisitionRoutine(threading.Thread):
                 ),
             )
 
+        self._metadata["interrupted"] = self._metadata["acq_nb_frame"] != self._metadata["nb_frame"]
         # Finalize metadata.json with the actual frame count before announcing the final
         # status, so that downstream consumers (e.g. the segmenter) cannot observe the
         # acquisition as finished without a metadata file on disk.
