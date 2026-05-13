@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 
-import assert from "node:assert"
 import { $ } from "execa"
-import { rm } from "node:fs/promises"
+import { rm, writeFile, copyFile } from "node:fs/promises"
 
 if (import.meta.main) {
   if (process.getuid() !== 0) {
@@ -21,12 +20,15 @@ if (import.meta.main) {
   // 2GB swap file
   await rm("/var/swap", { force: true, recursive: true })
 
+  // remove machine-name
+  await rm("/run/machine-name", { force: true })
+
   // restore hostname files
   await writeFile("/etc/hostname", "raspberrypi")
-  await cp("../network/hosts", "/etc/hosts")
-  await cp("../cockpit/cockpit.ini", "/etc/cockpit/cockpit.conf")
-  await cp("../mediamtx/mediamtx.yaml", "/etc/mediamtx.yaml")
-  await cp(
+  await copyFile("../network/hosts", "/etc/hosts")
+  await copyFile("../cockpit/cockpit.ini", "/etc/cockpit/cockpit.conf")
+  await copyFile("../mediamtx/mediamtx.yaml", "/etc/mediamtx.yaml")
+  await copyFile(
     "../network/wlan0-hotspot.ini",
     "/etc/NetworkManager/system-connections/wlan0-hotspot.nmconnection",
   )
