@@ -347,11 +347,13 @@ class ImageAcquisitionRoutine(threading.Thread):
         """Run a stop-flow image-acquisition routine until completion or interruption."""
         self._mqtt_client.publish("status/imager", '{"status":"Started"}')
         final_status: str = ""
+        interrupted: bool = False
         while True:
             if (result := self._routine.run_step()) is None:
                 if self._routine.interrupted:
                     loguru.logger.debug("Image-acquisition routine was interrupted!")
                     final_status = '{"status":"Interrupted"}'
+                    interrupted = True
                     break
                 loguru.logger.debug("Image-acquisition routine ran to completion!")
                 final_status = json.dumps(
@@ -391,14 +393,13 @@ class ImageAcquisitionRoutine(threading.Thread):
                 ),
             )
 
-        self._metadata["interrupted"] = self._metadata["acq_nb_frame"] != self._metadata["nb_frame"]
+        self._metadata["interrupted"] = interrupted
         # Finalize metadata.json with the actual frame count before announcing the final
         # status, so that downstream consumers (e.g. the segmenter) cannot observe the
         # acquisition as finished without a metadata file on disk.
         # `acq_nb_frame` carries the count of frames actually captured (may be less than the
         # requested count if the run was interrupted). `nb_frame` was the *requested* count
-        # from the imaging command — drop it so it can't be mistaken for actuals.
-        self._metadata.pop("nb_frame", None)
+        # from the imaging command
         self._metadata["acq_nb_frame"] = self._routine.progress
         metadata_filepath = os.path.join(self._routine.output_path, "metadata.json")
         with open(metadata_filepath, "w", encoding="utf-8") as metadata_file:
