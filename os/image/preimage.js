@@ -21,6 +21,18 @@ if (import.meta.main) {
   // 2GB swap file
   await rm("/var/swap", { force: true, recursive: true })
 
+  // restore hostname files
+  await writeFile("/etc/hostname", "raspberrypi")
+  await cp("../network/hosts", "/etc/hosts")
+  await cp("../cockpit/cockpit.ini", "/etc/cockpit/cockpit.conf")
+  await cp("../mediamtx/cockpit.ini", "/etc/cockpit/cockpit.conf")
+  await cp(
+    "../network/wlan0-hotspot.ini",
+    "/etc/NetworkManager/system-connections/wlan0-hotspot.nmconnection",
+  )
+  // "failed to load connection: File permissions (100644) are insecure"
+  await $`chmod 0600 /etc/NetworkManager/system-connections/wlan0-hotspot.nmconnection`
+
   // await rm("/opt/PlanktoScope/documentation", { force: true, recursive: true })
   // await rm("/opt/PlanktoScope/hardware", { force: true, recursive: true })
   // await rm("/opt/PlanktoScope/.git", { force: true, recursive: true })
