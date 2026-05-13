@@ -14,7 +14,7 @@
   "object_depth_min": 1,
   "object_depth_max": 2,
   "process_id": 1,
-  "acq_nb_frame": 100,
+  "nb_frame": 100,
   "sleep_before": 0.5,
   "imaging_pump_volume": 0.01,
   "user_setup": false
