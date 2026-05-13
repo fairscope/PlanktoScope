@@ -11,8 +11,8 @@ setup:
     sudo systemctl restart mediamtx
 
 test:
-    validator mediamtx.yml
+    validator mediamtx.yaml
 
 dev:
     -sudo systemctl stop mediamtx
-    mediamtx mediamtx.yml
+    mediamtx mediamtx.yaml
