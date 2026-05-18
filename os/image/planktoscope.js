@@ -6,6 +6,7 @@ import {
   copyFile,
   unlink,
   rm,
+  chown,
 } from "node:fs/promises"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -167,6 +168,11 @@ async function create_datafs(device, rootfs) {
   // allow group traversal
   // used to serve files from caddy
   await $`chmod g+x ${join(mountpoint, "/home/pi")}`
+
+  // create /data/tmp
+  const path_tmp = join(mountpoint, "tmp")
+  await mkdir(path_tmp)
+  await chown(path_tmp, 1000, 1000)
 }
 
 // We need to share /etc/machine-id so we symlink it from `/data/machine-id` on both slots
