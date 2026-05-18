@@ -1,4 +1,6 @@
 setup:
+    # node-red projects needs git
+    sudo apt install -y git
     sudo npm list -g node-red@v5.0.0-beta.4 || sudo npm install -g node-red@v5.0.0-beta.4
     npm ci --omit=dev
     mkdir -p context/global/
