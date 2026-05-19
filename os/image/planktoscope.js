@@ -269,13 +269,17 @@ async function setup_config(rpios_partitions, partitions) {
     "utf8",
   )
 
-  let prefix = ""
+  let config = "[all]\n\n"
   for (const bootname of bootnames) {
     const part = partitions[`FIRMWARE_${bootname}`]
-    prefix += `\n[boot_partition=${part.partn}]\ncmdline=cmdline-${bootname}.txt\n`
+    config += dedent`
+      [boot_partition=${part.partn}]
+      cmdline=cmdline-${bootname}.txt
+    `
+    config += "\n"
   }
 
-  const config = prefix + `\n` + content
+  config += "\n[all]\n\n" + content
 
   for (const bootname of bootnames) {
     const part = partitions[`FIRMWARE_${bootname}`]

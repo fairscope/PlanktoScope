@@ -65,7 +65,7 @@ developer-mode: setup-dev
     sudo apt install -y net-tools bind9-dnsutils netcat-openbsd nmap avahi-utils
     ./os/developer-mode/install-github-cli.sh
     cd ./os/developer-mode && npm install
-    ./os/developer-mode/configure.mjs
+    ./os/developer-mode/configure.js
 
 reset: base setup
     rm /home/pi/PlanktoScope/config.json
