@@ -50,12 +50,8 @@ test:
     actionlint --shellcheck="" # TODO: Enable shelcheck for actionlint
 
 developer-mode: setup-dev
-    git remote set-url origin git@github.com:fairscope/PlanktoScope.git
-    git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
-    git fetch origin
-    # unshallow https://stackoverflow.com/a/17937889
-    git fetch --unshallow || true
-    git config core.hooksPath dev/hooks
+    npm install --prefix /opt/PlanktoScope/os/developer-mode/
+    ./os/developer-mode/setup.js
     sudo apt install -y build-essential
     # Install some tools for a nicer command-line experience over ssh
     sudo apt install -y vim byobu git curl tmux lsof ripgrep

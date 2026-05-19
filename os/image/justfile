@@ -1,5 +1,5 @@
 setup:
-    sudo apt install sgdisk
+    sudo apt install -y gdisk
     npm ci --omit=dev
     sudo cp mount-firmware.service /etc/systemd/system/
     sudo systemctl reenable mount-firmware.service
