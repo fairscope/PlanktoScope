@@ -10,7 +10,7 @@ A bundle is an update that will be installed on a slot.
 
 ```sh
 cd os/rauc
-sudo ./rauc.js create-bundle /dev/device B
+sudo NODE_DEBUG=execa ./rauc.js create-bundle /dev/device B
 ```
 
 This will create a bundle from partitions `FIRMWARE_B` and `ROOT_B` on device `/dev/device`.
@@ -36,6 +36,4 @@ openssl req -x509 -newkey rsa:2048 -nodes \
   -days 7305 \
   -subj "/C=FR/O=PlanktoScope/CN=PlanktoScope RAUC"
 sudo cp planktoscope-rauc-cert.pem /etc/rauc/cert.pem
-# ⚠️ keep planktoscope-rauc-key.pem private and use it to generate bundle with 
-# rauc --key demo.key.pem bundle
 ```

@@ -3,6 +3,5 @@
 *.sha256
 *.raucb
 *.log
-planktoscope-rauc-key.pem
 
 temp-dir
