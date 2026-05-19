@@ -5,6 +5,7 @@ setup: cockpit-files
     sudo systemctl reenable pmlogger
     sudo systemctl restart pmlogger
     sudo cp cockpit.ini /etc/cockpit/cockpit.conf
+    sudo chown pi:pi /etc/cockpit/cockpit.conf
     sudo node ../../lib/cockpit.js
     sudo systemctl reenable cockpit.socket
     sudo systemctl restart cockpit.socket

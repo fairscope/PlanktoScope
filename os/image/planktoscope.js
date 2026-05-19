@@ -6,6 +6,7 @@ import {
   copyFile,
   unlink,
   rm,
+  chown,
 } from "node:fs/promises"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -167,6 +168,11 @@ async function create_datafs(device, rootfs) {
   // allow group traversal
   // used to serve files from caddy
   await $`chmod g+x ${join(mountpoint, "/home/pi")}`
+
+  // create /data/tmp
+  const path_tmp = join(mountpoint, "tmp")
+  await mkdir(path_tmp)
+  await chown(path_tmp, 1000, 1000)
 }
 
 // We need to share /etc/machine-id so we symlink it from `/data/machine-id` on both slots
@@ -263,13 +269,17 @@ async function setup_config(rpios_partitions, partitions) {
     "utf8",
   )
 
-  let prefix = ""
+  let config = "[all]\n\n"
   for (const bootname of bootnames) {
     const part = partitions[`FIRMWARE_${bootname}`]
-    prefix += `\n[boot_partition=${part.partn}]\ncmdline=cmdline-${bootname}.txt\n`
+    config += dedent`
+      [boot_partition=${part.partn}]
+      cmdline=cmdline-${bootname}.txt
+    `
+    config += "\n"
   }
 
-  const config = prefix + `\n` + content
+  config += "\n[all]\n\n" + content
 
   for (const bootname of bootnames) {
     const part = partitions[`FIRMWARE_${bootname}`]

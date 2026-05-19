@@ -11,13 +11,13 @@ import { procedure, request } from "../../lib/mqtt.js"
 import { setHardwareVersion } from "../../lib/hardware.js"
 
 await procedure("factory/init", async () => {
-  const eeprom = await read()
+  let eeprom = await read()
 
   if (eeprom?.custom_data?.eeprom_version !== 0) {
-    return {
+    eeprom = {
       product_uuid: crypto.randomUUID(),
-      product_id: "0x5053", // PS in hexadecimal
-      product_ver: "0x0001", // first revision of the PlanktoScope HAT 0x5053
+      product_id: "",
+      product_ver: "",
       vendor: "FairScope",
       product: "PlanktoScope HAT v3",
       current_supply: 0,
@@ -30,6 +30,11 @@ await procedure("factory/init", async () => {
       },
     }
   }
+
+  // PS in hexadecimal
+  eeprom.product_id = "0x5053"
+  // first revision of the PlanktoScope HAT 0x5053
+  eeprom.product_ver = "0x0001"
 
   return eeprom
 })
