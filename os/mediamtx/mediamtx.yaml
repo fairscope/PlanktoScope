@@ -1,4 +1,4 @@
-# https://github.com/bluenviron/mediamtx/blob/v1.16.2/mediamtx.yml
+# https://github.com/bluenviron/mediamtx/blob/v1.18.2/mediamtx.yml
 
 # https://mediamtx.org/docs/usage/webrtc-specific-features#solving-webrtc-connectivity-issues
 webrtcAdditionalHosts: [
