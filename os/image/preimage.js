@@ -16,7 +16,7 @@ if (import.meta.main) {
   await rm(`/var/lib/systemd/credential.secret`, { force: true })
 
   // ssh host keys
-  await $("rm -f /etc/ssh/ssh_host_*_key*", { shell: true })
+  await $("rm -f /etc/ssh/ssh_host_*", { shell: true })
 
   // cache
   await rm("/var/cache/apt", { force: true, recursive: true })
@@ -74,6 +74,11 @@ if (import.meta.main) {
     "/opt/PlanktoScope/gitinfo.json",
     JSON.stringify({ commit, url }, null, 2),
   )
+
+  await $`rm -rf /var/log/journal`
+  await $(`find /var/log -type f -exec truncate -s 0 {} \\;`, { shell: true })
+  await $(`rm -f /var/lib/dhcp/* /var/lib/dhcpcd5/*`, { shell: true })
+  await $(`rm -rf /var/lib/NetworkManager/*`, { shell: true })
 
   await rm("/opt/PlanktoScope/node-red/projects/dashboard/.git", {
     force: true,
