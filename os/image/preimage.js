@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 
 import { $ } from "execa"
-import { rm, writeFile, copyFile } from "node:fs/promises"
+import { rm, writeFile, copyFile, chown } from "node:fs/promises"
 import { getCommit, getUrl } from "../../lib/software.js"
 import { fileURLToPath } from "node:url"
+import { setTimezone } from "../../lib/timezone.js"
 
 if (import.meta.main) {
   if (process.getuid() !== 0) {
@@ -31,15 +32,27 @@ if (import.meta.main) {
     fileURLToPath(import.meta.resolve("../network/hosts")),
     "/etc/hosts",
   )
+
   await copyFile(
     fileURLToPath(import.meta.resolve("../cockpit/cockpit.ini")),
     "/etc/cockpit/cockpit.conf",
   )
+  await chown("/etc/cockpit/cockpit.conf", 1000, 1000)
+
   await copyFile(
     fileURLToPath(import.meta.resolve("../mediamtx/mediamtx.yaml")),
     "/etc/mediamtx.yaml",
   )
+  await chown("/etc/mediamtx.yaml", 1000, 1000)
 
+  const cfg80211_path = "/etc/modprobe.d/cfg80211_regdomain.conf"
+  await copyFile(
+    fileURLToPath(import.meta.resolve("../network/cfg80211_regdomain.conf")),
+    cfg80211_path,
+  )
+  await chown(cfg80211_path, 1000, 1000)
+
+  // reset wireless regulatory domain / country
   const wlan_path =
     "/etc/NetworkManager/system-connections/wlan0-hotspot.nmconnection"
   await copyFile(
@@ -50,6 +63,9 @@ if (import.meta.main) {
   // "failed to load connection: File permissions (100644) are insecure"
   await $`chmod 0600 ${wlan_path}`
 
+  // "reset" timezone
+  await setTimezone("UTC")
+
   await rm("/opt/PlanktoScope/documentation", { force: true, recursive: true })
   await rm("/opt/PlanktoScope/hardware", { force: true, recursive: true })
 
@@ -58,5 +74,10 @@ if (import.meta.main) {
     "/opt/PlanktoScope/gitinfo.json",
     JSON.stringify({ commit, url }, null, 2),
   )
+
+  await rm("/opt/PlanktoScope/node-red/projects/dashboard/.git", {
+    force: true,
+    recursive: true,
+  })
   await rm("/opt/PlanktoScope/.git", { force: true, recursive: true })
 }
