@@ -10,6 +10,7 @@ import {
 } from "node:fs/promises"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
+import { v5 as uuidv5 } from "uuid"
 
 import { $ } from "execa"
 import { stringify, parse } from "ini"
@@ -18,6 +19,12 @@ import dedent from "dedent"
 import { getBlockDevices, getMountPoint } from "./lib.js"
 
 const bootnames = ["A", "B"]
+
+// Fixed namespace UUID
+const NAMESPACE = "11311d13-358c-4d63-8e9a-fd2ca83e08ea"
+function stablePartUuid(name) {
+  return uuidv5(name, NAMESPACE)
+}
 
 export async function createPartitions(device, rpios_partitions) {
   // We create the entire partition table first
@@ -71,23 +78,23 @@ async function createPartitionTable(device) {
 
   // BOOTLOADER
   partn++
-  await $`sgdisk --new=${partn}:0:+8M --typecode=${partn}:0700 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:BOOTLOADER ${device}`
+  await $`sgdisk --new=${partn}:0:+8M --typecode=${partn}:0700 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:BOOTLOADER --partition-guid=${partn}:${stablePartUuid("BOOTLOADER")} ${device}`
 
   // FIRMWARE X
   for (const bootname of bootnames) {
     partn++
-    await $`sgdisk --new=${partn}:0:+256M --typecode=${partn}:0700 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${"FIRMWARE_" + bootname} ${device}`
+    await $`sgdisk --new=${partn}:0:+256M --typecode=${partn}:0700 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${"FIRMWARE_" + bootname} --partition-guid=${partn}:${stablePartUuid("FIRMWARE_" + bootname)} ${device}`
   }
 
   // ROOT X
   for (const bootname of bootnames) {
     partn++
-    await $`sgdisk --new=${partn}:0:+10G --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${"ROOT_" + bootname} ${device}`
+    await $`sgdisk --new=${partn}:0:+10G --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${"ROOT_" + bootname} --partition-guid=${partn}:${stablePartUuid("ROOT_" + bootname)} ${device}`
   }
 
   // "DATA"
   partn++
-  await $`sgdisk --new=${partn}:0:0 --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1  -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:DATA ${device}`
+  await $`sgdisk --new=${partn}:0:0 --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1  -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:DATA --partition-guid=${partn}:${stablePartUuid("DATA")} ${device}`
 
   await $`sgdisk --verify ${device}`
 
