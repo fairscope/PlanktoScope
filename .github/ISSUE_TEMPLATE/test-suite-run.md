@@ -10,9 +10,9 @@ assignees: ""
 
 **PlanktoScope**
 
-- Hardware version: eg `v2.5`
-- Software version: eg `2025.0.0.alpha.1`
-- Machine name: eg `sponge-care-245`
+- Hardware version: eg `v2.6` or `v3.0`
+- Software version: eg `2026.0.0-beta.1`
+- Machine name: eg `sponge-bob`
 - Serial number: eg `U132` (leave empty if unknown)
 
 **Computer**
@@ -26,17 +26,14 @@ Anything else worth knowing?
 
 # Test suite
 
-## Setup
+(re) start the PlanktoScope
 
-1. [Set up the SD card and start the PlanktoScope](https://docs.planktoscope.community/setup/software/standard-install/)
-2. [ ] The PlanktoScope asks for Hardware version
-
-## Sample
+<!--## Sample
 
 1. Go to "Sample"
 2. Select "Plankton net" for Sample gear
 3. Fill the form
-4. [ ] The calculations are correct
+4. [ ] The calculations are correct-->
 
 <!-- TODO: Add a tool to verify calculations -->
 
@@ -44,34 +41,35 @@ Anything else worth knowing?
 
 **LED and preview**
 
-1. [ ] "Light on" turns on the LED
+1. [ ] Light "On" turns on the LED
 2. [ ] The preview shows images without significant lag
-3. [ ] Updating "ISO" modifies the image
-4. [ ] Updating "Shutter Speed" modifies the image
-<!-- 5. [ ] Verify white balance-->
-5. [ ] "Light off" turns off the LED
+3. [ ] The "Calibrate" button performs a successful calibration
+4. [ ] Light "Off" turns off the LED
 
 **Focus**
 
-1. [ ] "UP 1MM" moves the focus in one direction
-2. [ ] "DOWN 1MM" moves the focus in the other direction
-3. [ ] Quick succession of "UP 100MM" moves the focus in one direction
-4. [ ] Quick succession of "DOWN 100MM" moves the focus in the other direction
-5. [ ] "Focus Distance" and "Focus Speed" impacts "⩓" in one direction
-6. [ ] "Focus Distance" and "Focus Speed" impacts "⩔" in the other direction
-7. [ ] "STOP FOCUS" stops movement
-
-<!-- TODO: Add focus scenarios -->
+1. [ ] "500 μm" + "Near" moves the stage towards the camera
+2. [ ] "500 μm" + "Far" moves the stage away from the camera
+3. [ ] "Stop" stops movement
 
 **Pump**
 
-1. [ ] The left arrow pumps in one direction
-2. [ ] The right arrow pumps in the other direction
-3. [ ] "Flowrate" and "Volume to pass" impacts speed in one direction
-4. [ ] "Flowrate" and "Volume to pass" impacts speed in the other direction
-5. [ ] "STOP PUMP" stops the pump
+1. [ ] "Backward" pumps in the direction of the camera
+2. [ ] "Forward" pumps in the opposite direction of the camera
+3. [ ] "Flowrate" impacts "Backward" speed
+4. [ ] "Flowrate" impacts "Forward" speed
+5. [ ] "Volume" impacts "Backward" duration
+6. [ ] "Volume" impacts "Forward" duration
+7. [ ] "Stop" stops the pump
 
-<!-- TODO: Add pump scenarios -->
+**Bubbler**
+
+1. Connect tube, needle and plunge in a glass of water
+2. [ ] `25%` generates slow bubbles
+3. [ ] `50%` generates bubbles faster than `25%`
+4. [ ] `75%` generates bubbles faster than `55%`
+4. [ ] `100%` generates bubbles faster than `75%`
+5. [ ] `Off` stops the bubbler
 
 **Prepare**
 
@@ -129,26 +127,27 @@ Setup focus in "Optic Configuration"
 5. Import the zip and wait for completion
 6. [ ] The result on Ecotaxa matches expectations
 
-## System Monitoring
-
-1. "Metrics" are coherent
-2. "Information" is correct
-
 ## Administration
 
-1. [ ] Logs can be viewed and downloaded
-2. [ ] "Restart Hardware Controller" button is working
-3. [ ] "Restart Segmenter" button is working
-4. [ ] "Reboot" button is working
-5. [ ] "Shutdown" button is working
+1. [ ] "Reboot" button is working
+2. [ ] "Shutdown" button is working
 
 ## Network
 
 Replace `{machine-name}` with your PlanktoScope name.
 
+### Direct Ethernet
+
+1. Connect the USB <-> RJ45 cable (USB on your computer, RJ45 on the PlanktoScope)
+2. Enable connection sharing on your computer
+3. [ ] The PlanktoScope displays an IP address different than `192.168.4.1` (v3 only)
+4. [ ] PlanktoScope is accessible at [http://<ip-address>/](http://<ip-address>/)
+5. [ ] The preview works correctly
+
 ### Direct WiFi
 
-1. Connect your computer to the PlanktoScope WiFi hotspot
+1. [ ] The WiFi network "PlanktoScope {machine-name}" is visible
+2. [ ] You can connect your computer to the PlanktoScope WiFi hotspot
 2. PlanktoScope is accessible at
    1. [ ] [http://planktoscope.local](http://planktoscope.local)
    2. [ ] [http://192.168.4.1/](http://192.168.4.1/)
@@ -157,8 +156,11 @@ Replace `{machine-name}` with your PlanktoScope name.
 ### LAN Ethernet
 
 1. Connect the PlanktoScope to your router ethernet
-2. PlanktoScope is accessible at
-   1. [ ] [http://planktoscope-{machine-name}.local](http://planktoscope-{machine-name}.local)
+2. [ ] The PlanktoScope displays an IP address different than `192.168.4.1` (v3 only)
+3. [ ] PlanktoScope is accessible at [http://<ip-address>/](http://<ip-address>/)
+4. [ ] Preview works correctly
+5. [ ] PlanktoScope is accessible at [http://planktoscope-{machine-name}.local](http://planktoscope-{machine-name}.local)
+6. [ ] Preview works correctly
 
 ## Additional tests
 
