@@ -12,9 +12,6 @@ setup:
 
 setup-dev:
     npm install --include=dev
-    cd projects/dashboard && git remote set-url origin git@github.com:fairscope/dashboard.git
-    cd projects/dashboard && git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
-    cd projects/dashboard && git fetch origin
 
 dev:
     -sudo systemctl stop nodered
