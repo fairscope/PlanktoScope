@@ -16,20 +16,24 @@ import { getRaspberryPiOSReference } from "./rpi.js"
 const url = `https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2026-04-21/2026-04-21-raspios-trixie-arm64-lite.img.xz`
 const sha256 =
   "4cd31df026fd82243805a326dc0cafd7383f7e3d30c9413e7044d507aae281e2"
-const file = basename(url)
-const img = basename(url, ".xz")
-const reference = file.match(/(.*)-raspios-.*.img/)?.[1]
+const file = join("/data/tmp", basename(url))
+const img = join("/data/tmp", basename(url, ".xz"))
+const reference = basename(url).match(/(.*)-raspios-.*.img/)?.[1]
 assert.ok(reference)
 
 async function downloadRaspberryPiOS() {
   // download raspios
-  await $`wget -c -nc ${url}`
+  await $`wget -c -nc ${url} -P /data/tmp`
   // download signature
-  await $`wget -c -nc ${url}.sha256`
+  await $`wget -c -nc ${url}.sha256 -P /data/tmp`
   // make sure signature hasn't changed
   await $`head -c 64 ${file}.sha256`.pipe`grep -qx ${sha256}`
+
+  const previouscwd = process.cwd()
+  process.chdir("/data/tmp")
   // verify signature
   await $`sha256sum --check ${file}.sha256`
+  process.chdir(previouscwd)
 
   // decompress
   try {
@@ -38,7 +42,7 @@ async function downloadRaspberryPiOS() {
     await $`unxz --keep ${file}`
   }
 
-  return fileURLToPath(import.meta.resolve(`./${img}`))
+  return img
 }
 
 export async function setupRaspberryPiOSDevice() {
