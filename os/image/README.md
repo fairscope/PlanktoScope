@@ -86,7 +86,7 @@ sudo mount -o remound,ro /bootloader
 
 ---
 
-`FIRMWARE_A` and `FIRMWARE_B` are equivalent to RPI OS `bootfs`. `cmdline.txt` is replaced with `cmdline-A.txt` and `cmdline-B.txt`. `config.txt` is updated to choose the appropriate cmdline file based on the boot partition.
+`FIRMWARE_A` and `FIRMWARE_B` are equivalent to RPI OS `bootfs`.
 
 `/etc/fstab` must be the sames on both `A` and `B` so we cannot use it to mount `/boot/firmware`, instead it is mounted by the `mount-firmware` service.
 
@@ -125,10 +125,9 @@ Here is a simplified "high level" sequence of what happens:
 0. Raspberry Pi powers on
 1. EEPROM bootloader opens the first partition `BOOTLOADER` and reads `autoboot.txt`
 2. Firmware (GPU) initializes with the partition `FIRMWARE_A|B` defined in `autoboot.txt` (boot or tryboot depending on the state flag)
-3. The firmware opens the partition and reads `config.txt` which tells it which `cmdline-A|B.txt` file to use
-4. It initializes the Linux kernel using the cmdline arguments and mounts the given `ROOT_A|B` partition
-5. systemd reads `/etc/fstab` and mounts accordingly
+3. It initializes the Linux kernel using the cmdline arguments which mounts the specified `ROOT_A|B` partition
+4. systemd reads `/etc/fstab` and mounts accordingly
    - `BOOTLOADER` to `/bootloader` - readonly
    - `DATA` to `/data` - readwrite
    - `DATA/home` to `/home`
-6. systemd executes `mount-firmware.service` and `/boot/firmware` becomes available
+5. systemd executes `mount-firmware.service` and `/boot/firmware` becomes available

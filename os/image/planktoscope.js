@@ -53,7 +53,6 @@ export async function updateMountpoints(device, rpios_partitions) {
   const partitions = await getPartitions(device)
 
   await setup_cmdline(rpios_partitions, partitions)
-  await setup_config(rpios_partitions, partitions)
   await setup_cloudinit(rpios_partitions, partitions)
   await setup_fstab(partitions)
   await setup_autoboot(partitions)
@@ -270,31 +269,6 @@ async function setup_cloudinit(rpios_partitions, partitions) {
   }
 }
 
-async function setup_config(rpios_partitions, partitions) {
-  const content = await readFile(
-    join(rpios_partitions["bootfs"].mountpoint, "config.txt"),
-    "utf8",
-  )
-
-  let config = "[all]\n\n"
-  for (const bootname of bootnames) {
-    const part = partitions[`FIRMWARE_${bootname}`]
-    config += dedent`
-      [boot_partition=${part.partn}]
-      cmdline=cmdline-${bootname}.txt
-    `
-    config += "\n"
-  }
-
-  config += "\n[all]\n\n" + content
-
-  for (const bootname of bootnames) {
-    const part = partitions[`FIRMWARE_${bootname}`]
-    const path = join(part.mountpoint, "config.txt")
-    await writeFile(path, config)
-  }
-}
-
 async function setup_cmdline(rpios_partitions, partitions) {
   const rpios_bootfs = rpios_partitions["bootfs"]
   const rpios_rootfs = rpios_partitions["rootfs"]
@@ -320,24 +294,12 @@ async function setup_cmdline(rpios_partitions, partitions) {
   // since we don't have / in /etc/fstab we need to specify rw
   args.push("rw")
 
-  // generate a cmdline for each bootname
-  const cmdlines = []
   for (const bootname of bootnames) {
     const rootfs = partitions[`ROOT_${bootname}`]
     const clone = structuredClone(args)
     clone[root_idx] = `root=PARTUUID=${rootfs.partuuid}`
-    cmdlines.push([`cmdline-${bootname}.txt`, clone.join(" ")])
-  }
-
-  // write all cmdline files to all firmware partitions
-  // see config.txt
-  for (const bootname of bootnames) {
     const firmware_mp = partitions[`FIRMWARE_${bootname}`].mountpoint
-    for (const [file, content] of cmdlines) {
-      await writeFile(join(firmware_mp, file), content)
-    }
-    // remove original cmdline.txt
-    await unlink(join(firmware_mp, "cmdline.txt"))
+    await writeFile(join(firmware_mp, "cmdline.txt"), clone.join(" "))
   }
 }
 
