@@ -58,6 +58,7 @@ export async function updateMountpoints(device, rpios_partitions) {
   await setup_fstab(partitions)
   await setup_autoboot(partitions)
   await setup_machineid(partitions)
+  await setup_repart(partitions)
 }
 
 async function createPartitionTable(device) {
@@ -93,8 +94,10 @@ async function createPartitionTable(device) {
   }
 
   // "DATA"
+  // will be expanded by systemd-repart
+  // see setup_repart
   partn++
-  await $`sgdisk --new=${partn}:0:0 --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1  -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:DATA --partition-guid=${partn}:${stablePartUuid("DATA")} ${device}`
+  await $`sgdisk --new=${partn}:0:+256M --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1  -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:DATA --partition-guid=${partn}:${stablePartUuid("DATA")} ${device}`
 
   await $`sgdisk --verify ${device}`
 
@@ -162,10 +165,6 @@ async function create_datafs(device, rootfs) {
   const mountpoint = await getMountPoint(partlabel)
   await $`wipefs -a ${path}`
   await $`mkfs.ext4 -q ${path}`
-
-  // will be grown by x-systemd.growfs, see fstab
-  await $`resize2fs -M ${path}`
-  await $`e2fsck -f -p ${path}`
 
   await $`mount ${path} ${mountpoint}`
 
@@ -276,6 +275,7 @@ async function setup_config(rpios_partitions, partitions) {
     "utf8",
   )
 
+  // See https://www.raspberrypi.com/documentation/computers/config_txt.html#boot_partition-2
   let config = "[all]\n\n"
   for (const bootname of bootnames) {
     const part = partitions[`FIRMWARE_${bootname}`]
@@ -355,7 +355,7 @@ async function setup_fstab(partitions) {
   const datafs_partuuid = partitions[`DATA`].partuuid
   const fstab = dedent`
     PARTUUID=${bootloader_partuuid} /bootloader      vfat  defaults,noatime,ro  0 2
-    PARTUUID=${datafs_partuuid}     /data            ext4  defaults,noatime,x-systemd.growfs  0 2
+    PARTUUID=${datafs_partuuid}     /data            ext4  defaults,noatime,rw  0 2
     /data/home                      /home            none  bind  0 0
   `
   // TODO: when we go readonly
@@ -369,6 +369,24 @@ async function setup_fstab(partitions) {
     const path = join(partitions[`ROOT_${bootname}`].mountpoint, "etc/fstab")
     await writeFile(path, fstab)
   }
+}
+
+async function setup_repart(partitions) {
+  const datafs_partuuid = partitions[`DATA`].partuuid
+  const conf = dedent`
+    [Partition]
+    UUID=${datafs_partuuid}
+    GrowFileSystem=yes
+  `
+  for (const bootname of bootnames) {
+    const path = join(
+      partitions[`ROOT_${bootname}`].mountpoint,
+      "usr/lib/repart.d/50-data.conf",
+    )
+    await writeFile(path, conf)
+  }
+
+  await writeFile(partitions[""])
 }
 
 export async function getPartitions(device) {
