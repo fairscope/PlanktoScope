@@ -1,9 +1,9 @@
 [Unit]
-Description=Initialize shared machine-id on first boot
+Description=Initialize shared machine-id when /data/ becomes available
 DefaultDependencies=no
 Before=sysinit.target
 After=data.mount
-Requires=data.mount
+ConditionPathExists=/data
 ConditionPathExists=!/data/machine-id
 
 [Service]
