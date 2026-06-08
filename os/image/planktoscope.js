@@ -384,7 +384,7 @@ async function setup_repart(partitions) {
   for (const bootname of bootnames) {
     const path = join(
       partitions[`ROOT_${bootname}`].mountpoint,
-      "usr/lib/repart.d/50-data.conf",
+      "usr/lib/repart.d",
     )
     await mkdir(path, { recursive: true })
     await writeFile(join(path, "50-data.conf"), conf)
