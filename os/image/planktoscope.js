@@ -79,25 +79,23 @@ async function createPartitionTable(device) {
 
   // BOOTLOADER
   partn++
-  await $`sgdisk --new=${partn}:0:+8M --typecode=${partn}:0700 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:BOOTLOADER --partition-guid=${partn}:${stablePartUuid("BOOTLOADER")} ${device}`
+  await $`sgdisk --new=${partn}:0:+8M --typecode=${partn}:0700 --change-name=${partn}:BOOTLOADER --partition-guid=${partn}:${stablePartUuid("BOOTLOADER")} ${device}`
 
   // FIRMWARE X
   for (const bootname of bootnames) {
     partn++
-    await $`sgdisk --new=${partn}:0:+256M --typecode=${partn}:0700 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${"FIRMWARE_" + bootname} --partition-guid=${partn}:${stablePartUuid("FIRMWARE_" + bootname)} ${device}`
+    await $`sgdisk --new=${partn}:0:+256M --typecode=${partn}:0700 --change-name=${partn}:${"FIRMWARE_" + bootname} --partition-guid=${partn}:${stablePartUuid("FIRMWARE_" + bootname)} ${device}`
   }
 
   // ROOT X
   for (const bootname of bootnames) {
     partn++
-    await $`sgdisk --new=${partn}:0:+10G --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${"ROOT_" + bootname} --partition-guid=${partn}:${stablePartUuid("ROOT_" + bootname)} ${device}`
+    await $`sgdisk --new=${partn}:0:+10G --typecode=${partn}:8300 --change-name=${partn}:${"ROOT_" + bootname} --partition-guid=${partn}:${stablePartUuid("ROOT_" + bootname)} ${device}`
   }
 
   // "DATA"
-  // will be expanded by systemd-repart
-  // see setup_repart
   partn++
-  await $`sgdisk --new=${partn}:0:+8MB --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1  -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:DATA --partition-guid=${partn}:${stablePartUuid("DATA")} ${device}`
+  await $`sgdisk --new=${partn}:0:0 --typecode=${partn}:8300 --change-name=${partn}:DATA --partition-guid=${partn}:${stablePartUuid("DATA")} ${device}`
 
   await $`sgdisk --verify ${device}`
 
@@ -355,7 +353,7 @@ async function setup_fstab(partitions) {
   const datafs_partuuid = partitions[`DATA`].partuuid
   const fstab = dedent`
     PARTUUID=${bootloader_partuuid} /bootloader      vfat  defaults,noatime,ro  0 2
-    PARTUUID=${datafs_partuuid}     /data            ext4  defaults,noatime,rw  0 2
+    PARTUUID=${datafs_partuuid}     /data            ext4  defaults,noatime  0 2
     /data/home                      /home            none  bind  0 0
   `
   // TODO: when we go readonly
@@ -371,6 +369,10 @@ async function setup_fstab(partitions) {
   }
 }
 
+// repart will create the DATA GPT partition but won't grow the EXT4 filesystem
+// we use x-systemd.growfs in fstab for that
+// > Note that these definitions may only be used to create and initialize new partitions or to grow existing ones. In the latter case, it will not grow the contained files systems however; separate mechanisms, such as systemd-growfs(8) may be used to grow the file systems inside of these partitions.
+// https://www.freedesktop.org/software/systemd/man/latest/repart.d.html#Description
 async function setup_repart(partitions) {
   const datafs_partuuid = partitions[`DATA`].partuuid
   const conf = dedent`
