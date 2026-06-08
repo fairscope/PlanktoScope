@@ -97,7 +97,7 @@ async function createPartitionTable(device) {
   // will be expanded by systemd-repart
   // see setup_repart
   partn++
-  await $`sgdisk --new=${partn}:0:+256M --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1  -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:DATA --partition-guid=${partn}:${stablePartUuid("DATA")} ${device}`
+  await $`sgdisk --new=${partn}:0:+8MB --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1  -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:DATA --partition-guid=${partn}:${stablePartUuid("DATA")} ${device}`
 
   await $`sgdisk --verify ${device}`
 
@@ -377,16 +377,16 @@ async function setup_repart(partitions) {
     [Partition]
     UUID=${datafs_partuuid}
     GrowFileSystem=yes
+    Type=linux-generic
   `
   for (const bootname of bootnames) {
     const path = join(
       partitions[`ROOT_${bootname}`].mountpoint,
       "usr/lib/repart.d/50-data.conf",
     )
-    await writeFile(path, conf)
+    await mkdir(path, { recursive: true })
+    await writeFile(join(path, "50-data.conf"), conf)
   }
-
-  await writeFile(partitions[""])
 }
 
 export async function getPartitions(device) {

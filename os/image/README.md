@@ -54,11 +54,6 @@ Congratulations, the slot is running PlanktoScope OS.
 
 ## How does it work
 
-Files on `FIRMWARE_A` and `FIRMWARE_B` must be strictly identical.
-Files on `ROOT_A` and `ROOT_B` must be strictly identitical.
-
-We use the Raspberry Pi firmware and bootloader to dynamically switch between A and B. 
-
 ### Partition table
 
 The partition table is as such:
