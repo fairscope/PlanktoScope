@@ -19,6 +19,7 @@ if (await isGitRepo()) {
   await $`git clone --bare ${REPO_URL} .git`
   await $`git config --local --bool core.bare false`
   await $`git reset --hard HEAD`
+  await $`rm -r node-red/projects/dashboard/`
 }
 await $`git submodule update --init`
 await $`rm -f gitinfo.json`
