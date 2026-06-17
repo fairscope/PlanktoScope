@@ -57,6 +57,8 @@ async function slot() {
 }
 
 async function prepare() {
+  await mount_active_firmware()
+
   await $({ shell: true, stdio: "inherit" })`/opt/PlanktoScope/os/setup.sh`
   await $({
     shell: true,

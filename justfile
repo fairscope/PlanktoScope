@@ -1,13 +1,7 @@
 default: base setup
 
-base: install-uv
-    # https://github.com/nodesource/distributions/wiki/Repository-Manual-Installation
-    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --yes --dearmor -o /etc/apt/keyrings/nodesource.gpg
-    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_24.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list
-    sudo apt update
-    sudo apt install -y git nodejs
-    npm config set prefix /usr/local
-    sudo npm config set prefix /usr/local
+base: install-uv install-node
+    sudo apt install -y git
 
 update:
     git checkout main
@@ -76,6 +70,15 @@ install-uv:
     sudo rm -f /usr/local/bin/uv /usr/local/bin/uvx
     sudo cp /tmp/uv-aarch64-unknown-linux-gnu/uv /usr/local/bin/
     sudo cp /tmp/uv-aarch64-unknown-linux-gnu/uvx /usr/local/bin/
+
+install-node:
+    # https://github.com/nodesource/distributions/wiki/Repository-Manual-Installation
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --yes --dearmor -o /etc/apt/keyrings/nodesource.gpg
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_24.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list
+    sudo apt update
+    sudo apt install -y nodejs
+    npm config set prefix /usr/local
+    sudo npm config set prefix /usr/local
 
 # We run setup and setup-dev twice to ensure it is idempotent
 
