@@ -1,8 +1,10 @@
 {
   "private": true,
+  "engines": {
+    "node": ">=26.3.0"
+  },
   "type": "module",
   "dependencies": {
-    "@js-temporal/polyfill": "^0.5.1",
     "csv-parse": "^6.1.0",
     "dbus.js": "^0.1.0",
     "execa": "^9.6.0",
@@ -17,14 +19,5 @@
     "systemctl.js": "^0.1.0",
     "wait-port": "^1.1.0",
     "zod": "^4.1.13"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.38.0",
-    "eslint": "^9.38.0",
-    "eslint-plugin-n": "^17.23.1",
-    "globals": "^16.4.0"
-  },
-  "engines": {
-    "node": ">=22.18.0"
   }
 }

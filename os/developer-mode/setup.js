@@ -4,7 +4,7 @@ import { access } from "node:fs/promises"
 import { $ } from "../../lib/exec.js"
 
 const REPO_URL = "git@github.com:fairscope/PlanktoScope.git"
-const DASHBOARD_URL = "git@github.com:fairscope/dashboard.git"
+// const DASHBOARD_URL = "git@github.com:fairscope/dashboard.git"
 const REPO_PATH = "/opt/PlanktoScope"
 
 const previous_cwd = process.cwd()

@@ -1,0 +1,14 @@
+{
+  "private": true,
+  "engines": {
+    "node": ">=26.3.0"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.5.0",
+    "eslint-plugin-n": "^18.1.0",
+    "eslint-plugin-solid": "^0.14.5",
+    "globals": "^17.6.0"
+  }
+}

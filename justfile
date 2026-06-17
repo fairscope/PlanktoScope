@@ -33,6 +33,7 @@ format:
     find . -type f -name 'justfile' -exec just --fmt --unstable --justfile {} ';'
 
 test:
+    npx eslint .
     find . -type f -name 'justfile' -exec just --fmt --check --unstable --justfile {} ';'
     just --justfile lib/justfile           test
     just --justfile node-red/justfile      test
@@ -74,7 +75,7 @@ install-uv:
 install-node:
     # https://github.com/nodesource/distributions/wiki/Repository-Manual-Installation
     curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --yes --dearmor -o /etc/apt/keyrings/nodesource.gpg
-    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_24.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_26.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list
     sudo apt update
     sudo apt install -y nodejs
     npm config set prefix /usr/local

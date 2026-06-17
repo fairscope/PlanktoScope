@@ -13,7 +13,11 @@ import {
   getBootedSlot,
 } from "../rauc/rauc.js"
 import { getBootedPartitionNumber } from "../image/rpi.js"
-import { getBlockDevices, getBootedDevice } from "../image/lib.js"
+import {
+  getBlockDevices,
+  getBootedDevice,
+  mount_active_firmware,
+} from "../image/lib.js"
 
 const device = await getBootedDevice()
 

@@ -65,7 +65,7 @@ if (import.meta.main) {
 
     for (const cmdline of ["cmdline.txt", "cmdline-A.txt", "cmdline-B.txt"]) {
       try {
-        await process_cmdline(join(path, "cmdline.txt"))
+        await process_cmdline(join(path, cmdline))
       } catch (err) {
         if (err.code !== "ENOENT") throw err
       }

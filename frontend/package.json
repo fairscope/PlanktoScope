@@ -1,12 +1,6 @@
 {
   "private": true,
   "type": "module",
-  "devDependencies": {
-    "@eslint/js": "^9.39.1",
-    "eslint": "^9.39.1",
-    "eslint-plugin-solid": "^0.14.5",
-    "globals": "^16.5.0"
-  },
   "dependencies": {
     "@picocss/pico": "^2.1.1",
     "@solid-primitives/pagination": "^0.5.0",
