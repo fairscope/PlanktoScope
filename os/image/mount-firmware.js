@@ -7,7 +7,7 @@ import { getBootedPartitionNumber } from "./rpi.js"
 
 async function is_mounted() {
   try {
-    await $`findmnt /boot/firmware`
+    await $`sudo findmnt /boot/firmware`
     return true
   } catch {
     return false
@@ -28,7 +28,7 @@ async function get_firmware_partition() {
 export async function mount_active_firmware() {
   if (await is_mounted()) return
   const partition = await get_firmware_partition()
-  await $`mount -o defaults,noatime,ro ${partition.path} /boot/firmware`
+  await $`sudo mount -o defaults,noatime,ro ${partition.path} /boot/firmware`
 }
 
 if (import.meta.main) {
