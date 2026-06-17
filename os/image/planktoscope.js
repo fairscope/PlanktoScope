@@ -12,7 +12,7 @@ import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { v5 as uuidv5 } from "uuid"
 
-import { $ } from "execa"
+import { $ } from "../../lib/exec.js"
 import { stringify, parse } from "ini"
 import dedent from "dedent"
 

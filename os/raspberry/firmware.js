@@ -4,7 +4,7 @@ import { readFile, writeFile, appendFile } from "node:fs/promises"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { $ } from "execa"
+import { $ } from "../../lib/exec.js"
 
 async function remountReadWrite(path) {
   const { stdout } = await $`findmnt --json --target ${path}`

@@ -5,7 +5,7 @@ import { join } from "node:path"
 import { readFile, writeFile, rm, mkdir } from "node:fs/promises"
 
 import { parse, stringify } from "ini"
-import { $ } from "execa"
+import { $ } from "../../lib/exec.js"
 
 import {
   getBootPartitionNumber,

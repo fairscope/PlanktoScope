@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { $ } from "execa"
+import { $ } from "../../lib/exec.js"
 
 import { getBootedDevice, getBlockDevices } from "./lib.js"
 import { getBootedPartitionNumber } from "./rpi.js"

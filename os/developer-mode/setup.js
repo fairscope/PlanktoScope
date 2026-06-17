@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 
-import { join } from "node:path"
 import { access } from "node:fs/promises"
-import { $ } from "execa"
+import { $ } from "../../lib/exec.js"
 
 const REPO_URL = "git@github.com:fairscope/PlanktoScope.git"
 const DASHBOARD_URL = "git@github.com:fairscope/dashboard.git"

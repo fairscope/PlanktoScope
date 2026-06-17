@@ -1,7 +1,6 @@
 {
   "type": "module",
   "dependencies": {
-    "execa": "^9.6.1",
     "ini": "^7.0.0"
   }
 }
