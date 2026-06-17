@@ -1,0 +1,3 @@
+setup:
+    just --justfile ../../justfile           install-node
+    npm ci --omit=dev
