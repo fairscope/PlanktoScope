@@ -10,22 +10,28 @@ To create an update
 # Boot to slot A
 cd /opt/PlanktoScope/os/pkos
 sudo ./pkos.js reboot A
+
 # Install RPI OS to slot B
 rauc install PlanktoScopeOS-2026-04-21-raspios.raucb
+
 # Boot to slot B
 cd /opt/PlanktoScope/os/pkos
 sudo ./pkos.js reboot B
+
 # Install deps
 sudo apt install git just
 git clone git@github.com:fairscope/PlanktoScope.git
 sudo mv PlanktoScope /opt/PlanktoScope
 sudo chown -R pi:pi /opt/PlanktoScope
+
 # Run setup scripts
 cd /opt/PlanktoScope/os/pkos
 just
-./pkos.js prepare
+sudo ./pkos.js prepare
+
 # Boot to slot A
 sudo ./pkos.js reboot A
+
 # Create bundle
 # TODO
 ```
