@@ -30,6 +30,7 @@ setup-dev:
     ./os/developer-mode/install-config-file-validator.sh
 
 format:
+    npx eslint --fix .
     find . -type f -name 'justfile' -exec just --fmt --unstable --justfile {} ';'
 
 test:
