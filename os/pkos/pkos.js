@@ -17,8 +17,12 @@ async function slot() {
 async function prepare() {
   await mount_active_firmware()
 
+  process.initgroups("pi", "pi")
   process.setgid("pi")
   process.setuid("pi")
+
+  // await $({ shell: true, stdio: "inherit" })`id`
+  // return
 
   await $({ shell: true, stdio: "inherit" })`/opt/PlanktoScope/os/setup.sh`
   await $({
