@@ -20,7 +20,7 @@ sudo ./pkos.js reboot B
 
 # Install deps
 sudo apt install git just
-git clone git@github.com:fairscope/PlanktoScope.git
+git clone https://github.com/fairscope/PlanktoScope.git
 sudo mv PlanktoScope /opt/PlanktoScope
 sudo chown -R pi:pi /opt/PlanktoScope
 
