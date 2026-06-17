@@ -3,6 +3,7 @@
 import { $ } from "execa"
 import { getBootPartitionNumber, getRaucSlot } from "../rauc/rauc.js"
 import { getBootedPartitionNumber } from "../image/rpi.js"
+import { mount_active_firmware } from "../image/mount-firmware.js"
 
 async function reboot(slot) {
   await $`reboot ${await getBootPartitionNumber(slot)}`
@@ -14,6 +15,8 @@ async function slot() {
 }
 
 async function prepare() {
+  await mount_active_firmware()
+
   await $({ shell: true, stdio: "inherit" })`/opt/PlanktoScope/os/setup.sh`
   await $({
     shell: true,
