@@ -6,13 +6,20 @@ The PlanktoScope contains 2 slots; A and B; each able to host the entirety of th
 
 To create an update
 
-* Boot the PlanktoScope to slot A
-* Install RPIOS to slot B
-* Boot the PlanktoScope to slot B
-* Run the setup script
-* Run the postinstall script
-* Run the preimage script
-* Boot the PlanktoScope to slot A
-* Create bundle
+```sh
+cd /opt/PlanktoScope/os/pkos
+# Boot to slot A
+sudo ./pkos reboot A
+# Install RPI OS to slot B
+rauc install PlanktoScopeOS-2026-04-21-raspios.raucb
+# Boot to slot B
+sudo ./pkos reboot B
+# Run setup scripts
+sudo ./pkos prepare
+# Boot to slot A
+sudo ./pkos reboot A
+# Create bundle
+# TODO
+```
 
-A and B also work the other way around.
+You can also swap A and B.
