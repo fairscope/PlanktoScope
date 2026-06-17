@@ -1,3 +1,4 @@
 setup:
     just --justfile ../../justfile           install-node
     npm ci --omit=dev
+    npm --prefix ../rauc ci --omit=dev
