@@ -36,7 +36,20 @@ function exec(cmd) {
   })
 }
 
-await exec(["sudo", "/opt/PlanktoScope/os/pkos/pkos.js", "slot"])
+async function reboot(slot) {
+  await exec(["/opt/PlanktoScope/os/pkos/pkos.js", "reboot", slot])
+  // wait
+  const result = await exec([
+    "sudo",
+    "/opt/PlanktoScope/os/pkos/pkos.js",
+    "slot",
+  ])
+  assert.equal(result, slot)
+}
+
+// await exec(["sudo", "/opt/PlanktoScope/os/pkos/pkos.js", "slot"])
+
+await reboot("A")
 
 await exec([
   "rauc",
@@ -44,7 +57,7 @@ await exec([
   "/data/tmp/PlanktoScopeOS-2026-04-21-raspios.raucb",
 ])
 
-await exec(["sudo", "/opt/PlanktoScope/os/pkos/pkos.js", "reboot", "B"])
+await reboot("B")
 
 await exec(["sudo", "apt", "update", "-y"])
 await exec(["sudo", "apt", "install", "-y", "git", "just"])
@@ -58,7 +71,9 @@ await exec(["sudo", "mv", "/home/pi/repo", "/opt/PlanktoScope"])
 await exec(["sudo", "chown", "-R", "pi:pi", "/opt/PlanktoScope"])
 await exec(["just", "--justfile", "/opt/PlanktoScope/os/pkos/justfile"])
 await exec(["/opt/PlanktoScope/os/pkos/pkos.js", "prepare"])
-await exec(["/opt/PlanktoScope/os/pkos/pkos.js", "reboot", "A"])
+
+await reboot("A")
+
 await exec([
   "sudo",
   "/opt/PlanktoScope/os/pkos/pkos.js",
