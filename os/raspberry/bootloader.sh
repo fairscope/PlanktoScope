@@ -9,10 +9,8 @@ sudo systemctl mask rpi-eeprom-update
 # https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#update-the-bootloader-configuration
 # Please note that we disable self update on anything but Raspberry Pi 5; see config.ini
 
-sudo apt install -y rpi-eeprom
-
-cp /usr/lib/firmware/raspberrypi/bootloader-2712/default/pieeprom-2025-12-08.bin /tmp
-cp /usr/lib/firmware/raspberrypi/bootloader-2712/default/recovery.bin /tmp
+wget -P /tmp -c https://github.com/raspberrypi/rpi-eeprom/raw/8fb9ea2fcb1735616a72fe6c5eb15b96595fc35d/firmware-2712/old/default/pieeprom-2025-12-08.bin
+wget -P /tmp -c https://github.com/raspberrypi/rpi-eeprom/raw/8fb9ea2fcb1735616a72fe6c5eb15b96595fc35d/firmware-2712/latest/recovery.bin
 
 rpi-eeprom-config /tmp/pieeprom-2025-12-08.bin --config boot.ini --out /tmp/pieeprom.upd
 rpi-eeprom-digest -i /tmp/pieeprom.upd -o /tmp/pieeprom.sig

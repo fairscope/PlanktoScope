@@ -12,6 +12,8 @@ if [ "$line" != "$expected" ]; then
   exit 1
 fi
 
+sudo mount -o remount,rw /boot/firmware
+sudo apt update -y
 sudo apt install -y git just
 cd /opt
 if cd PlanktoScope; then

@@ -1,6 +1,0 @@
-{
-  "private": true,
-  "dependencies": {
-    "@js-temporal/polyfill": "^0.5.1"
-  }
-}

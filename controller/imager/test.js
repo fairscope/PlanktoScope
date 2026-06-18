@@ -1,5 +1,3 @@
-import { Temporal } from "@js-temporal/polyfill"
-
 import { getHardwareVersion } from "../../lib/hardware.js"
 import { getSoftwareVersioning } from "../../lib/software.js"
 import { getName } from "../../lib/identity.js"

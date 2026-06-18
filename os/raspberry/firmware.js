@@ -4,7 +4,7 @@ import { readFile, writeFile, appendFile } from "node:fs/promises"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { $ } from "execa"
+import { $ } from "../../lib/exec.js"
 
 async function remountReadWrite(path) {
   const { stdout } = await $`findmnt --json --target ${path}`
@@ -65,7 +65,7 @@ if (import.meta.main) {
 
     for (const cmdline of ["cmdline.txt", "cmdline-A.txt", "cmdline-B.txt"]) {
       try {
-        await process_cmdline(join(path, "cmdline.txt"))
+        await process_cmdline(join(path, cmdline))
       } catch (err) {
         if (err.code !== "ENOENT") throw err
       }

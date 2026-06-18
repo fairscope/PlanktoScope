@@ -5,11 +5,7 @@ setup:
 setup-dev:
     npm install --include=dev
 
-format:
-    npx eslint --fix .
-
 test:
-    npx eslint .
     npx vite build
     node --test
 

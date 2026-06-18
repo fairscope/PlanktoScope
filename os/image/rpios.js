@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url"
 import { access, readFile, readlink } from "node:fs/promises"
 import { once } from "node:events"
 
-import { $ } from "execa"
+import { $ } from "../../lib/exec.js"
 
 import { getBlockDevices, umount, getMountPoint } from "./lib.js"
 import { getRaspberryPiOSReference } from "./rpi.js"

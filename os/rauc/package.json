@@ -2,16 +2,6 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "execa": "^9.6.1",
     "ini": "^6.0.0"
-  },
-  "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "eslint": "^10.2.0",
-    "eslint-plugin-n": "^17.24.0",
-    "globals": "^17.5.0"
-  },
-  "engines": {
-    "node": ">=22.18.0"
   }
 }
