@@ -64,7 +64,7 @@ export async function setTryBootFlag(bool) {
 
 export async function getBootedPartitionNumber() {
   const { stdout } =
-    await $`fdtget /sys/firmware/fdt /chosen/bootloader partition`
+    await $`sudo fdtget /sys/firmware/fdt /chosen/bootloader partition`
   const n = Number(stdout.trim())
   if (!Number.isInteger(n)) throw new Error("Could not get booted partition")
   return n
