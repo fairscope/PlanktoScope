@@ -30,10 +30,12 @@ just
 sudo ./pkos.js prepare
 
 # Boot to slot A
+cd /opt/PlanktoScope/os/pkos
 sudo ./pkos.js reboot A
 
 # Create bundle
-# TODO
+cd /opt/PlanktoScope/os/pkos
+sudo ./pkos.js create-bundle /dev/nvme0n1 B 2026.4.0
 ```
 
 You can also swap A and B.

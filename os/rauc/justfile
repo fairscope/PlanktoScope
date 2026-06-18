@@ -8,7 +8,7 @@ setup:
     npm ci --omit=dev
     sudo mkdir -p /etc/rauc
     sudo cp planktoscope-rauc-cert.pem /etc/rauc/cert.pem
-    sudo node rauc.js create-configuration
+    sudo node rauc.js
     sudo systemctl restart rauc
     sudo cp rauc-mark-good.service /etc/systemd/system/
     sudo systemctl reenable rauc-mark-good
