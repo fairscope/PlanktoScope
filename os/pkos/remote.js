@@ -36,27 +36,36 @@ function exec(cmd) {
   })
 }
 
-// await exec(["sudo", "/opt/PlanktoScope/os/pkos/pkos.js", "slot"])
+await exec(["sudo", "/opt/PlanktoScope/os/pkos/pkos.js", "slot"])
 
-// await exec([
-//   "rauc",
-//   "install",
-//   "/data/tmp/PlanktoScopeOS-2026-04-21-raspios.raucb",
-// ])
+await exec([
+  "rauc",
+  "install",
+  "/data/tmp/PlanktoScopeOS-2026-04-21-raspios.raucb",
+])
 
-// await exec(["sudo", "/opt/PlanktoScope/os/pkos/pkos.js", "reboot", "B"])
+await exec(["sudo", "/opt/PlanktoScope/os/pkos/pkos.js", "reboot", "B"])
 
-// await exec(["sudo", "apt", "update", "-y"])
-// await exec(["sudo", "apt", "install", "-y", "git", "just"])
-// await exec([
-//   "git",
-//   "clone",
-//   "https://github.com/fairscope/PlanktoScope.git",
-//   "/home/pi/repo",
-// ])
-// await exec(["sudo", "mv", "/home/pi/repo", "/opt/PlanktoScope"])
-// await exec(["sudo", "chown", "-R", "pi:pi", "/opt/PlanktoScope"])
+await exec(["sudo", "apt", "update", "-y"])
+await exec(["sudo", "apt", "install", "-y", "git", "just"])
+await exec([
+  "git",
+  "clone",
+  "https://github.com/fairscope/PlanktoScope.git",
+  "/home/pi/repo",
+])
+await exec(["sudo", "mv", "/home/pi/repo", "/opt/PlanktoScope"])
+await exec(["sudo", "chown", "-R", "pi:pi", "/opt/PlanktoScope"])
 await exec(["just", "--justfile", "/opt/PlanktoScope/os/pkos/justfile"])
 await exec(["/opt/PlanktoScope/os/pkos/pkos.js", "prepare"])
+await exec(["/opt/PlanktoScope/os/pkos/pkos.js", "reboot", "A"])
+await exec([
+  "sudo",
+  "/opt/PlanktoScope/os/pkos/pkos.js",
+  "create-bundle",
+  "/dev/nvme0n1",
+  "B",
+  "2026.4.0",
+])
 
 await conn.end()
