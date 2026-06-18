@@ -1,10 +1,16 @@
 # https://mediamtx.org/docs/usage/start-on-boot#linux
 
 [Unit]
-After=network.target
-Wants=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
+# Rewrite /etc/mediamtx.yaml with this device's real hostname and IP before
+# mediamtx loads it, replacing the placeholders shipped in the YAML template.
+# Without this, WebRTC ICE candidates advertise "raspberrypi" which browsers
+# cannot resolve, causing silent peer-connection failures (dashboard preview
+# spins forever).
+ExecStartPre=/usr/bin/node /opt/PlanktoScope/lib/mediamtx.js
 ExecStart=/usr/local/bin/mediamtx /etc/mediamtx.yaml
 
 [Install]
