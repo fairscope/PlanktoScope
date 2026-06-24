@@ -12,7 +12,7 @@ cd /opt/PlanktoScope/os/pkos
 sudo ./pkos.js reboot A
 
 # Install RPI OS to slot B
-rauc install PlanktoScopeOS-2026-04-21-raspios.raucb
+rauc install PlanktoScopeOS-2026-06-18-raspios.raucb
 
 # Boot to slot B
 cd /opt/PlanktoScope/os/pkos
