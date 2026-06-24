@@ -76,8 +76,9 @@
 	# FlowFuse Dashboard 2 reload-after-disconnect bug: when the WebSocket
 	# drops (laptop sleep, planktoscope reboot, etc.) the bundled JS calls
 	# new URL(window.location.origin + "/dashboard") to refresh, ignoring
-	# the actual httpAdminRoot. Without this alias the reload URL becomes
+	# the actual httpNodeRoot. Without this alias the reload URL becomes
 	# /dashboard?reloadTime=... and falls through to the SPA 404 page.
+  # see https://github.com/FlowFuse/node-red-dashboard/issues/2149
 	redir /dashboard /ps/node-red-v2/dashboard/ 302
 	redir /dashboard/ /ps/node-red-v2/dashboard/ 302
 
