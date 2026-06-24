@@ -502,8 +502,13 @@ class SegmenterProcess(multiprocessing.Process):
                 self.__global_metadata["process_pixel_applied"] = True
             metadata = self._extract_metadata_from_regionprop(region, pixel_size_um=pixel_size_um)
 
-            # Calculate blur metric for this object (Laplacian variance)
-            blur_laplacian = planktoscope.segmenter.operations.calculate_blur(obj_image)
+            # Calculate focus measure for this object. Scale- and contrast-
+            # invariant (Laplacian-energy / gradient-energy over the edge band);
+            # the object mask restricts it to the object so background in the
+            # bounding box doesn't dilute the score.
+            blur_laplacian = planktoscope.segmenter.operations.calculate_blur(
+                obj_image, mask=region.filled_image
+            )
             metadata["blur_laplacian"] = blur_laplacian
 
             # Record the threshold value used to segment this image
