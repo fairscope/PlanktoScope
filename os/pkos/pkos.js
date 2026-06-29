@@ -19,6 +19,11 @@ import {
   create_firmwarefs,
   create_rootfs,
   getPartitions,
+  setup_cloudinit,
+  setup_cmdline,
+  setup_config,
+  setup_fstab,
+  setup_machineid,
 } from "../image/planktoscope.js"
 import {
   setupRaspberryPiOSDevice,
@@ -140,7 +145,10 @@ async function createBundle(device, bootname, version) {
 }
 
 export async function installRaspberryPiOSToSlot(device, bootname) {
-  const partitions = await getPartitions(device)
+  let partitions = await getPartitions(device)
+
+  await umount(partitions[`FIRMWARE_${bootname}`].path)
+  await umount(partitions[`ROOT_${bootname}`].path)
 
   let rpios_device, rpios_partitions
   try {
@@ -153,8 +161,21 @@ export async function installRaspberryPiOSToSlot(device, bootname) {
     // rootfs
     const rpios_rootfs = rpios_partitions["rootfs"]
     await create_rootfs(partitions[`ROOT_${bootname}`], rpios_rootfs)
+
+    partitions = await getPartitions(device)
+
+    await setup_cmdline(rpios_partitions, partitions, [bootname])
+    await setup_config(rpios_partitions, partitions, [bootname])
+    await $`mount -o remount,rw ${partitions["BOOTLOADER"].path}`
+    await setup_cloudinit(rpios_partitions, partitions, [bootname])
+    await $`mount -o remount,ro ${partitions["BOOTLOADER"].path}`
+    await setup_fstab(partitions, [bootname])
+    // await setup_autoboot(...)
+    await setup_machineid(partitions, [bootname])
   } finally {
     await $`sync`
+    await umount(partitions[`FIRMWARE_${bootname}`].path)
+    await umount(partitions[`ROOT_${bootname}`].path)
     rpios_device && (await teardownRaspberryPiOSDevice(rpios_device))
   }
 }
