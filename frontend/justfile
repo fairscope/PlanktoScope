@@ -1,5 +1,5 @@
 setup:
-    npm ci --omit=dev
+    npm ci --omit=dev --force
     npx vite build
 
 setup-dev:
