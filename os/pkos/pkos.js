@@ -13,8 +13,17 @@ import {
   getBootedSlot,
 } from "../rauc/rauc.js"
 import { getBootedPartitionNumber } from "../image/rpi.js"
-import { getBlockDevices, getBootedDevice } from "../image/lib.js"
+import { getBlockDevices, getBootedDevice, umount } from "../image/lib.js"
 import { mount_active_firmware } from "../image/mount-firmware.js"
+import {
+  create_firmwarefs,
+  create_rootfs,
+  getPartitions,
+} from "../image/planktoscope.js"
+import {
+  setupRaspberryPiOSDevice,
+  teardownRaspberryPiOSDevice,
+} from "../image/rpios.js"
 
 const device = await getBootedDevice()
 
@@ -30,6 +39,13 @@ if (import.meta.main) {
     console.log(await slot())
   } else if (command === "prepare") {
     await prepare()
+  } else if (command === "install-rpios") {
+    const [device_path, bootname] = args
+    if (!device_path || !bootname) {
+      throw new Error("install-rpi-os /dev/device A|B")
+    }
+
+    await installRaspberryPiOSToSlot(device_path, bootname)
   } else if (command === "create-bundle") {
     const [device_path, bootname, version] = args
     if (!device_path || !bootname) {
@@ -121,4 +137,24 @@ async function createBundle(device, bootname, version) {
     force: true,
   })
   return bundle_path
+}
+
+export async function installRaspberryPiOSToSlot(device, bootname) {
+  const partitions = await getPartitions(device)
+
+  let rpios_device, rpios_partitions
+  try {
+    ;[rpios_device, rpios_partitions] = await setupRaspberryPiOSDevice()
+
+    // bootfs
+    const rpios_bootfs = rpios_partitions["bootfs"]
+    await create_firmwarefs(partitions[`FIRMWARE_${bootname}`], rpios_bootfs)
+
+    // rootfs
+    const rpios_rootfs = rpios_partitions["rootfs"]
+    await create_rootfs(partitions[`ROOT_${bootname}`], rpios_rootfs)
+  } finally {
+    await $`sync`
+    rpios_device && (await teardownRaspberryPiOSDevice(rpios_device))
+  }
 }

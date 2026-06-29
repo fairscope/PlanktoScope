@@ -22,6 +22,10 @@ const reference = file.match(/(.*)-raspios-.*.img/)?.[1]
 assert.ok(reference)
 
 async function downloadRaspberryPiOS() {
+  const cwd = process.cwd()
+
+  process.chdir("/data/tmp")
+
   // download raspios
   await $`wget -c -nc ${url}`
   // download signature
@@ -38,7 +42,9 @@ async function downloadRaspberryPiOS() {
     await $`unxz --keep ${file}`
   }
 
-  return fileURLToPath(import.meta.resolve(`./${img}`))
+  process.chdir(cwd)
+
+  return join("/data/tmp", img)
 }
 
 export async function setupRaspberryPiOSDevice() {

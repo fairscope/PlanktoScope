@@ -104,7 +104,7 @@ async function createPartitionTable(device) {
   await $`udevadm settle`
 }
 
-async function create_bootloaderfs({ partlabel, path }) {
+export async function create_bootloaderfs({ partlabel, path }) {
   const mountpoint = await getMountPoint(partlabel)
   await $`wipefs -a ${path}`
   await $`mkfs.vfat -F12 ${path}`
@@ -112,7 +112,7 @@ async function create_bootloaderfs({ partlabel, path }) {
   await $`cp autoboot.ini ${join(mountpoint, "autoboot.txt")}`
 }
 
-async function create_firmwarefs({ path, partlabel }, rpios_bootfs) {
+export async function create_firmwarefs({ path, partlabel }, rpios_bootfs) {
   const mountpoint = await getMountPoint(partlabel)
   await $`wipefs -a ${path}`
   await $`mkfs.vfat -F32 ${path}`
@@ -126,7 +126,7 @@ async function create_firmwarefs({ path, partlabel }, rpios_bootfs) {
   // await $`rsync -a ${rpios_bootfs.mountpoint}/ ${mountpoint}/`
 }
 
-async function create_rootfs({ path, partlabel }, rpios_rootfs) {
+export async function create_rootfs({ path, partlabel }, rpios_rootfs) {
   const mountpoint = await getMountPoint(partlabel)
   await $`wipefs -a ${path}`
   await $`mkfs.ext4 -q ${path}`
