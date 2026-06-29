@@ -8,7 +8,6 @@ setup:
     sudo cp mediamtx.service /etc/systemd/system/
     sudo cp mediamtx.yaml /etc/mediamtx.yaml
     sudo chown pi:pi /etc/mediamtx.yaml
-    sudo node ../../lib/mediamtx.js
     sudo systemctl reenable mediamtx
     sudo systemctl restart mediamtx
 
