@@ -1,8 +1,8 @@
 setup:
     sudo ./setup_h264_sysctl.sh
-    wget https://github.com/bluenviron/mediamtx/releases/download/v1.19.1/mediamtx_v1.19.1_linux_arm64.tar.gz -P /tmp
-    wget https://raw.githubusercontent.com/bluenviron/mediamtx/refs/tags/v1.19.1/internal/servers/webrtc/reader.js -O /opt/PlanktoScope/frontend/src/pages/preview/reader.js
-    cd /tmp && tar -xf /tmp/mediamtx_v1.19.1_linux_arm64.tar.gz
+    wget https://github.com/bluenviron/mediamtx/releases/download/v1.19.2/mediamtx_v1.19.2_linux_arm64.tar.gz -P /tmp
+    wget https://raw.githubusercontent.com/bluenviron/mediamtx/refs/tags/v1.19.2/internal/servers/webrtc/reader.js -O /opt/PlanktoScope/frontend/src/pages/preview/reader.js
+    cd /tmp && tar -xf /tmp/mediamtx_v1.19.2_linux_arm64.tar.gz
     -sudo systemctl stop mediamtx
     sudo cp /tmp/mediamtx /usr/local/bin/mediamtx
     sudo cp mediamtx.service /etc/systemd/system/
