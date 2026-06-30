@@ -13,15 +13,19 @@ import { getBlockDevices, umount, getMountPoint } from "./lib.js"
 import { getRaspberryPiOSReference } from "./rpi.js"
 
 // ⚠️ IMPORTANT sync reference with setup.sh
-const url = `https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2026-04-21/2026-04-21-raspios-trixie-arm64-lite.img.xz`
+const url = `https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2026-06-19/2026-06-18-raspios-trixie-arm64-lite.img.xz`
 const sha256 =
-  "4cd31df026fd82243805a326dc0cafd7383f7e3d30c9413e7044d507aae281e2"
+  "acff736ca7945e3b305f07cda4abdb870910e12634991da69783611756e381b3"
 const file = basename(url)
 const img = basename(url, ".xz")
 const reference = file.match(/(.*)-raspios-.*.img/)?.[1]
 assert.ok(reference)
 
 async function downloadRaspberryPiOS() {
+  const cwd = process.cwd()
+
+  process.chdir("/data/tmp")
+
   // download raspios
   await $`wget -c -nc ${url}`
   // download signature
@@ -38,7 +42,9 @@ async function downloadRaspberryPiOS() {
     await $`unxz --keep ${file}`
   }
 
-  return fileURLToPath(import.meta.resolve(`./${img}`))
+  process.chdir(cwd)
+
+  return join("/data/tmp", img)
 }
 
 export async function setupRaspberryPiOSDevice() {

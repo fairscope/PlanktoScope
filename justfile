@@ -19,6 +19,7 @@ setup:
     just --justfile frontend/justfile      setup
 
 setup-dev:
+    npm install --force
     just --justfile lib/justfile           setup-dev
     just --justfile node-red/justfile      setup-dev
     just --justfile controller/justfile    setup-dev
@@ -46,7 +47,6 @@ test:
     actionlint --shellcheck="" # TODO: Enable shelcheck for actionlint
 
 developer-mode: setup-dev
-    npm install --prefix /opt/PlanktoScope/os/developer-mode/
     ./os/developer-mode/setup.js
     sudo apt install -y build-essential
     # Install some tools for a nicer command-line experience over ssh
@@ -56,7 +56,6 @@ developer-mode: setup-dev
     # Install some tools for troubleshooting networking stuff
     sudo apt install -y net-tools bind9-dnsutils netcat-openbsd nmap avahi-utils
     ./os/developer-mode/install-github-cli.sh
-    cd ./os/developer-mode && npm install
     ./os/developer-mode/configure.js
 
 reset: base setup
