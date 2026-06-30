@@ -8,6 +8,12 @@ import { waitForSSH } from "./waitForSSH.js"
 import { setTimeout } from "timers/promises"
 
 let conn
+const config = {
+  // host: "192.168.1.45",
+  host: "10.42.0.94",
+  username: "pi",
+  privateKey: readFileSync("/home/sonny/.ssh/planktoscope"),
+}
 
 function exec(cmd) {
   return new Promise((resolve, reject) => {
@@ -40,6 +46,11 @@ function exec(cmd) {
 }
 
 async function reboot(slot) {
+  const r = await exec(["sudo", "/opt/PlanktoScope/os/pkos/pkos.js", "slot"])
+  if (r.trim() === slot) {
+    await reboot(slot)
+  }
+
   // ignore error triggered by reboot
   conn.on("error", () => {})
 
@@ -48,35 +59,19 @@ async function reboot(slot) {
   // const p2 = exec(["sudo", "reboot", "3"])
   await Promise.all([p1, p2])
 
-  conn = await waitForSSH({
-    // host: "192.168.1.45",
-    host: "10.42.0.94",
-    username: "pi",
-    privateKey: readFileSync("/home/sonny/.ssh/planktoscope"),
-  })
+  conn = await waitForSSH(config)
 
-  // const result = await exec([
-  //   "sudo",
-  //   "/opt/PlanktoScope/os/pkos/pkos.js",
-  //   "slot",
-  // ])
-  // assert.equal(result.trim(), slot)
+  const result = await exec([
+    "sudo",
+    "/opt/PlanktoScope/os/pkos/pkos.js",
+    "slot",
+  ])
+  assert.equal(result.trim(), slot)
 }
 
-conn = await waitForSSH({
-  // host: "192.168.1.45",
-  host: "10.42.0.94",
-  username: "pi",
-  privateKey: readFileSync("/home/sonny/.ssh/planktoscope"),
-})
+conn = await waitForSSH(config)
 
-const slot = await exec(["sudo", "/opt/PlanktoScope/os/pkos/pkos.js", "slot"])
-if (slot.trim() !== "B") {
-  await reboot("B")
-}
-
-// await exec(["uptime"])
-// process.exit()
+await reboot("B")
 
 await exec([
   "sudo",
@@ -105,6 +100,7 @@ await exec([
 ])
 await exec(["sudo", "mv", "/home/pi/repo", "/opt/PlanktoScope"])
 await exec(["sudo", "chown", "-R", "pi:pi", "/opt/PlanktoScope"])
+await exec(["just", "--justfile", "/opt/PlanktoScope/lib/justfile"])
 await exec(["just", "--justfile", "/opt/PlanktoScope/os/pkos/justfile"])
 await exec(["/opt/PlanktoScope/os/pkos/pkos.js", "prepare"])
 
@@ -115,7 +111,7 @@ await exec([
   "/opt/PlanktoScope/os/pkos/pkos.js",
   "create-bundle",
   "/dev/nvme0n1",
-  "A",
+  "B",
   "2026.4.0",
 ])
 
