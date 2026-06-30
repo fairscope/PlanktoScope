@@ -1,17 +1,13 @@
+import assert from "assert"
 import { readFileSync } from "fs"
-import { once } from "events"
 import shellEscape from "shell-escape"
-import { Client } from "ssh2"
+import { PassThrough } from "stream"
+import { once } from "events"
 
-const conn = new Client()
+import { waitForSSH } from "./waitForSSH.js"
+import { setTimeout } from "timers/promises"
 
-conn.connect({
-  host: "192.168.1.45",
-  username: "pi",
-  privateKey: readFileSync("/home/sonny/.ssh/planktoscope"),
-})
-
-await once(conn, "ready")
+let conn
 
 function exec(cmd) {
   return new Promise((resolve, reject) => {
@@ -19,17 +15,24 @@ function exec(cmd) {
     console.log(`> ${c}`)
     conn.exec(c, { pty: true }, (err, stream) => {
       if (err) return reject(err)
-      stream.pipe(process.stdout)
+
+      let output = ""
+      const tee = new PassThrough()
+      tee.on("data", (chunk) => {
+        output += chunk.toString()
+      })
+
+      stream.pipe(tee).pipe(process.stdout)
       stream.stderr.pipe(process.stderr)
       stream.once("close", (code, signal) => {
         if (!code) {
-          resolve()
+          resolve(output)
         }
         // console.log(`\nExited with code ${code} and signal ${signal}`)
         else if (code !== 0) {
           reject(new Error(`\nExited with code ${code} and signal ${signal}`))
         } else {
-          resolve()
+          resolve(output)
         }
       })
     })
@@ -37,27 +40,60 @@ function exec(cmd) {
 }
 
 async function reboot(slot) {
-  await exec(["/opt/PlanktoScope/os/pkos/pkos.js", "reboot", slot])
-  // wait
-  const result = await exec([
-    "sudo",
-    "/opt/PlanktoScope/os/pkos/pkos.js",
-    "slot",
-  ])
-  assert.equal(result, slot)
+  // ignore error triggered by reboot
+  conn.on("error", () => {})
+
+  const p1 = once(conn, "close")
+  const p2 = exec(["sudo", "/opt/PlanktoScope/os/pkos/pkos.js", "reboot", slot])
+  // const p2 = exec(["sudo", "reboot", "3"])
+  await Promise.all([p1, p2])
+
+  conn = await waitForSSH({
+    // host: "192.168.1.45",
+    host: "10.42.0.94",
+    username: "pi",
+    privateKey: readFileSync("/home/sonny/.ssh/planktoscope"),
+  })
+
+  // const result = await exec([
+  //   "sudo",
+  //   "/opt/PlanktoScope/os/pkos/pkos.js",
+  //   "slot",
+  // ])
+  // assert.equal(result.trim(), slot)
 }
 
-// await exec(["sudo", "/opt/PlanktoScope/os/pkos/pkos.js", "slot"])
+conn = await waitForSSH({
+  // host: "192.168.1.45",
+  host: "10.42.0.94",
+  username: "pi",
+  privateKey: readFileSync("/home/sonny/.ssh/planktoscope"),
+})
 
-await reboot("A")
+const slot = await exec(["sudo", "/opt/PlanktoScope/os/pkos/pkos.js", "slot"])
+if (slot.trim() !== "B") {
+  await reboot("B")
+}
+
+// await exec(["uptime"])
+// process.exit()
 
 await exec([
-  "rauc",
-  "install",
-  "/data/tmp/PlanktoScopeOS-2026-04-21-raspios.raucb",
+  "sudo",
+  "NODE_DEBUG=execa",
+  "node",
+  "/opt/PlanktoScope/os/pkos/pkos.js",
+  "install-rpios",
+  "/dev/nvme0n1",
+  "A",
 ])
+// await exec([
+//   "rauc",
+//   "install",
+//   "/data/tmp/PlanktoScopeOS-2026-04-21-raspios.raucb",
+// ])
 
-await reboot("B")
+await reboot("A")
 
 await exec(["sudo", "apt", "update", "-y"])
 await exec(["sudo", "apt", "install", "-y", "git", "just"])
@@ -72,15 +108,15 @@ await exec(["sudo", "chown", "-R", "pi:pi", "/opt/PlanktoScope"])
 await exec(["just", "--justfile", "/opt/PlanktoScope/os/pkos/justfile"])
 await exec(["/opt/PlanktoScope/os/pkos/pkos.js", "prepare"])
 
-await reboot("A")
+await reboot("B")
 
 await exec([
   "sudo",
   "/opt/PlanktoScope/os/pkos/pkos.js",
   "create-bundle",
   "/dev/nvme0n1",
-  "B",
+  "A",
   "2026.4.0",
 ])
 
-await conn.end()
+conn.end()
