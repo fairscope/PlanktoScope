@@ -3,6 +3,7 @@
   "type": "module",
   "dependencies": {
     "ini": "^7.0.0",
+    "ora": "^9.4.1",
     "shell-escape": "^0.2.0",
     "ssh2": "^1.17.0"
   }

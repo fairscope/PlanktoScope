@@ -44,3 +44,14 @@ sudo NODE_DEBUG=execa ./pkos.js create-bundle /dev/device B [version]
 ```
 
 This will create a bundle from partitions `FIRMWARE_B` and `ROOT_B` on device `/dev/device`.
+
+# remote
+
+`remote` is a CLI to perform a clean install of PlanktoScope OS on the slot of a remote PlanktoScope and generated a bundle.
+
+It's mostly helpful for CI/CD automation.
+
+```sh
+# On your computer
+node remote.js --host=192.168.1.20 --bootname=B --version=2026.0.1-alpha.99
+```

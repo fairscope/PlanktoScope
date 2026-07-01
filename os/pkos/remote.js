@@ -1,118 +1,159 @@
+#!/usr/bin/env node
+
 import assert from "assert"
 import { readFileSync } from "fs"
-import shellEscape from "shell-escape"
-import { PassThrough } from "stream"
 import { once } from "events"
+import os from "os"
+import { parseArgs } from "node:util"
+import { oraPromise } from "ora"
 
-import { waitForSSH } from "./waitForSSH.js"
-import { setTimeout } from "timers/promises"
+import { waitForSSH, exec, downloadFile } from "./ssh.js"
+import { join } from "path"
+import { basename } from "node:path"
 
 let conn
 const config = {
-  // host: "192.168.1.45",
-  host: "10.42.0.94",
   username: "pi",
-  privateKey: readFileSync("/home/sonny/.ssh/planktoscope"),
 }
 
-function exec(cmd) {
-  return new Promise((resolve, reject) => {
-    const c = shellEscape(cmd)
-    console.log(`> ${c}`)
-    conn.exec(c, { pty: true }, (err, stream) => {
-      if (err) return reject(err)
-
-      let output = ""
-      const tee = new PassThrough()
-      tee.on("data", (chunk) => {
-        output += chunk.toString()
-      })
-
-      stream.pipe(tee).pipe(process.stdout)
-      stream.stderr.pipe(process.stderr)
-      stream.once("close", (code, signal) => {
-        if (!code) {
-          resolve(output)
-        }
-        // console.log(`\nExited with code ${code} and signal ${signal}`)
-        else if (code !== 0) {
-          reject(new Error(`\nExited with code ${code} and signal ${signal}`))
-        } else {
-          resolve(output)
-        }
-      })
-    })
-  })
+const PARTNS = {
+  A: "2",
+  B: "3",
 }
 
-async function reboot(slot) {
-  const r = await exec(["sudo", "/opt/PlanktoScope/os/pkos/pkos.js", "slot"])
-  if (r.trim() === slot) {
-    await reboot(slot)
+const SLOTS = Object.fromEntries(
+  Object.entries(PARTNS).map(([key, value]) => [value, key]),
+)
+
+// Kinda duplicate from rpi.js
+async function getBootedPartitionNumber() {
+  const { stdout } = await exec(conn, [
+    "sudo",
+    "fdtget",
+    "/sys/firmware/fdt",
+    "/chosen/bootloader",
+    "partition",
+  ])
+  const n = Number(stdout.trim())
+  if (!Number.isInteger(n)) throw new Error("Could not get booted partition")
+  return n
+}
+
+async function getBootedSlot() {
+  const booted_partn = await getBootedPartitionNumber()
+  return SLOTS[booted_partn]
+}
+
+async function useSlot(bootname) {
+  if ((await getBootedSlot()) === bootname) {
+    return
   }
 
+  function noop() {}
+
   // ignore error triggered by reboot
-  conn.on("error", () => {})
+  conn.on("error", noop)
+  process.on("uncaughtException", noop)
 
   const p1 = once(conn, "close")
-  const p2 = exec(["sudo", "/opt/PlanktoScope/os/pkos/pkos.js", "reboot", slot])
-  // const p2 = exec(["sudo", "reboot", "3"])
+  const p2 = exec(conn, ["sudo", "reboot", PARTNS[bootname]])
   await Promise.all([p1, p2])
 
-  conn = await waitForSSH(config)
+  process.removeListener("uncaughtException", noop)
 
-  const result = await exec([
-    "sudo",
-    "/opt/PlanktoScope/os/pkos/pkos.js",
-    "slot",
-  ])
-  assert.equal(result.trim(), slot)
+  const p = waitForSSH(config)
+  await oraPromise(p, "Waiting for SSH")
+
+  conn = await p
+
+  assert.equal(await getBootedSlot(), bootname)
 }
+
+const { values } = parseArgs({
+  options: {
+    host: {
+      type: "string",
+    },
+    key: {
+      type: "string",
+      default: join(os.homedir(), ".ssh/planktoscope"),
+    },
+    bootname: {
+      type: "string",
+    },
+    version: {
+      type: "string",
+    },
+  },
+})
+
+const { host, key, bootname, version } = values
+if (!host || !key || !bootname || !version) {
+  throw new Error(
+    `Usage: remote.js --host=192.168.x.x [--key=~/.ssh/key] --bootname=B --version=202x.x.x`,
+  )
+}
+
+Object.assign(config, {
+  host,
+  privateKey: readFileSync(key),
+})
 
 conn = await waitForSSH(config)
 
-await reboot("B")
+const other = bootname === "A" ? "B" : "A"
 
-await exec([
+await useSlot(other)
+
+await exec(conn, [
   "sudo",
   "NODE_DEBUG=execa",
   "node",
   "/opt/PlanktoScope/os/pkos/pkos.js",
   "install-rpios",
   "/dev/nvme0n1",
-  "A",
+  bootname,
 ])
-// await exec([
-//   "rauc",
-//   "install",
-//   "/data/tmp/PlanktoScopeOS-2026-04-21-raspios.raucb",
-// ])
 
-await reboot("A")
+await useSlot(bootname)
 
-await exec(["sudo", "apt", "update", "-y"])
-await exec(["sudo", "apt", "install", "-y", "git", "just"])
-await exec([
+await exec(conn, ["sudo", "apt", "update", "-y"])
+await exec(conn, ["sudo", "apt", "install", "-y", "git", "just"])
+await exec(conn, [
   "git",
   "clone",
+  "--branch",
+  "remote",
+  // "--no-progress",
   "https://github.com/fairscope/PlanktoScope.git",
   "/home/pi/repo",
 ])
-await exec(["sudo", "mv", "/home/pi/repo", "/opt/PlanktoScope"])
-await exec(["sudo", "chown", "-R", "pi:pi", "/opt/PlanktoScope"])
-await exec(["just", "--justfile", "/opt/PlanktoScope/lib/justfile"])
-await exec(["just", "--justfile", "/opt/PlanktoScope/os/pkos/justfile"])
-await exec(["/opt/PlanktoScope/os/pkos/pkos.js", "prepare"])
+await exec(conn, ["sudo", "mv", "/home/pi/repo", "/opt/PlanktoScope"])
+await exec(conn, ["sudo", "chown", "-R", "pi:pi", "/opt/PlanktoScope"])
+await exec(conn, [
+  "just",
+  "--justfile",
+  "/opt/PlanktoScope/justfile",
+  "install-node",
+])
+await exec(conn, ["just", "--justfile", "/opt/PlanktoScope/lib/justfile"])
+await exec(conn, ["just", "--justfile", "/opt/PlanktoScope/os/pkos/justfile"])
+await exec(conn, ["/opt/PlanktoScope/os/pkos/pkos.js", "prepare"])
 
-await reboot("B")
+await useSlot(other)
 
-await exec([
+const { stdout } = await exec(conn, [
   "sudo",
   "/opt/PlanktoScope/os/pkos/pkos.js",
   "create-bundle",
   "/dev/nvme0n1",
-  "B",
-  "2026.4.0",
+  bootname,
+  version,
 ])
+
+const bundle_path = stdout.trim()
+const filename = basename(bundle_path)
+
+await downloadFile(conn, bundle_path, filename)
 
 conn.end()
