@@ -56,6 +56,11 @@ async function process_cmdline(path) {
   if (!args.includes("logo.nologo")) {
     args.push("logo.nologo")
   }
+  // Disable kernel audit
+  // very verbose and not useful to us
+  if (!args.includes("audit=0")) {
+    args.push("audit=0")
+  }
   await writeFile(path, args.join(" "))
 }
 
