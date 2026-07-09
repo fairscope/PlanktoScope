@@ -10,6 +10,7 @@ import { oraPromise } from "ora"
 import { waitForSSH, exec, downloadFile } from "./ssh.js"
 import { join } from "path"
 import { basename } from "node:path"
+import { setTimeout } from "node:timers/promises"
 
 let conn
 const config = {
@@ -49,22 +50,26 @@ async function useSlot(bootname) {
     return
   }
 
-  function noop() {}
+  function log(err) {
+    console.error(err)
+  }
 
   // ignore error triggered by reboot
-  conn.on("error", noop)
-  process.on("uncaughtException", noop)
+  conn.on("error", log)
+  process.on("uncaughtException", log)
 
   const p1 = once(conn, "close")
   const p2 = exec(conn, ["sudo", "reboot", PARTNS[bootname]])
   await Promise.all([p1, p2])
+  conn.end()
 
-  process.removeListener("uncaughtException", noop)
+  process.removeListener("uncaughtException", log)
 
-  const p = waitForSSH(config)
-  await oraPromise(p, "Waiting for SSH")
-
-  conn = await p
+  conn = await oraPromise(waitForSSH(config), {
+    text: "SSH waiting for connection",
+    successText: "SSH reconnected",
+    failText: "SSH timeout",
+  })
 
   assert.equal(await getBootedSlot(), bootname)
 }
@@ -103,57 +108,59 @@ conn = await waitForSSH(config)
 
 const other = bootname === "A" ? "B" : "A"
 
-await useSlot(other)
+// await useSlot(other)
 
-await exec(conn, [
-  "sudo",
-  "NODE_DEBUG=execa",
-  "node",
-  "/opt/PlanktoScope/os/pkos/pkos.js",
-  "install-rpios",
-  "/dev/nvme0n1",
-  bootname,
-])
+// await exec(conn, [
+//   "sudo",
+//   "NODE_DEBUG=execa",
+//   "node",
+//   "/opt/PlanktoScope/os/pkos/pkos.js",
+//   "install-rpios",
+//   "/dev/nvme0n1",
+//   bootname,
+// ])
 
 await useSlot(bootname)
 
-await exec(conn, ["sudo", "apt", "update", "-y"])
-await exec(conn, ["sudo", "apt", "install", "-y", "git", "just"])
-await exec(conn, [
-  "git",
-  "clone",
-  "--branch",
-  "remote",
-  // "--no-progress",
-  "https://github.com/fairscope/PlanktoScope.git",
-  "/home/pi/repo",
-])
-await exec(conn, ["sudo", "mv", "/home/pi/repo", "/opt/PlanktoScope"])
-await exec(conn, ["sudo", "chown", "-R", "pi:pi", "/opt/PlanktoScope"])
-await exec(conn, [
-  "just",
-  "--justfile",
-  "/opt/PlanktoScope/justfile",
-  "install-node",
-])
-await exec(conn, ["just", "--justfile", "/opt/PlanktoScope/lib/justfile"])
-await exec(conn, ["just", "--justfile", "/opt/PlanktoScope/os/pkos/justfile"])
-await exec(conn, ["/opt/PlanktoScope/os/pkos/pkos.js", "prepare"])
-
 await useSlot(other)
 
-const { stdout } = await exec(conn, [
-  "sudo",
-  "/opt/PlanktoScope/os/pkos/pkos.js",
-  "create-bundle",
-  "/dev/nvme0n1",
-  bootname,
-  version,
-])
+// await exec(conn, ["sudo", "apt", "update", "-y"])
+// await exec(conn, ["sudo", "apt", "install", "-y", "git", "just"])
+// await exec(conn, [
+//   "git",
+//   "clone",
+//   "--branch",
+//   "remote",
+//   // "--no-progress",
+//   "https://github.com/fairscope/PlanktoScope.git",
+//   "/home/pi/repo",
+// ])
+// await exec(conn, ["sudo", "mv", "/home/pi/repo", "/opt/PlanktoScope"])
+// await exec(conn, ["sudo", "chown", "-R", "pi:pi", "/opt/PlanktoScope"])
+// await exec(conn, [
+//   "just",
+//   "--justfile",
+//   "/opt/PlanktoScope/justfile",
+//   "install-node",
+// ])
+// await exec(conn, ["just", "--justfile", "/opt/PlanktoScope/lib/justfile"])
+// await exec(conn, ["just", "--justfile", "/opt/PlanktoScope/os/pkos/justfile"])
+// await exec(conn, ["/opt/PlanktoScope/os/pkos/pkos.js", "prepare"])
 
-const bundle_path = stdout.trim()
-const filename = basename(bundle_path)
+// await useSlot(other)
 
-await downloadFile(conn, bundle_path, filename)
+// const { stdout } = await exec(conn, [
+//   "sudo",
+//   "/opt/PlanktoScope/os/pkos/pkos.js",
+//   "create-bundle",
+//   "/dev/nvme0n1",
+//   bootname,
+//   version,
+// ])
+
+// const bundle_path = stdout.trim()
+// const filename = basename(bundle_path)
+
+// await downloadFile(conn, bundle_path, filename)
 
 conn.end()

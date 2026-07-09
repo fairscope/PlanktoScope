@@ -5,35 +5,56 @@ import ora from "ora"
 
 import { Client } from "ssh2"
 
-export function waitForSSH(config, interval = 5000, maxTries = 120) {
+export function waitForSSH(
+  config,
+  interval = 5000,
+  maxTries = 120,
+  timeout = 5000 * 4,
+) {
   let tries = 0
   let success = false
 
   return new Promise((resolve, reject) => {
     const attempt = () => {
-      let timeout = null
+      console.log("attempt", tries)
+
+      let timeout_interval = null
 
       const conn = new Client()
 
+      let timeout_timeout = setTimeout(() => {
+        console.log("timeout")
+        conn.emit("error", new Error("timeout"))
+        clearTimeout(timeout_timeout)
+        timeout_timeout = null
+      }, timeout)
+
       function onReady() {
+        console.log("rdy")
         success = true
         resolve(conn)
         cleanup()
       }
 
       function onError(err) {
-        // console.log("onError", err)
+        console.error("onError", err)
         conn.destroy()
+        cleanup()
         if (success) return
-        if (timeout) return
+        if (timeout_interval !== null) return
+        if (timeout_timeout !== null) return
         tries++
         if (tries >= maxTries) return reject(new Error("SSH not reachable"))
-        timeout = setTimeout(attempt, interval)
+        timeout_interval = setTimeout(attempt, interval)
       }
 
       function cleanup() {
         conn.removeListener("ready", onReady)
         conn.removeListener("error", onError)
+        clearTimeout(timeout_interval)
+        timeout_interval = null
+        clearTimeout(timeout_timeout)
+        timeout_timeout = null
       }
 
       conn.on("ready", onReady)
