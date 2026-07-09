@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PlanktoScope Acquisition Report{% if multi %} — {{ n_acq }} acquisitions{% else %} — {{ acqs[0].meta.acq_id }}{% endif %}</title>
+<style>
+  /* ========================================================================
+     PlanktoScope acquisition report — an instrument conformance certificate.
+
+     Two voices: prose is IBM Plex Sans, every measured quantity is IBM Plex
+     Mono. Numbers are the instrument talking; sentences are us.
+
+     Pagination is real paged CSS (@page margin boxes + named strings), not
+     fixed-height "sheet" divs — content flows, so figures never strand a
+     near-empty page and the folio/running head sit on every page for free.
+     ======================================================================== */
+
+  @font-face{ font-family:"Plex"; src:url(fonts/IBMPlexSans-Regular.ttf) format("truetype"); font-weight:400; font-style:normal; }
+  @font-face{ font-family:"Plex"; src:url(fonts/IBMPlexSans-Medium.ttf) format("truetype"); font-weight:500; font-style:normal; }
+  @font-face{ font-family:"Plex"; src:url(fonts/IBMPlexSans-SemiBold.ttf) format("truetype"); font-weight:600; font-style:normal; }
+  @font-face{ font-family:"PlexMono"; src:url(fonts/IBMPlexMono-Regular.ttf) format("truetype"); font-weight:400; font-style:normal; }
+  @font-face{ font-family:"PlexMono"; src:url(fonts/IBMPlexMono-Medium.ttf) format("truetype"); font-weight:500; font-style:normal; }
+  @font-face{ font-family:"PlexMono"; src:url(fonts/IBMPlexMono-SemiBold.ttf) format("truetype"); font-weight:600; font-style:normal; }
+
+  :root{
+    --ink:#10151B; --slate:#5B646F; --mist:#98A1AB;
+    --rule:#DCE0E5; --hair:#EAEDF0; --wash:#EDF0F3;
+    --accent:#125A9C; --accent-wash:#C9DAEA;
+    --pass:#1E6A4C; --review:#A9741A; --alert:#A32B22;
+  }
+
+  /* ---------------- page ---------------- */
+  @page{
+    size:A4 portrait;
+    margin:19mm 16mm 15mm;
+
+    @top-left{
+      content:"PlanktoScope  ·  " string(sechead);
+      font-family:"PlexMono",monospace; font-size:5.9pt; font-weight:500;
+      letter-spacing:.11em; text-transform:uppercase; color:var(--slate);
+      vertical-align:bottom; padding-bottom:2.6mm; width:62%;
+      border-bottom:0.5pt solid var(--rule);
+    }
+    @top-right{
+      content:string(runacq);
+      font-family:"PlexMono",monospace; font-size:5.9pt; font-weight:400;
+      letter-spacing:.11em; text-transform:uppercase; color:var(--mist);
+      text-align:right; vertical-align:bottom; padding-bottom:2.6mm; width:38%;
+      border-bottom:0.5pt solid var(--rule);
+    }
+    @bottom-left{
+      content:"{{ instrument_short }}  ·  {{ serial }}  ·  Generated {{ generated }}";
+      font-family:"PlexMono",monospace; font-size:5.6pt; font-weight:400;
+      letter-spacing:.09em; text-transform:uppercase; color:var(--mist);
+      vertical-align:top; padding-top:3mm; width:70%;
+    }
+    @bottom-right{
+      content:counter(page,decimal-leading-zero) "  /  " counter(pages,decimal-leading-zero);
+      font-family:"PlexMono",monospace; font-size:6.6pt; font-weight:600;
+      letter-spacing:.08em; color:var(--ink);
+      text-align:right; vertical-align:top; padding-top:2.8mm; width:30%;
+    }
+  }
+  /* The cover carries its own masthead; no running head above it. */
+  @page cover{
+    @top-left{ content:none; border-bottom:none; }
+    @top-right{ content:none; border-bottom:none; }
+  }
+
+  *{ box-sizing:border-box; }
+  html{ -weasy-hyphens:none; }
+  body{
+    margin:0; color:var(--ink);
+    font-family:"Plex",sans-serif; font-size:8.5pt; line-height:1.5;
+  }
+  h1,h2,h3,h4,p,table{ margin:0; }
+  b,strong{ font-weight:600; }
+
+  /* Mono is reserved for measured quantities, identifiers and labels. */
+  .m{ font-family:"PlexMono",monospace; font-variant-numeric:tabular-nums; }
+  .eyebrow{
+    font-family:"PlexMono",monospace; font-size:6.2pt; font-weight:500;
+    letter-spacing:.16em; text-transform:uppercase; color:var(--mist);
+  }
+
+  .st-good,.st-pass{ color:var(--pass); }
+  .st-review{ color:var(--review); }
+  .st-alert,.st-fail{ color:var(--alert); }
+
+  /* ================= COVER ================= */
+  .cover{ page:cover; break-after:page; height:263mm; display:flex; flex-direction:column; }
+
+  .mast{
+    display:flex; justify-content:space-between; align-items:flex-end;
+    padding-bottom:7px; border-bottom:1.4px solid var(--ink);
+  }
+  .mast .brand{ display:flex; align-items:center; gap:9px; }
+  .mast .mark{ width:30px; height:30px; border-radius:50%; display:block; flex:none; }
+  .mast .wm{ font-size:11.5pt; font-weight:600; line-height:1; letter-spacing:-.01em; }
+  .mast .wm s{
+    display:block; text-decoration:none; margin-top:4px; white-space:nowrap;
+    font-family:"PlexMono",monospace; font-size:5.4pt; font-weight:400;
+    letter-spacing:.13em; text-transform:uppercase; color:var(--mist);
+  }
+  .mast .run{ text-align:right; }
+  .mast .run .v{
+    font-family:"PlexMono",monospace; font-size:7.6pt; font-weight:600;
+    letter-spacing:.04em; margin-top:4px;
+  }
+
+  .cover-title{ margin-top:23mm; }
+  .cover-title h1{
+    font-size:46pt; font-weight:600; letter-spacing:-.028em; line-height:.94;
+    margin-top:11px; word-break:break-word;
+  }
+  .cover-title h1.multi{ font-size:36pt; }
+  .cover-title .desc{
+    font-size:9.6pt; line-height:1.55; color:var(--slate);
+    max-width:126mm; margin-top:13px;
+  }
+  .cover-title .desc b{ color:var(--ink); }
+
+  .stamp{ display:flex; align-items:stretch; border:1.2px solid var(--ink); margin-top:9mm; }
+  .stamp .bar{ width:5px; flex:none; background:var(--pass); }
+  .stamp.review .bar{ background:var(--review); }
+  .stamp .bd{ padding:10px 14px; flex:1; }
+  .stamp .det{ font-size:13pt; font-weight:600; letter-spacing:-.01em; margin-top:4px; }
+  .stamp .sub{
+    font-family:"PlexMono",monospace; font-size:6.4pt; letter-spacing:.06em;
+    color:var(--slate); margin-top:5px; text-transform:uppercase;
+  }
+  .stamp .rt{
+    border-left:0.5px solid var(--rule); padding:10px 14px; width:38mm; flex:none;
+    text-align:right; display:flex; flex-direction:column; justify-content:center;
+  }
+  .stamp .rt .n{
+    font-family:"PlexMono",monospace; font-size:18pt; font-weight:600;
+    line-height:1; letter-spacing:-.02em;
+  }
+
+  /* -------- signature: the conformance panel --------
+     One track per check. The shaded band is the acceptable range, the tick is
+     the measurement. Position is the data: you see headroom, not just a verdict.
+     With several acquisitions the ticks share a track, so spread reads at a glance. */
+  .panel{ margin-top:11mm; }
+  .panel-head{
+    display:flex; justify-content:space-between; align-items:baseline;
+    border-bottom:1.2px solid var(--ink); padding-bottom:6px;
+  }
+  .panel-head .t{ font-size:8pt; font-weight:600; letter-spacing:.13em; text-transform:uppercase; }
+
+  .check{
+    display:grid; grid-template-columns:42mm 21mm 1fr 18mm 22mm;
+    column-gap:5mm; align-items:center;
+    padding:11px 0; border-bottom:0.5px solid var(--hair);
+  }
+  .check .name{ font-size:8.4pt; font-weight:500; }
+  .check .val{ text-align:right; }
+  .check .lim, .check .verdict{
+    font-family:"PlexMono",monospace; font-size:6.4pt; letter-spacing:.09em;
+    text-transform:uppercase; text-align:right;
+  }
+  .check .lim{ color:var(--mist); }
+  .check .verdict{ font-weight:600; }
+
+  .track{ position:relative; height:10px; background:var(--wash); }
+  .track .band{ position:absolute; top:0; bottom:0; background:var(--accent-wash); }
+  .track .edge{ position:absolute; top:0; bottom:0; width:0.5px; background:#B9C4CE; }
+  .track .tick{
+    position:absolute; top:-2.5px; bottom:-2.5px; width:1.6px;
+    margin-left:-0.8px; background:var(--ink);
+  }
+  .track .tick.st-good{ background:var(--pass); }
+  .track .tick.st-review{ background:var(--review); }
+  .track .tick.st-alert{ background:var(--alert); }
+  .track .tick .lb{
+    position:absolute; top:-6.8px; left:50%; transform:translateX(-50%);
+    font-family:"PlexMono",monospace; font-size:4.8pt; font-weight:600;
+    color:var(--slate); background:#fff; padding:0 1px; line-height:1;
+  }
+  .track .tick .lb.low{ top:auto; bottom:-6.8px; }
+  .scale{
+    display:flex; justify-content:space-between; padding-top:7px;
+    font-family:"PlexMono",monospace; font-size:5.4pt; letter-spacing:.09em;
+    color:var(--mist); text-transform:uppercase;
+  }
+  .scale .sw{ display:inline-block; width:14px; height:6px; margin-right:5px; vertical-align:-1px; }
+  .scale .sw.band{ background:var(--accent-wash); }
+  .scale .sw.tick{ width:1.6px; margin-left:6px; margin-right:9px; background:var(--ink); height:8px; vertical-align:-2px; }
+
+  /* -------- cover ledger / manifest -------- */
+  .cover .spacer{ flex:1 1 auto; min-height:5mm; }
+  .cover .spacer.top{ flex:0.35 1 auto; }
+  .ledger{
+    display:grid; grid-template-columns:repeat(6,1fr); column-gap:4mm; row-gap:9px;
+    padding-top:10px; border-top:1.2px solid var(--ink);
+  }
+  .ledger .k{
+    font-family:"PlexMono",monospace; font-size:5.4pt; letter-spacing:.13em;
+    text-transform:uppercase; color:var(--mist);
+  }
+  .ledger .v{
+    font-family:"PlexMono",monospace; font-size:8pt; font-weight:600;
+    margin-top:3px; word-break:break-word;
+  }
+
+  table.manifest{ width:100%; border-collapse:collapse; }
+  table.manifest caption{
+    text-align:left; font-size:8pt; font-weight:600; letter-spacing:.13em;
+    text-transform:uppercase; padding-bottom:6px; border-bottom:1.2px solid var(--ink);
+  }
+  table.manifest th{
+    font-family:"PlexMono",monospace; font-size:5.8pt; font-weight:400;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--mist);
+    text-align:right; padding:7px 0 5px;
+  }
+  table.manifest th.l{ text-align:left; }
+  table.manifest td{
+    font-family:"PlexMono",monospace; font-size:8pt; padding:6px 0;
+    border-bottom:0.5px solid var(--hair); text-align:right;
+    font-variant-numeric:tabular-nums;
+  }
+  table.manifest td.l{ text-align:left; font-weight:600; }
+  table.manifest td.ix{ text-align:left; width:9mm; color:var(--mist); }
+  table.manifest td.det{ width:24mm; font-size:6.4pt; letter-spacing:.09em; font-weight:600; }
+
+  /* ================= BODY ================= */
+  .acq{ break-before:page; }
+
+  /* Slim per-acquisition anchor. Also feeds the running head (string-set). */
+  .acqbar{
+    display:flex; justify-content:space-between; align-items:baseline;
+    border-bottom:1.2px solid var(--ink); padding-bottom:6px; margin-bottom:2mm;
+  }
+  .acqbar .l{ display:flex; align-items:baseline; gap:8px; min-width:0; }
+  .acqbar .aid{
+    font-family:"PlexMono",monospace; font-size:11pt; font-weight:600; letter-spacing:-.01em;
+  }
+  .acqbar .ctx{ font-size:7.4pt; color:var(--slate); white-space:nowrap; }
+  .acqbar .r{
+    font-family:"PlexMono",monospace; font-size:6.4pt; font-weight:600;
+    letter-spacing:.1em; text-transform:uppercase; flex:none; white-space:nowrap; padding-left:6mm;
+  }
+  .acqbar .r .q{ color:var(--mist); font-weight:400; margin-left:8px; }
+
+  .sec{
+    display:flex; align-items:baseline; justify-content:space-between;
+    margin:7mm 0 3.5mm; padding-bottom:5px; border-bottom:0.8px solid var(--ink);
+    break-after:avoid;
+  }
+  .sec .n{ display:flex; align-items:baseline; gap:9px; flex:1 1 auto; }
+  .sec .n h2{ white-space:nowrap; }
+  .sec .num{
+    font-family:"PlexMono",monospace; font-size:7pt; font-weight:600;
+    letter-spacing:.08em; color:var(--mist);
+  }
+  .sec h2{ font-size:11.5pt; font-weight:600; letter-spacing:-.012em; }
+  .sec .cap{
+    font-family:"PlexMono",monospace; font-size:5.9pt; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--mist);
+    flex:none; white-space:nowrap; padding-left:8mm;
+  }
+  .sec + *{ break-before:avoid; }
+
+  /* -------- metadata ledgers -------- */
+  .mcol{ display:grid; grid-template-columns:1fr 1fr; column-gap:10mm; }
+  table.fp{ width:100%; border-collapse:collapse; }
+  table.fp caption{
+    text-align:left; font-family:"PlexMono",monospace; font-size:6pt; font-weight:600;
+    letter-spacing:.14em; text-transform:uppercase; color:var(--accent);
+    padding-bottom:6px; border-bottom:1px solid var(--rule); margin-bottom:1px;
+  }
+  table.fp td{ padding:5.4px 0; vertical-align:baseline; border-bottom:0.5px solid var(--hair); }
+  table.fp tr:last-child td{ border-bottom:none; }
+  table.fp td.k{ font-size:7.6pt; color:var(--slate); width:45%; }
+  table.fp td.v{
+    text-align:right; font-family:"PlexMono",monospace; font-size:8.2pt; font-weight:600;
+    font-variant-numeric:tabular-nums;
+  }
+  table.fp td.v.flag{ color:var(--alert); }
+
+  .note{ margin-top:6mm; break-inside:avoid; }
+  .note h4{
+    font-family:"PlexMono",monospace; font-size:6pt; font-weight:600; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--accent);
+    padding-bottom:6px; border-bottom:1px solid var(--rule); margin-bottom:7px;
+  }
+  .note p{ font-size:8.4pt; line-height:1.6; color:var(--slate); max-width:150mm; }
+
+  /* -------- check tables (calibration + QC) -------- */
+  table.qc{ width:100%; border-collapse:collapse; }
+  table.qc th{
+    font-family:"PlexMono",monospace; font-size:5.8pt; font-weight:400;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--mist);
+    text-align:right; padding:0 0 7px;
+  }
+  table.qc th.l{ text-align:left; }
+  table.qc td{ padding:7px 0; border-top:0.5px solid var(--hair); vertical-align:middle; }
+  table.qc tr:last-child td{ border-bottom:0.5px solid var(--hair); }
+  table.qc td.metric{ font-size:8.4pt; font-weight:500; }
+  table.qc td.meas{ text-align:right; width:24mm; }
+  table.qc td.trk{ width:60mm; padding:7px 8mm; }
+  table.qc td.lim{
+    text-align:right; font-family:"PlexMono",monospace; font-size:6.4pt;
+    letter-spacing:.08em; color:var(--mist); width:20mm;
+  }
+  table.qc td.res{
+    text-align:right; font-family:"PlexMono",monospace; font-size:6.4pt; font-weight:600;
+    letter-spacing:.09em; text-transform:uppercase; width:30mm; padding-left:5mm;
+  }
+
+  /* The readout: a mono number with its unit beneath, as on the instrument. */
+  .readout .n{
+    display:block; font-family:"PlexMono",monospace; font-size:9.4pt; font-weight:600;
+    line-height:1.1; font-variant-numeric:tabular-nums;
+  }
+  .readout .u{
+    display:block; font-family:"PlexMono",monospace; font-size:5.2pt; font-weight:400;
+    letter-spacing:.11em; text-transform:uppercase; color:var(--mist); margin-top:2px;
+  }
+
+  /* -------- figures -------- */
+  .fig{ margin-top:5mm; break-inside:avoid; }
+  .fig .ft{
+    display:flex; justify-content:space-between; align-items:baseline;
+    border-bottom:0.8px solid var(--ink); padding-bottom:4px; margin-bottom:7px;
+  }
+  .fig .ft .t{ font-size:8.4pt; font-weight:600; }
+  .fig .ft .u{
+    font-family:"PlexMono",monospace; font-size:5.8pt; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--mist);
+  }
+  .fig img{ width:100%; display:block; border:0.5px solid var(--hair); }
+  .fcap{ font-size:7pt; line-height:1.45; color:var(--slate); margin-top:6px; }
+  .fcap b{ font-family:"PlexMono",monospace; font-size:6.2pt; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--ink); margin-right:6px; }
+
+  /* Flat field + sharpness sit side by side: illumination and focus are the two
+     halves of "is the optical path good", and pairing them fills the page. */
+  .duo{ display:grid; grid-template-columns:1fr 1fr; column-gap:8mm; align-items:start; }
+  .duo.solo{ grid-template-columns:1fr; }
+  .duo.solo .fig img{ height:52mm; }
+  .duo .fig{ margin-top:5mm; }
+  .duo .fig img{ height:42mm; width:auto; max-width:100%; margin:0 auto; }
+  .duo .fig.sharp img{ border:none; }
+
+  /* -------- KPI band -------- */
+  .band-kpi{
+    display:grid; grid-template-columns:repeat(5,1fr); column-gap:4mm;
+    padding:9px 0; border-top:1.2px solid var(--ink); border-bottom:1.2px solid var(--ink);
+    break-inside:avoid; break-after:avoid;
+  }
+  .band-kpi .kpi{ border-left:0.5px solid var(--hair); padding-left:4mm; }
+  .band-kpi .kpi:first-child{ border-left:none; padding-left:0; }
+  .band-kpi .k{
+    font-family:"PlexMono",monospace; font-size:5.4pt; letter-spacing:.13em;
+    text-transform:uppercase; color:var(--mist);
+  }
+  .band-kpi .big{
+    font-family:"PlexMono",monospace; font-size:17pt; font-weight:600;
+    letter-spacing:-.03em; line-height:1.05; margin-top:6px;
+    font-variant-numeric:tabular-nums;
+  }
+  .band-kpi .u{ font-family:"PlexMono",monospace; font-size:5.6pt; color:var(--mist); margin-top:4px; }
+
+  .split{ display:grid; grid-template-columns:1fr 1fr; column-gap:10mm; margin-top:5mm; align-items:start; }
+  .split .fig{ margin-top:0; }
+  .split .fig img{ height:60mm; width:auto; max-width:100%; margin:0 auto; }
+  .bt{
+    font-family:"PlexMono",monospace; font-size:6pt; font-weight:600; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--accent);
+    padding-bottom:6px; border-bottom:1px solid var(--rule);
+  }
+
+  /* -------- gallery -------- */
+  .plate{ break-before:page; }
+  .gallery{
+    display:grid; gap:2.1mm;
+    margin-top:4mm; padding-top:8px; border-top:1.2px solid var(--ink);
+  }
+  .tile{ break-inside:avoid; }
+  .tile img.roi{
+    width:100%; object-fit:contain; background:var(--wash);
+    display:block; border:0.5px solid var(--hair);
+  }
+  .tile .meta{ display:flex; justify-content:space-between; align-items:baseline; gap:3px; padding:3px 1px 0; }
+  .tile .ix{ font-family:"PlexMono",monospace; font-size:5.4pt; color:var(--mist); }
+  .tile .esd{ font-family:"PlexMono",monospace; font-size:6.6pt; font-weight:600; font-variant-numeric:tabular-nums; }
+  .plate-note{ font-size:7pt; color:var(--slate); margin-top:8px; max-width:150mm; break-inside:avoid; }
+  .plate-note b{
+    font-family:"PlexMono",monospace; font-size:6.2pt; letter-spacing:.09em;
+    text-transform:uppercase; color:var(--ink); margin-right:6px;
+  }
+
+  .errbox{
+    margin-top:6mm; border-left:2.5px solid var(--alert); padding:7px 0 7px 10px;
+    font-size:7.4pt; color:var(--slate); break-inside:avoid;
+  }
+  .errbox b{ color:var(--alert); }
+</style>
+</head>
+<body>
+
+{# ---------- shared macro: one tolerance track ---------- #}
+{% macro track(t, state, ticks=None, numbered=False) -%}
+<div class="track">
+  <div class="band" style="left:{{ "%.2f"|format(t.good_start) }}%; width:{{ "%.2f"|format(t.good_end - t.good_start) }}%"></div>
+  {% if t.good_start > 0.5 %}<div class="edge" style="left:{{ "%.2f"|format(t.good_start) }}%"></div>{% endif %}
+  {% if t.good_end < 99.5 %}<div class="edge" style="left:{{ "%.2f"|format(t.good_end) }}%"></div>{% endif %}
+  {% if ticks %}
+    {% for k in ticks %}
+    <div class="tick st-{{ k.state }}" style="left:{{ "%.2f"|format(k.pos) }}%">{% if numbered %}<span class="lb">{{ k.idx }}</span>{% endif %}</div>
+    {% endfor %}
+  {% else %}
+    <div class="tick st-{{ state }}" style="left:{{ "%.2f"|format(t.pos) }}%"></div>
+  {% endif %}
+</div>
+{%- endmacro %}
+
+{# ============================== COVER ============================== #}
+<section class="cover">
+  <header class="mast">
+    <div class="brand">
+      <img class="mark" src="{{ brand_logo }}" alt="">
+      <div class="wm">PlanktoScope<s>FairScope · Quantitative imaging</s></div>
+    </div>
+    <div class="run">
+      <div class="eyebrow">Acquisition report</div>
+      <div class="v">{{ serial }} · {{ instrument_short }}</div>
+    </div>
+  </header>
+
+  <div class="cover-title">
+    <div class="eyebrow">Quantitative plankton imaging · Conformance certificate</div>
+    {% if multi %}
+      <h1 class="multi">{{ cover_project }}</h1>
+      <p class="desc">Combined quality-control and size-distribution report for <b>{{ n_acq }} acquisitions</b> of project <b>{{ cover_project }}</b>, totalling <b>{{ total_objects }}</b> segmented objects. Each acquisition is reported on its own pages against the same acceptance limits.</p>
+    {% else %}
+      <h1>{{ acqs[0].meta.acq_id }}</h1>
+      <p class="desc">Quality-control and size-distribution report for acquisition <b>{{ acqs[0].meta.acq_id }}</b>, sample {{ acqs[0].meta.sample_id }} of project {{ acqs[0].meta.sample_project }}. <b>{{ acqs[0].stats.total }}</b> objects were segmented from <b>{{ acqs[0].meta.acq_nb_frame }}</b> frames.</p>
+    {% endif %}
+
+    <div class="stamp{{ '' if all_pass else ' review' }}">
+      <div class="bar"></div>
+      <div class="bd">
+        <div class="eyebrow">Quality control · Determination</div>
+        <div class="det {{ 'st-pass' if all_pass else 'st-review' }}">{{ 'Within limits' if all_pass else 'Review required' }}</div>
+        <div class="sub">{{ n_acq }} acquisition{{ 's' if multi else '' }} evaluated · {{ total_issues }} measurement{{ '' if total_issues == 1 else 's' }} outside limits</div>
+      </div>
+      <div class="rt">
+        <div class="eyebrow">Objects segmented</div>
+        <div class="n">{{ total_objects }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="spacer top"></div>
+
+  {% if conformance %}
+  <div class="panel">
+    <div class="panel-head">
+      <span class="t">Conformance</span>
+      <span class="eyebrow">{{ conformance|length }} check{{ '' if conformance|length == 1 else 's' }}{% if multi %} · {{ n_acq }} acquisitions per track{% endif %}</span>
+    </div>
+
+    {% for c in conformance %}
+    <div class="check">
+      <div class="name">{{ c.title }}</div>
+      <div class="val readout"><span class="n">{{ c.readout }}</span><span class="u">{{ c.unit }}</span></div>
+      <div class="track">
+        <div class="band" style="left:{{ "%.2f"|format(c.good_start) }}%; width:{{ "%.2f"|format(c.good_end - c.good_start) }}%"></div>
+        {% if c.good_start > 0.5 %}<div class="edge" style="left:{{ "%.2f"|format(c.good_start) }}%"></div>{% endif %}
+        {% if c.good_end < 99.5 %}<div class="edge" style="left:{{ "%.2f"|format(c.good_end) }}%"></div>{% endif %}
+        {% for k in c.ticks %}
+        <div class="tick st-{{ k.state }}" style="left:{{ "%.2f"|format(k.pos) }}%">{% if c.numbered %}<span class="lb{{ ' low' if k.low }}">{{ k.idx }}</span>{% endif %}</div>
+        {% endfor %}
+      </div>
+      <div class="lim">{{ c.limit }}</div>
+      <div class="verdict st-{{ c.state }}">{{ 'Within' if c.state == 'good' else ('Review' if c.state == 'review' else 'Outside') }}</div>
+    </div>
+    {% endfor %}
+
+    <div class="scale">
+      <span><span class="sw band"></span>Acceptable range<span class="sw tick"></span>Measured value</span>
+      <span>Each track is scaled to its own check</span>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="spacer"></div>
+
+  {% if multi %}
+  <table class="manifest">
+    <caption>Acquisitions in this report</caption>
+    <thead><tr><th class="l">#</th><th class="l">Acquisition</th><th>Sample</th><th>Objects</th><th>Median ESD</th><th>Determination</th></tr></thead>
+    <tbody>
+      {% for a in acqs %}
+      <tr>
+        <td class="ix">{{ '%02d'|format(loop.index) }}</td>
+        <td class="l">{{ a.meta.acq_id }}</td>
+        <td>{{ a.meta.sample_id or '—' }}</td>
+        <td>{{ a.stats.total }}</td>
+        <td>{{ "%.0f"|format(a.stats.esd_median) }} µm</td>
+        <td class="det {{ 'st-pass' if a.acq_pass else 'st-alert' }}">{{ 'Within' if a.acq_pass else 'Review' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="ledger">
+    <div><div class="k">Project</div><div class="v">{{ cover_project }}</div></div>
+    <div><div class="k">Sample</div><div class="v">{{ acqs[0].meta.sample_id or '—' }}</div></div>
+    <div><div class="k">Acquisition</div><div class="v">{{ acqs[0].meta.acq_id or '—' }}</div></div>
+    <div><div class="k">Serial</div><div class="v">{{ serial }}</div></div>
+    <div><div class="k">Instrument</div><div class="v">{{ instrument_short }}</div></div>
+    <div><div class="k">Generated (UTC)</div><div class="v">{{ generated.split(' ')[0] }}</div></div>
+  </div>
+  {% endif %}
+
+  {% if errors %}
+  <div class="errbox"><b>Skipped</b> {{ errors|join('; ') }}</div>
+  {% endif %}
+</section>
+
+{# ========================= PER-ACQUISITION ========================= #}
+{% for a in acqs %}
+{% set ai = loop.index %}
+<section class="acq">
+
+  <div class="acqbar">
+    <div class="l">
+      <span class="aid" style="string-set: runacq content(text)">{{ a.meta.acq_id }}</span>
+      <span class="ctx">{{ a.meta.sample_project }} · {{ a.meta.sample_id }} · {{ a.stats.total }} objects</span>
+    </div>
+    <div class="r">
+      <span class="{{ 'st-pass' if a.acq_pass else 'st-alert' }}">{{ 'Within limits' if a.acq_pass else 'Review' }}</span>
+      <span class="q">{% if multi %}Acq {{ ai }}/{{ n_acq }} · {% endif %}{{ a.evaluated }} checks · {{ a.issues }} flagged</span>
+    </div>
+  </div>
+
+  {% if sections.metadata %}
+  <div class="sec">
+    <div class="n">
+      <span class="num" style="string-set: secnum content(text)">01</span>
+      <h2 style="string-set: sechead content(text)">Sample &amp; acquisition metadata</h2>
+    </div>
+    <div class="cap">EcoTaxa identity fields</div>
+  </div>
+
+  <div class="mcol">
+    <table class="fp">
+      <caption>Sample</caption>
+      <tr><td class="k">Project</td><td class="v">{{ a.meta.sample_project or "—" }}</td></tr>
+      <tr><td class="k">Sample ID</td><td class="v">{{ a.meta.sample_id or "—" }}</td></tr>
+      <tr><td class="k">Operator</td><td class="v">{{ a.meta.sample_operator or "—" }}</td></tr>
+      <tr><td class="k">Gear</td><td class="v">{{ a.meta.sample_gear or "—" }}</td></tr>
+      <tr><td class="k">Latitude</td><td class="v">{{ a.lat_disp }}</td></tr>
+      <tr><td class="k">Longitude</td><td class="v">{{ a.lon_disp }}</td></tr>
+      <tr><td class="k">Date / time (UTC)</td><td class="v">{{ a.sampled }}</td></tr>
+      <tr><td class="k">Pumped volume</td><td class="v">{{ a.meta.acq_pumped_volume }} mL</td></tr>
+      <tr><td class="k">Imaged volume</td><td class="v">{{ a.meta.acq_imaged_volume }} mL</td></tr>
+    </table>
+    <table class="fp">
+      <caption>Acquisition</caption>
+      <tr><td class="k">Acquisition ID</td><td class="v">{{ a.meta.acq_id or "—" }}</td></tr>
+      <tr><td class="k">Instrument</td><td class="v">{{ a.instrument_short }}</td></tr>
+      <tr><td class="k">Serial</td><td class="v">{{ a.serial }}</td></tr>
+      <tr><td class="k">Frames captured</td><td class="v">{{ a.meta.acq_nb_frame }}</td></tr>
+      <tr><td class="k">Pixel size</td><td class="v">{{ a.meta.process_pixel_size }} µm/px</td></tr>
+      <tr><td class="k">Flowcell thickness</td><td class="v">{{ a.meta.acq_flowcell_thickness }} µm</td></tr>
+      <tr><td class="k">Camera ISO</td><td class="v">{{ a.meta.acq_camera_iso }}</td></tr>
+      <tr><td class="k">Shutter speed</td><td class="v">{{ a.meta.acq_camera_shutter_speed }} ms</td></tr>
+      <tr><td class="k">Minimum ESD</td><td class="v">{{ a.meta.process_min_ESD }} µm</td></tr>
+    </table>
+  </div>
+
+  <div class="note">
+    <h4>Comment</h4>
+    <p>{{ a.meta.sample_comment or "No sample comment recorded." }} Processed {{ (a.meta.process_datetime or a.meta.acq_local_datetime or "—")|replace("T", " ") }} with the PlanktoScope segmentation pipeline; objects below the {{ a.meta.process_min_ESD }} µm minimum ESD were excluded.</p>
+  </div>
+  {% endif %}
+
+  {% if a.show_calibration %}
+  <div class="sec">
+    <div class="n">
+      <span class="num" style="string-set: secnum content(text)">02</span>
+      <h2 style="string-set: sechead content(text)">Optics &amp; calibration</h2>
+    </div>
+    <div class="cap">Flat-field diagnostics</div>
+  </div>
+
+  <table class="qc">
+    <thead><tr><th class="l">Check</th><th>Measured</th><th></th><th>Limit</th><th>Determination</th></tr></thead>
+    <tbody>
+      {% for c in a.calibration %}
+      <tr>
+        <td class="metric">{{ c.title }}</td>
+        <td class="meas readout">
+          <span class="n {{ 'st-alert' if c.state == 'alert' else ('st-review' if c.state == 'review' else '') }}">{{ c.value }}</span>
+          <span class="u">{{ c.unit }}</span>
+        </td>
+        <td class="trk">{% if c.track %}{{ track(c.track, c.state) }}{% endif %}</td>
+        <td class="lim">{{ c.track.limit if c.track else '—' }}</td>
+        <td class="res st-{{ c.state }}">{{ c.label }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if a.show_qc %}
+  <div class="sec">
+    <div class="n">
+      <span class="num" style="string-set: secnum content(text)">03</span>
+      <h2 style="string-set: sechead content(text)">Quality control</h2>
+    </div>
+    <div class="cap">Dashboard thresholds · n = {{ a.stats.total }}</div>
+  </div>
+
+  <table class="qc">
+    <thead><tr><th class="l">Metric</th><th>Measured</th><th></th><th>Limit</th><th>Determination</th></tr></thead>
+    <tbody>
+      {% for row in a.qc %}
+      <tr>
+        <td class="metric">{{ row.title }}</td>
+        <td class="meas readout">
+          <span class="n {{ '' if row.pass else 'st-alert' }}">{{ row.value }}</span>
+          <span class="u">{{ row.unit }}</span>
+        </td>
+        <td class="trk">{{ track(row.track, row.state) }}</td>
+        <td class="lim">{{ row.track.limit }}</td>
+        <td class="res {{ 'st-pass' if row.pass else 'st-fail' }}">{{ 'Pass' if row.pass else 'Fail' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% set duo_both = a.flat_field and a.sections.focus and a.chart_sharpness %}
+  {% if a.flat_field or (a.sections.focus and a.chart_sharpness) %}
+  <div class="duo{{ '' if duo_both else ' solo' }}">
+    {% if a.flat_field %}
+    <div class="fig">
+      <div class="ft"><span class="t">Flat field</span><span class="u">Fig. 1 · Illumination</span></div>
+      <img src="{{ a.flat_field }}" alt="">
+      <div class="fcap"><b>Fig. 1</b> Median flat field used for illumination correction. Mean luminance, chroma, debris spots and edge uniformity are all measured from this image.</div>
+    </div>
+    {% endif %}
+    {% if a.sections.focus and a.chart_sharpness %}
+    <div class="fig sharp">
+      <div class="ft"><span class="t">Sharpness</span><span class="u">Fig. 2 · Focus measure</span></div>
+      <img src="{{ a.chart_sharpness }}" alt="">
+      <div class="fcap"><b>Fig. 2</b> Focus measure per object. Median {{ "%.3f"|format(a.sharp.median) }}; {{ "%.1f"|format(a.sharp.blurryPct) }}% of objects fall below the blurry cutoff (dashed).</div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="sec">
+    <div class="n">
+      <span class="num" style="string-set: secnum content(text)">04</span>
+      <h2 style="string-set: sechead content(text)">Size distribution</h2>
+    </div>
+    <div class="cap">Equivalent spherical diameter · {{ a.stats.total }} objects</div>
+  </div>
+
+  <div class="band-kpi">
+    <div class="kpi"><div class="k">Median ESD</div><div class="big">{{ "%.1f"|format(a.stats.esd_median) }}</div><div class="u">µm · P50</div></div>
+    <div class="kpi"><div class="k">Interdecile</div><div class="big">{{ a.stats.esd_p10|round|int }}–{{ a.stats.esd_p90|round|int }}</div><div class="u">µm · P10–P90</div></div>
+    <div class="kpi"><div class="k">Full range</div><div class="big">{{ a.stats.esd_min|round|int }}–{{ a.stats.esd_max|round|int }}</div><div class="u">µm · min–max</div></div>
+    <div class="kpi"><div class="k">Objects / frame</div><div class="big">{{ "%.1f"|format(a.stats.perFrame) }}</div><div class="u">1–50</div></div>
+    <div class="kpi"><div class="k">Total</div><div class="big">{{ a.stats.total }}</div><div class="u">segmented</div></div>
+  </div>
+
+  {% if a.chart_esd %}
+  <div class="fig">
+    <div class="ft"><span class="t">Size distribution</span><span class="u">Fig. 3 · ESD µm · log</span></div>
+    <img src="{{ a.chart_esd }}" alt="">
+    <div class="fcap"><b>Fig. 3</b> Log-binned equivalent spherical diameter. Flowing objects {{ "%.1f"|format(a.stats.flowingPct) }}%; stuck objects {{ "%.1f"|format(a.stats.stuckPct) }}%; dashed line marks the median.</div>
+  </div>
+  {% endif %}
+
+  {% if sections.spatial %}
+  <div class="split">
+    {% if a.chart_heatmap %}
+    <div class="fig">
+      <div class="ft"><span class="t">Spatial density</span><span class="u">Fig. 4 · Flowcell field</span></div>
+      <img src="{{ a.chart_heatmap }}" alt="">
+      <div class="fcap"><b>Fig. 4</b> Object distribution across the flowcell, in camera orientation.</div>
+    </div>
+    {% endif %}
+    <div>
+      <div class="bt">Spatial summary</div>
+      <table class="fp">
+        <tr><td class="k">Total objects</td><td class="v">{{ a.stats.total }}</td></tr>
+        <tr><td class="k">Flowing</td><td class="v">{{ "%.1f"|format(a.stats.flowingPct) }}%</td></tr>
+        <tr><td class="k">Stuck</td><td class="v {{ 'flag' if a.stats.stuckPct >= 10 else '' }}">{{ "%.1f"|format(a.stats.stuckPct) }}%</td></tr>
+        <tr><td class="k">Left / Ctr / Right</td><td class="v">{{ "%.0f"|format(a.spatial.leftPct) }} / {{ "%.0f"|format(a.spatial.centerPct) }} / {{ "%.0f"|format(a.spatial.rightPct) }}%</td></tr>
+        <tr><td class="k">Frames</td><td class="v">{{ a.homo.nFrames }}</td></tr>
+        <tr><td class="k">Objects / frame</td><td class="v">{{ "%.1f"|format(a.stats.perFrame) }}</td></tr>
+        <tr><td class="k">Flow stability (CV)</td><td class="v">{{ "%.0f"|format(a.homo.cv) }}%</td></tr>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if a.gallery %}
+  <div class="plate">
+    <div class="sec">
+      <div class="n">
+        <span class="num" style="string-set: secnum content(text)">05</span>
+        <h2 style="string-set: sechead content(text)">Object gallery</h2>
+      </div>
+      <div class="cap">{{ a.gallery|length }} objects · {{ 'random selection' if a.gallery_opts.mode == 'random' else 'largest first' }} by {{ a.gallery_criteria_label|lower }}</div>
+    </div>
+
+    <div class="gallery" style="grid-template-columns:repeat({{ a.gallery_cols }},1fr)">
+      {% for o in a.gallery %}
+      <div class="tile">
+        <img class="roi" src="{{ o.img }}" alt="" style="height:{{ a.gallery_tile_mm }}mm">
+        <div class="meta"><span class="ix">{{ '%02d'|format(loop.index) }}</span><span class="esd">{{ o.esd }}</span></div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <p class="plate-note"><b>Objects</b>{{ a.gallery|length }} objects from {{ a.meta.acq_id }}, {% if a.gallery_opts.mode == 'random' %}drawn at random{% else %}ranked by {{ a.gallery_criteria_label|lower }}, largest first{% endif %}. Index at left of each tile, equivalent spherical diameter at right.</p>
+  </div>
+  {% endif %}
+
+</section>
+{% endfor %}
+
+</body>
+</html>
