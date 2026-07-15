@@ -12,6 +12,7 @@ Trigger payload:  {"action": "generate",
                    "acquisition_path": "/home/pi/data/img/<date>/<sample>/<acq>"}
 """
 
+import asyncio
 import base64
 import csv
 import io
@@ -25,8 +26,8 @@ import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 
+import aiomqtt
 import numpy as np
-import paho.mqtt.client as mqtt
 from PIL import Image, ImageFilter
 
 import matplotlib
@@ -1178,79 +1179,90 @@ def build_combined_report(acquisition_paths, sections=None, gallery_opts=None) -
 
 
 # --------------------------------------------------------------------------- #
-# MQTT
+# MQTT (asyncio / aiomqtt)
 # --------------------------------------------------------------------------- #
-def publish(client, payload: dict):
-    client.publish(TOPIC_OUT, json.dumps(payload))
+async def publish(client: "aiomqtt.Client", payload: dict) -> None:
+    await client.publish(TOPIC_OUT, json.dumps(payload))
     print(f"[reporter] -> {TOPIC_OUT}: {payload}", flush=True)
 
 
-def on_connect(client, userdata, flags, rc, *args):
-    print(f"[reporter] connected rc={rc}, subscribing {TOPIC_IN}", flush=True)
-    client.subscribe(TOPIC_IN)
-
-
-def _handle_generate(client, data):
+async def _handle_generate(client: "aiomqtt.Client", data: dict) -> None:
     """Dispatch a generate request. Two payload shapes are accepted:
 
     NEW  {action, acquisition_paths:[...], sections:{...}, gallery:{...}}
          -> one combined full PDF (the "Report export" dialog).
     LEGACY {action, acquisition_path:"..."}
-         -> the original full + one-pager pair (per-row button)."""
+         -> the original full + one-pager pair (per-row button).
+
+    PDF generation is CPU-bound (matplotlib + WeasyPrint), so it runs in a
+    worker thread via ``asyncio.to_thread`` to keep the MQTT client responsive.
+    Messages are awaited one at a time, which serialises generation — matplotlib's
+    pyplot state is not safe to drive from concurrent threads."""
     paths = data.get("acquisition_paths")
     if isinstance(paths, list) and paths:
         label = f"{len(paths)} acquisition(s)"
-        publish(client, {"status": "generating", "count": len(paths),
-                         "acquisition_paths": paths})
+        await publish(client, {"status": "generating", "count": len(paths),
+                               "acquisition_paths": paths})
         try:
-            res = build_combined_report(paths, data.get("sections"), data.get("gallery"))
+            res = await asyncio.to_thread(
+                build_combined_report, paths, data.get("sections"), data.get("gallery"))
             full = res["full"]
-            publish(client, {"status": "done", "acquisition_paths": paths,
-                             "path": str(full), "filename": full.name,
-                             "url": f"/api/files/reports/{full.name}",
-                             "filename_full": full.name,
-                             "url_full": f"/api/files/reports/{full.name}"})
+            await publish(client, {"status": "done", "acquisition_paths": paths,
+                                   "path": str(full), "filename": full.name,
+                                   "url": f"/api/files/reports/{full.name}",
+                                   "filename_full": full.name,
+                                   "url_full": f"/api/files/reports/{full.name}"})
             print(f"[reporter] wrote {full} ({label})", flush=True)
         except Exception as exc:  # noqa: BLE001 — report any failure to the UI
             traceback.print_exc()
-            publish(client, {"status": "error", "acquisition_paths": paths, "error": str(exc)})
+            await publish(client, {"status": "error", "acquisition_paths": paths,
+                                   "error": str(exc)})
         return
 
     acq = data.get("acquisition_path")
     if not acq:
         return
     print(f"[reporter] generating report for {acq}", flush=True)
-    publish(client, {"status": "generating", "acquisition_path": acq})
+    await publish(client, {"status": "generating", "acquisition_path": acq})
     try:
-        res = build_report(acq)
+        res = await asyncio.to_thread(build_report, acq)
         full, onep = res["full"], res["onepage"]
-        publish(client, {"status": "done", "acquisition_path": acq,
-                         # legacy fields (= full report) kept for compatibility
-                         "path": str(full), "filename": full.name,
-                         "url": f"/api/files/reports/{full.name}",
-                         # both formats, so the dashboard can offer a choice
-                         "filename_full": full.name,
-                         "url_full": f"/api/files/reports/{full.name}",
-                         "filename_onepage": onep.name,
-                         "url_onepage": f"/api/files/reports/{onep.name}"})
+        await publish(client, {"status": "done", "acquisition_path": acq,
+                               # legacy fields (= full report) kept for compatibility
+                               "path": str(full), "filename": full.name,
+                               "url": f"/api/files/reports/{full.name}",
+                               # both formats, so the dashboard can offer a choice
+                               "filename_full": full.name,
+                               "url_full": f"/api/files/reports/{full.name}",
+                               "filename_onepage": onep.name,
+                               "url_onepage": f"/api/files/reports/{onep.name}"})
         print(f"[reporter] wrote {full} and {onep}", flush=True)
     except Exception as exc:  # noqa: BLE001 — report any failure to the UI
         traceback.print_exc()
-        publish(client, {"status": "error", "acquisition_path": acq, "error": str(exc)})
+        await publish(client, {"status": "error", "acquisition_path": acq, "error": str(exc)})
 
 
-def on_message(client, userdata, msg):
+async def _handle_message(client: "aiomqtt.Client", message: "aiomqtt.Message") -> None:
     try:
-        data = json.loads(msg.payload.decode())
+        data = json.loads(message.payload.decode())
     except (ValueError, UnicodeDecodeError):
-        print(f"[reporter] bad payload: {msg.payload!r}", flush=True)
+        print(f"[reporter] bad payload: {message.payload!r}", flush=True)
         return
-    if data.get("action") != "generate":
+    if not isinstance(data, dict) or data.get("action") != "generate":
         return
-    _handle_generate(client, data)
+    await _handle_generate(client, data)
 
 
-def main():
+async def start() -> None:
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    async with aiomqtt.Client(hostname=MQTT_HOST, port=MQTT_PORT) as client:
+        await client.subscribe(TOPIC_IN)
+        print(f"[reporter] connected {MQTT_HOST}:{MQTT_PORT}, subscribed {TOPIC_IN}", flush=True)
+        async for message in client.messages:
+            await _handle_message(client, message)
+
+
+def main() -> None:
     if "--once" in sys.argv:  # local test: legacy single-acq (full + one-pager)
         res = build_report(sys.argv[sys.argv.index("--once") + 1])
         print(f"wrote {res['full']} and {res['onepage']}")
@@ -1261,11 +1273,7 @@ def main():
                                     data.get("sections"), data.get("gallery"))
         print(f"wrote {res['full']}")
         return
-    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
-    client.on_connect = on_connect
-    client.on_message = on_message
-    client.connect(MQTT_HOST, MQTT_PORT, 60)
-    client.loop_forever()
+    asyncio.run(start())
 
 
 if __name__ == "__main__":
