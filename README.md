@@ -50,7 +50,7 @@ There are several ways you can join the development effort and contribute to thi
 
 ### Communication Platform
 
-We use Slack as a communication platform for interested parties. You can request to join by filling out [this form](https://docs.google.com/forms/d/e/1FAIpQLSfcod-avpzWVmWj42_hW1v2mMSHm0DAGXHxVECFig2dnKHxGQ/viewform).
+We use Slack as a communication platform for interested parties. You can request to join by filling out [this form](https://www.fairscope.com/survey/start/63367865-4821-4208-98ec-85c34b992ed7).
 
 ### Reporting Issues
 
