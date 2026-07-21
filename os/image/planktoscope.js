@@ -365,7 +365,7 @@ export async function setup_fstab(partitions, bootnames = bootnames) {
   const datafs_partuuid = partitions[`DATA`].partuuid
   const fstab = dedent`
     PARTUUID=${bootloader_partuuid} /bootloader      vfat  defaults,noatime,ro  0 2
-    PARTUUID=${datafs_partuuid}     /data            ext4  defaults,noatime  0 2
+    PARTUUID=${datafs_partuuid}     /data            ext4  defaults,noatime,x-systemd.makefs,x-systemd.growfs  0 2
     /data/home                      /home            none  bind  0 0
   `
   // TODO: when we go readonly
@@ -399,7 +399,7 @@ async function setup_repart(partitions) {
       "usr/lib/repart.d",
     )
     await mkdir(path, { recursive: true })
-    await writeFile(join(path, "50-data.conf"), conf)
+    await writeFile(join(path, "60-data.conf"), conf)
   }
 }
 

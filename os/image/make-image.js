@@ -21,6 +21,7 @@ if (import.meta.main) {
   // await $`sgdisk --delete=${partn} --new=${partn}:0:+8M --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:DATA --partition-guid=${partn}:ce528120-d0dd-52be-aea3-8225fabd8a00 ${device}`
 
   // systemd-repart will recreate the partition on boot
-  await $`sgdisk --delete=${partn}`
+  await $`wipefs -a ${path}`
+  await $`sgdisk --delete=${partn} ${device}`
   // await $`partprobe ${device}`
 }
