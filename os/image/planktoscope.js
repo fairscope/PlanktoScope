@@ -95,8 +95,10 @@ async function createPartitionTable(device) {
   }
 
   // "DATA"
+  // we use 512MB because when growing to fill a 256GB disk
+  // it results in a fs of the same size as if it was original created to fill the disk
   partn++
-  await $`sgdisk --new=${partn}:0:0 --typecode=${partn}:8300 --change-name=${partn}:DATA --partition-guid=${partn}:${stablePartUuid("DATA")} ${device}`
+  await $`sgdisk --new=${partn}:0:+512MB --typecode=${partn}:8300 --change-name=${partn}:DATA --partition-guid=${partn}:${stablePartUuid("DATA")} ${device}`
 
   await $`sgdisk --verify ${device}`
 
