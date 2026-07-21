@@ -35,13 +35,12 @@ Run the preparation scripts on the current slot. This steps is needed before cre
 ./pkos.js prepare
 ```
 
-## Create an bundle
+## Create a bundle
 
-A bundle is an update that will be installed on a slot.
+A bundle is an update that can be installed on a slot.
 
 ```sh
-cd os/rauc
-sudo ./rauc.js create-bundle /dev/device B [version]
+sudo NODE_DEBUG=execa ./pkos.js create-bundle /dev/device B [version]
 ```
 
 This will create a bundle from partitions `FIRMWARE_B` and `ROOT_B` on device `/dev/device`.
