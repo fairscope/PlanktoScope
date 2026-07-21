@@ -18,7 +18,8 @@ import dedent from "dedent"
 
 import { getBlockDevices, getMountPoint } from "./lib.js"
 
-const bootnames = ["A", "B"]
+const default_bootnames = ["A", "B"]
+const bootnames = default_bootnames
 
 // Fixed namespace UUID
 const NAMESPACE = "11311d13-358c-4d63-8e9a-fd2ca83e08ea"
@@ -182,7 +183,7 @@ async function create_datafs(device, rootfs) {
 // We need to share /etc/machine-id so we symlink it from `/data/machine-id` on both slots
 // machine-id-setup.service will create it if target does not exist
 // https://www.freedesktop.org/software/systemd/man/latest/machine-id.html
-export async function setup_machineid(partitions, bootnames) {
+export async function setup_machineid(partitions, bootnames = default_bootnames) {
   for (const bootname of bootnames) {
     const root = partitions[`ROOT_${bootname}`].mountpoint
 
@@ -205,7 +206,7 @@ export async function setup_machineid(partitions, bootnames) {
 export async function setup_cloudinit(
   rpios_partitions,
   partitions,
-  bootnames = bootnames,
+  bootnames = default_bootnames,
 ) {
   // By default RPI OS reads cloud init config from /boot/firmware
   // since we don't mount /boot/firmware; we move the cloud-init config to /bootloader
@@ -274,7 +275,7 @@ export async function setup_cloudinit(
 export async function setup_config(
   rpios_partitions,
   partitions,
-  bootnames = bootnames,
+  bootnames = default_bootnames,
 ) {
   const content = await readFile(
     join(rpios_partitions["bootfs"].mountpoint, "config.txt"),
@@ -304,7 +305,7 @@ export async function setup_config(
 export async function setup_cmdline(
   rpios_partitions,
   partitions,
-  bootnames = bootnames,
+  bootnames = default_bootnames,
 ) {
   const rpios_bootfs = rpios_partitions["bootfs"]
   const rpios_rootfs = rpios_partitions["rootfs"]
@@ -360,7 +361,7 @@ export async function setup_cmdline(
 // cmdline tells the kernel how to mount / (via root)
 // /boot/firmware does not need to be mounted in a image based updates filesystem
 // only apt upgrade and rpi specific tools would require /boot/firmware
-export async function setup_fstab(partitions, bootnames = bootnames) {
+export async function setup_fstab(partitions, bootnames = default_bootnames) {
   const bootloader_partuuid = partitions[`BOOTLOADER`].partuuid
   const datafs_partuuid = partitions[`DATA`].partuuid
   const fstab = dedent`
