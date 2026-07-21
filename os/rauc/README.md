@@ -4,25 +4,6 @@
 
 We have an A/B partitioning setup see [os/image](../image) for which RAUC is aware of.
 
-## Create an bundle
-
-A bundle is an update that will be installed on a slot.
-
-```sh
-cd os/rauc
-sudo ./rauc.js create-bundle /dev/device B [version]
-```
-
-This will create a bundle from partitions `FIRMWARE_B` and `ROOT_B` on device `/dev/device`.
-
-A bundle can be installed to either slot. So please consider:
-
-* Files on `FIRMWARE_A` and `FIRMWARE_B` should be considered identical.
-* Files on `ROOT_A` and `ROOT_B` should be considered identical.
-* A bundle must work for any slot
-
-We use the Raspberry Pi firmware and bootloader to dynamically switch between A and B. 
-
 ## Install a bundle
 
 ```sh

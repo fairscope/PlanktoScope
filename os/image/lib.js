@@ -2,7 +2,7 @@ import { mkdir } from "node:fs/promises"
 import { fileURLToPath } from "node:url"
 import { join } from "path"
 
-import { $ } from "execa"
+import { $ } from "../../lib/exec.js"
 
 export async function getBlockDevices(device) {
   const { stdout } =

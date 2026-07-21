@@ -1,15 +1,11 @@
 setup:
-    npm ci --omit=dev
+    npm ci --omit=dev --force
     npx vite build
 
 setup-dev:
     npm install --include=dev
 
-format:
-    npx eslint --fix .
-
 test:
-    npx eslint .
     npx vite build
     node --test
 

@@ -12,7 +12,7 @@ import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { v5 as uuidv5 } from "uuid"
 
-import { $ } from "execa"
+import { $ } from "../../lib/exec.js"
 import { stringify, parse } from "ini"
 import dedent from "dedent"
 
@@ -105,7 +105,7 @@ async function createPartitionTable(device) {
   await $`udevadm settle`
 }
 
-async function create_bootloaderfs({ partlabel, path }) {
+export async function create_bootloaderfs({ partlabel, path }) {
   const mountpoint = await getMountPoint(partlabel)
   await $`wipefs -a ${path}`
   await $`mkfs.vfat -F12 ${path}`
@@ -113,7 +113,7 @@ async function create_bootloaderfs({ partlabel, path }) {
   await $`cp autoboot.ini ${join(mountpoint, "autoboot.txt")}`
 }
 
-async function create_firmwarefs({ path, partlabel }, rpios_bootfs) {
+export async function create_firmwarefs({ path, partlabel }, rpios_bootfs) {
   const mountpoint = await getMountPoint(partlabel)
   await $`wipefs -a ${path}`
   await $`mkfs.vfat -F32 ${path}`
@@ -127,7 +127,7 @@ async function create_firmwarefs({ path, partlabel }, rpios_bootfs) {
   // await $`rsync -a ${rpios_bootfs.mountpoint}/ ${mountpoint}/`
 }
 
-async function create_rootfs({ path, partlabel }, rpios_rootfs) {
+export async function create_rootfs({ path, partlabel }, rpios_rootfs) {
   const mountpoint = await getMountPoint(partlabel)
   await $`wipefs -a ${path}`
   await $`mkfs.ext4 -q ${path}`
@@ -182,7 +182,7 @@ async function create_datafs(device, rootfs) {
 // We need to share /etc/machine-id so we symlink it from `/data/machine-id` on both slots
 // machine-id-setup.service will create it if target does not exist
 // https://www.freedesktop.org/software/systemd/man/latest/machine-id.html
-async function setup_machineid(partitions) {
+export async function setup_machineid(partitions, bootnames) {
   for (const bootname of bootnames) {
     const root = partitions[`ROOT_${bootname}`].mountpoint
 
@@ -202,7 +202,11 @@ async function setup_machineid(partitions) {
 }
 
 // TODO: Investigate if we can replace cloud init with a simpler systemd solution
-async function setup_cloudinit(rpios_partitions, partitions) {
+export async function setup_cloudinit(
+  rpios_partitions,
+  partitions,
+  bootnames = bootnames,
+) {
   // By default RPI OS reads cloud init config from /boot/firmware
   // since we don't mount /boot/firmware; we move the cloud-init config to /bootloader
 
@@ -267,7 +271,11 @@ async function setup_cloudinit(rpios_partitions, partitions) {
   }
 }
 
-async function setup_config(rpios_partitions, partitions) {
+export async function setup_config(
+  rpios_partitions,
+  partitions,
+  bootnames = bootnames,
+) {
   const content = await readFile(
     join(rpios_partitions["bootfs"].mountpoint, "config.txt"),
     "utf8",
@@ -293,7 +301,11 @@ async function setup_config(rpios_partitions, partitions) {
   }
 }
 
-async function setup_cmdline(rpios_partitions, partitions) {
+export async function setup_cmdline(
+  rpios_partitions,
+  partitions,
+  bootnames = bootnames,
+) {
   const rpios_bootfs = rpios_partitions["bootfs"]
   const rpios_rootfs = rpios_partitions["rootfs"]
   const content = await readFile(
@@ -348,7 +360,7 @@ async function setup_cmdline(rpios_partitions, partitions) {
 // cmdline tells the kernel how to mount / (via root)
 // /boot/firmware does not need to be mounted in a image based updates filesystem
 // only apt upgrade and rpi specific tools would require /boot/firmware
-async function setup_fstab(partitions) {
+export async function setup_fstab(partitions, bootnames = bootnames) {
   const bootloader_partuuid = partitions[`BOOTLOADER`].partuuid
   const datafs_partuuid = partitions[`DATA`].partuuid
   const fstab = dedent`
@@ -408,7 +420,7 @@ export async function getPartitions(device) {
   return partitions
 }
 
-async function setup_autoboot(partitions) {
+export async function setup_autoboot(partitions) {
   const bootloaderfs = partitions["BOOTLOADER"]
 
   const bootname_active = bootnames[0]

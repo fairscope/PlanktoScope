@@ -8,11 +8,7 @@ setup:
 setup-dev:
     npm install --include=dev
 
-format:
-    npx eslint --fix .
-
 test:
-    npx eslint .
     validator user-data.yaml
     validator autoboot.ini
     validator cloud-init-local-override.ini

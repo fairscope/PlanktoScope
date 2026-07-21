@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 
-import { join } from "node:path"
 import { access } from "node:fs/promises"
-import { $ } from "execa"
+import { $ } from "../../lib/exec.js"
 
 const REPO_URL = "git@github.com:fairscope/PlanktoScope.git"
-const DASHBOARD_URL = "git@github.com:fairscope/dashboard.git"
+// const DASHBOARD_URL = "git@github.com:fairscope/dashboard.git"
 const REPO_PATH = "/opt/PlanktoScope"
 
 const previous_cwd = process.cwd()
@@ -19,6 +18,7 @@ if (await isGitRepo()) {
   await $`git clone --bare ${REPO_URL} .git`
   await $`git config --local --bool core.bare false`
   await $`git reset --hard HEAD`
+  await $`rm -r node-red/projects/dashboard/`
 }
 await $`git submodule update --init`
 await $`rm -f gitinfo.json`

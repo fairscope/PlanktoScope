@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { $ } from "execa"
+import { $ } from "../../lib/exec.js"
 import { rm, writeFile, copyFile, chown } from "node:fs/promises"
 import { getCommit, getUrl } from "../../lib/software.js"
 import { fileURLToPath } from "node:url"
