@@ -7,6 +7,7 @@ import {
   unlink,
   rm,
   chown,
+  cp,
 } from "node:fs/promises"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -384,7 +385,7 @@ export async function setup_fstab(partitions, bootnames = default_bootnames) {
   }
 }
 
-// repart will create the DATA GPT partition but won't grow the EXT4 filesystem
+// repart will resize the DATA GPT partition but won't grow the EXT4 filesystem
 // we use x-systemd.growfs in fstab for that
 // > Note that these definitions may only be used to create and initialize new partitions or to grow existing ones. In the latter case, it will not grow the contained files systems however; separate mechanisms, such as systemd-growfs(8) may be used to grow the file systems inside of these partitions.
 // https://www.freedesktop.org/software/systemd/man/latest/repart.d.html#Description
@@ -401,7 +402,7 @@ async function setup_repart(partitions) {
       partitions[`ROOT_${bootname}`].mountpoint,
       "usr/lib/repart.d",
     )
-    await mkdir(path, { recursive: true })
+    await cp(fileURLToPath(import.meta.resolve("./repart.d")), path, {recursive: true})
     await writeFile(join(path, "60-data.conf"), conf)
   }
 }
