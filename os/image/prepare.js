@@ -5,12 +5,17 @@ import { rm, writeFile, copyFile, chown } from "node:fs/promises"
 import { getCommit, getUrl } from "../../lib/software.js"
 import { fileURLToPath } from "node:url"
 import { setTimezone } from "../../lib/timezone.js"
+import { trimAndSync } from "./lib.js"
 
 if (import.meta.main) {
   if (process.getuid() !== 0) {
     throw new Error("Please run as root.")
   }
 
+  await prepare()
+}
+
+export async function prepare() {
   // https://systemd.io/BUILDING_IMAGES/
   await rm(`/var/lib/systemd/random-seed`, { force: true })
   await rm(`/var/lib/systemd/credential.secret`, { force: true })
@@ -85,4 +90,6 @@ if (import.meta.main) {
     recursive: true,
   })
   await rm("/opt/PlanktoScope/.git", { force: true, recursive: true })
+
+  await trimAndSync()
 }

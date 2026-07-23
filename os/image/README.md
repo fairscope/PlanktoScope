@@ -132,3 +132,57 @@ Here is a simplified "high level" sequence of what happens:
    - `DATA` to `/data` - readwrite
    - `DATA/home` to `/home`
 6. systemd executes `mount-firmware.service` and `/boot/firmware` becomes available
+
+## Full system image
+
+### Prepare device
+
+On the live system
+
+```sh
+sync
+# FIXME: mount all filesystems rw to trim
+sudo fstrim --verbose --all
+sync
+```
+
+### Create image
+
+On a system with the block device
+
+```sh
+sudo apt install libguestfs-tools bmaptool
+version=2026.0.0-beta.4
+sudo dd bs=4M if=/dev/device of=PlanktoScopeOS-$version.img status=progress
+virt-sparsify --in-place PlanktoScopeOS-$version.img
+mv PlanktoScopeOS-$version.img PlanktoScopeOS-$version.sparse.img
+bmaptool create PlanktoScopeOS-$version.sparse.img --output PlanktoScopeOS-$version.sparse.img.bmap
+xz -T0 -9 PlanktoScopeOS-$version.sparse.img
+rm PlanktoScopeOS-$version.sparse.img
+```
+
+The resulting files are `PlanktoScopeOS-$version.sparse.img.xz` and `PlanktoScopeOS-$version.sparse.img.bmap`.
+
+<!--
+
+Note: `libguestfs-tools` pulls in a lot of dependency. An option is to use something like
+
+```sh
+sudo losetup -Pf disk.img
+sudo zerofree /dev/loop0p2 # for each ext4
+qemu-img convert -O raw disk.img disk-sparse.img
+```
+
+but it is more complex
+
+-->
+
+### Write the image
+
+On a system with the block device
+
+```sh
+sudo apt install bmaptool
+version=2026.0.0-beta.4
+sudo bmaptool copy PlanktoScopeOS-$version.img.xz /dev/device --bmap PlanktoScopeOS-$version.img.bmap
+```
