@@ -50,8 +50,6 @@ import planktoscope.mqtt
 import planktoscope.segmenter.ecotaxa
 import planktoscope.segmenter.encoder
 import planktoscope.segmenter.operations
-import planktoscope.segmenter.streamer
-import planktoscope.segmenter.worker
 
 logger.info("planktoscope.segmenter is loaded")
 
@@ -103,7 +101,6 @@ class SegmenterProcess(multiprocessing.Process):
         self.__process_min_ESD = 20  # microns
         # https://planktoscope.slack.com/archives/C01V5ENKG0M/p1714146253356569
         self.__remove_previous_mask = False
-        self.__worker_count = 3  # default for RPi 5 (4 cores, leave 1 for system)
 
         # create all base path
         for path in [
@@ -132,6 +129,61 @@ class SegmenterProcess(multiprocessing.Process):
 
     def _save_mask(self, mask, path):
         PIL.Image.fromarray(mask).save(path)
+
+    def _save_flat_artifacts(self, sample_clean_dir, thumb_width=600):
+        """Write flat_color.jpg + stuck_map.jpg to the sample's clean folder.
+
+        stuck_map is a contrast-stretched grayscale image where bright pixels
+        mark regions where flat-field correction subtracts strongly (fiber,
+        smudge, stuck cell).
+
+        The sensor JPEG is landscape (ACROSS rows × ALONG cols), but the audit
+        view is portrait and uses a TRANSPOSE mapping (object_y → canvas_x,
+        object_x → canvas_y). We transpose here so the saved file is already
+        in the right orientation — the frontend can blit it directly.
+        """
+        if self.__flat is None:
+            return
+        try:
+            os.makedirs(sample_clean_dir, exist_ok=True)
+            flat_u8 = np.clip(self.__flat, 0, 255).astype(np.uint8)
+
+            # Rotate 90° CCW so the saved image aligns with the heatmap/contour
+            # axes and the acquisition preview. Same rotation as stuck_map.jpg.
+            flat_u8_portrait = cv2.rotate(flat_u8, cv2.ROTATE_90_COUNTERCLOCKWISE)
+            cv2.imwrite(os.path.join(sample_clean_dir, "flat_color.jpg"), flat_u8_portrait)
+
+            flat_gray = cv2.cvtColor(flat_u8, cv2.COLOR_BGR2GRAY)
+            denom = int(flat_gray.max()) or 1
+            stuck = 1.0 - flat_gray.astype(np.float32) / denom
+
+            # Subtract the background level (median stuckness across the whole
+            # field) so a clean flow cell reads as transparent and only real
+            # features — fibers, smudges, stuck cells — light up.
+            bg = float(np.median(stuck))
+            stuck = np.clip(stuck - bg, 0.0, 1.0)
+
+            # Normalize against the 99th percentile so the strongest stuck
+            # feature saturates. Mild gamma keeps faint features readable.
+            p99 = float(np.percentile(stuck, 99))
+            if p99 > 0.001:
+                stuck = np.clip(stuck / p99, 0.0, 1.0)
+            stuck = np.power(stuck, 0.8)
+            stuck_u8 = (stuck * 255).astype(np.uint8)
+
+            # Rotate 90° CCW so the saved map aligns with the heatmap/contour
+            # axes (raw top-right → audit top-left, matching the preview).
+            stuck_u8 = cv2.rotate(stuck_u8, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
+            h, w = stuck_u8.shape
+            if w > thumb_width:
+                scale = thumb_width / float(w)
+                stuck_u8 = cv2.resize(
+                    stuck_u8, (thumb_width, int(h * scale)), interpolation=cv2.INTER_AREA
+                )
+            cv2.imwrite(os.path.join(sample_clean_dir, "stuck_map.jpg"), stuck_u8)
+        except Exception as e:
+            logger.warning(f"Failed to save flat artifacts: {e}")
 
     def _calculate_flat(self, images_list, images_number, images_root_path):
         """Calculate a flat image from given list and images number
@@ -401,6 +453,46 @@ class SegmenterProcess(multiprocessing.Process):
             "solidity": prop.solidity,
         }
 
+    @staticmethod
+    def _extract_contour_polygon(prop, max_points=60):
+        """Extract the object's outer contour as a full-frame [[x, y], ...] polygon.
+
+        Uses cv2.findContours on the region's binary mask with RETR_EXTERNAL
+        (outer ring only, no holes) and CHAIN_APPROX_TC89_KCOS (Teh–Chin
+        simplification). The `offset` arg shifts points into the full-frame
+        coordinate system so downstream consumers (dashboard, audit UI) can
+        plot them directly on the flowcell image without re-registering.
+
+        Payload is further simplified via approxPolyDP and, if still over
+        `max_points`, uniformly subsampled. Typical output: 20–50 points per
+        object, ~0.2–0.5 KB serialised.
+
+        Returns a list of [int, int] pairs in (x=col, y=row) order. Empty
+        list if no contour could be traced.
+        """
+        try:
+            contours, _ = cv2.findContours(
+                np.uint8(prop.image),
+                mode=cv2.RETR_EXTERNAL,
+                method=cv2.CHAIN_APPROX_TC89_KCOS,
+                offset=(int(prop.bbox[1]), int(prop.bbox[0])),
+            )
+        except cv2.error:
+            return []
+        if not contours:
+            return []
+        # Pick the largest ring (there should usually only be one with RETR_EXTERNAL)
+        poly = max(contours, key=cv2.contourArea)
+        # Ramer–Douglas–Peucker simplification; epsilon scales with perimeter
+        # so small and large objects both land in a similar point budget.
+        epsilon = max(0.8, 0.004 * cv2.arcLength(poly, True))
+        simplified = cv2.approxPolyDP(poly, epsilon, True)
+        pts = simplified.reshape(-1, 2)
+        if len(pts) > max_points:
+            step = max(1, len(pts) // max_points)
+            pts = pts[::step][:max_points]
+        return [[int(p[0]), int(p[1])] for p in pts]
+
     def _slice_image(self, img, name, mask, start_count=0):
         """Slice a given image using give mask
 
@@ -437,10 +529,14 @@ class SegmenterProcess(multiprocessing.Process):
             dim_slice = tuple(dim_slice)
             return dim_slice
 
-        objects_list = []
-
         labels, nlabels = skimage.measure.label(mask, return_num=True)
         regionprops = skimage.measure.regionprops(labels)
+
+        # Record the frame dimensions once per run so the dashboard can
+        # normalize contour coordinates into stage pixels. labels.shape is
+        # (height, width) — ship it as [H, W] to match numpy convention.
+        if "frame_shape" not in self.__global_metadata:
+            self.__global_metadata["frame_shape"] = [int(labels.shape[0]), int(labels.shape[1])]
 
         # Convert min ESD threshold from µm to pixels for filtering
         # process_min_ESD is in µm; equivalent_diameter_area from regionprops is in pixels
@@ -500,6 +596,11 @@ class SegmenterProcess(multiprocessing.Process):
                 self.__global_metadata["process_pixel_applied"] = True
             metadata = self._extract_metadata_from_regionprop(region, pixel_size_um=pixel_size_um)
 
+            # Outer contour polygon in full-frame pixel coords. Consumed by the
+            # audit dashboard to draw real organism silhouettes instead of
+            # bounding rectangles or luminance-thresholded crops.
+            metadata["contour"] = self._extract_contour_polygon(region)
+
             # Calculate blur metric for this object (Laplacian variance)
             blur_laplacian = planktoscope.segmenter.operations.calculate_blur(obj_image)
             metadata["blur_laplacian"] = blur_laplacian
@@ -533,7 +634,10 @@ class SegmenterProcess(multiprocessing.Process):
                 json.dumps(object_metadata, cls=planktoscope.segmenter.encoder.NpEncoder),
             )
 
-            objects_list.append(object_metadata)
+            if "objects" in self.__global_metadata:
+                self.__global_metadata["objects"].append(object_metadata)
+            else:
+                self.__global_metadata.update({"objects": [object_metadata]})
 
         if self.__save_debug_img:
             if object_number:
@@ -573,7 +677,7 @@ class SegmenterProcess(multiprocessing.Process):
                     img,
                     os.path.join(self.__working_debug_path, "tagged.jpg"),
                 )
-        return (object_number, len(regionprops), objects_list)
+        return (object_number, len(regionprops))
 
     def _pipe(self, ecotaxa_export):
         logger.info("Finding images")
@@ -589,204 +693,38 @@ class SegmenterProcess(multiprocessing.Process):
         else:
             logger.debug(f"We found {images_count} images, good luck!")
 
-        # Calculate initial flat field
-        self.segmenter_client.client.publish(
-            "status/segmenter", '{"status":"Calculating flat"}'
-        )
-        if images_count < 10:
-            self._calculate_flat(images_list[0:images_count], images_count, self.__working_path)
-        else:
-            self._calculate_flat(images_list[0:10], 10, self.__working_path)
-
-        if self.__save_debug_img:
-            self._save_image(
-                self.__flat,
-                os.path.join(self.__working_debug_path, "flat_color.jpg"),
-            )
-
-        # Create temp directory for intermediate metadata
-        metadata_dir = os.path.join(self.__working_obj_path, ".metadata_tmp")
-        os.makedirs(metadata_dir, exist_ok=True)
-
-        # Decide parallel vs sequential
-        use_parallel = self.__worker_count > 1 and not self.__remove_previous_mask
-
-        shm = None
-        try:
-            if use_parallel:
-                # Create shared memory for the flat field array
-                import multiprocessing.shared_memory
-                flat_bytes = self.__flat.nbytes
-                shm = multiprocessing.shared_memory.SharedMemory(
-                    create=True, size=flat_bytes
-                )
-                flat_shared = np.ndarray(
-                    self.__flat.shape, dtype=self.__flat.dtype, buffer=shm.buf
-                )
-                flat_shared[:] = self.__flat[:]
-
-                try:
-                    self._pipe_parallel(
-                        images_list, images_count, shm.name, metadata_dir
-                    )
-                except Exception as e:
-                    logger.error(
-                        f"Parallel segmentation failed, falling back to sequential: {e}"
-                    )
-                    self._pipe_sequential(images_list, images_count, metadata_dir)
-            else:
-                if self.__remove_previous_mask and self.__worker_count > 1:
-                    logger.info(
-                        "remove_previous_mask is enabled — using sequential processing"
-                    )
-                self._pipe_sequential(images_list, images_count, metadata_dir)
-
-            # Assemble all objects from .jsonl files in image order
-            all_objects = planktoscope.segmenter.streamer.assemble_all_objects(
-                metadata_dir, images_list
-            )
-            self.__global_metadata["objects"] = all_objects
-            total_objects = len(all_objects)
-            logger.success(f"Total objects assembled: {total_objects}")
-
-        finally:
-            # Cleanup shared memory
-            if shm is not None:
-                shm.close()
-                shm.unlink()
-            # Cleanup temp metadata dir
-            import shutil
-            shutil.rmtree(metadata_dir, ignore_errors=True)
-
-        if ecotaxa_export:
-            if "objects" in self.__global_metadata and self.__global_metadata["objects"]:
-                if planktoscope.segmenter.ecotaxa.ecotaxa_export(
-                    self.__archive_fn,
-                    self.__global_metadata,
-                    self.__working_obj_path,
-                    keep_files=True,
-                ):
-                    logger.success("Ecotaxa archive export completed for this folder")
-                else:
-                    logger.error("The ecotaxa export could not be completed")
-            else:
-                logger.info("There are no objects to export")
-        else:
-            logger.info("We are not creating the ecotaxa output archive for this folder")
-
-        # cleanup
-        # we're done free some mem
-        self.__flat = None
-
-    def _pipe_parallel(self, images_list, images_count, shm_name, metadata_dir):
-        """Process images in parallel using asyncio + ProcessPoolExecutor."""
-        import asyncio
-        import concurrent.futures
-
-        first_start = time.monotonic()
-
-        # Build the base debug path (without per-image suffix)
-        sample_rel = self.__working_path.split(self.__img_path)[1].strip()
-
-        async def _run_parallel():
-            loop = asyncio.get_event_loop()
-            executor = concurrent.futures.ProcessPoolExecutor(
-                max_workers=self.__worker_count,
-                initializer=planktoscope.segmenter.worker.worker_init,
-                initargs=(
-                    shm_name,
-                    self.__flat.shape,
-                    str(self.__flat.dtype),
-                ),
-            )
-
-            # Build a serializable copy of metadata for workers
-            # (excludes non-serializable items, keeps process_pixel etc.)
-            worker_metadata = {
-                k: v
-                for k, v in self.__global_metadata.items()
-                if k != "objects"
-            }
-
-            futures = []
-            for i, filename in enumerate(images_list):
-                name = os.path.splitext(filename)[0]
-                debug_path = os.path.join(self.__debug_objects_root, sample_rel, name)
-
-                future = loop.run_in_executor(
-                    executor,
-                    planktoscope.segmenter.worker.process_single_image,
-                    os.path.join(self.__working_path, filename),
-                    name,
-                    i,
-                    images_count,
-                    self.__working_obj_path,
-                    debug_path,
-                    metadata_dir,
-                    self.__save_debug_img,
-                    self.__process_min_ESD,
-                    worker_metadata,
-                )
-                futures.append((future, i, filename))
-
-            errors = []
-            completed = 0
-            for future, i, filename in futures:
-                try:
-                    result = await future
-                    completed += 1
-                    if "error" in result:
-                        errors.append(result)
-                        logger.error(
-                            f"Worker error for {result['image_name']}: {result['error']}"
-                        )
-                    else:
-                        self.segmenter_client.client.publish(
-                            "status/segmenter",
-                            json.dumps(
-                                {
-                                    "status": f"Segmented image {filename}, "
-                                    f"{completed}/{images_count} complete, "
-                                    f"{result['object_count']} objects in "
-                                    f"{result['duration']:.1f}s"
-                                }
-                            ),
-                        )
-                        logger.success(
-                            f"Image {result['image_name']}: "
-                            f"{result['object_count']} objects in "
-                            f"{result['duration']:.1f}s"
-                        )
-                except Exception as e:
-                    completed += 1
-                    errors.append({"image_name": filename, "error": str(e)})
-                    logger.error(f"Future failed for {filename}: {e}")
-
-            executor.shutdown(wait=True)
-
-            if errors:
-                logger.warning(
-                    f"{len(errors)} image(s) failed during parallel segmentation: "
-                    f"{[e['image_name'] for e in errors]}"
-                )
-
-            total_duration = (time.monotonic() - first_start) / 60
-            logger.success(
-                f"{images_count} images done in {total_duration:.1f} minutes "
-                f"({self.__worker_count} workers, parallel mode)"
-            )
-
-        asyncio.run(_run_parallel())
-
-    def _pipe_sequential(self, images_list, images_count, metadata_dir):
-        """Process images sequentially, preserving flat recalc heuristic and remove_previous_mask."""
         first_start = time.monotonic()
         self.__mask_to_remove = None
+        # average = 0
         total_objects = 0
         average_objects = 0
-        recalculate_flat = False
+        recalculate_flat = True
+        # TODO check image list here to find if a flat exists
+        # we recalculate the flat every 10 pictures
+        if recalculate_flat:
+            recalculate_flat = False
+            self.segmenter_client.client.publish(
+                "status/segmenter", '{"status":"Calculating flat"}'
+            )
+            if images_count < 10:
+                self._calculate_flat(images_list[0:images_count], images_count, self.__working_path)
+            else:
+                self._calculate_flat(images_list[0:10], 10, self.__working_path)
+
+            # Persist the flat + a derived "stuck-features" map unconditionally so the
+            # audit UI can visualize what flat-field correction subtracts off each frame.
+            # At this point __working_debug_path still refers to the sample folder
+            # (per-image rebinding happens later, line ~697, and only in debug mode).
+            self._save_flat_artifacts(self.__working_debug_path)
+            if self.__save_debug_img:
+                self._save_image(
+                    self.__flat,
+                    os.path.join(self.__working_debug_path, "flat_color.jpg"),
+                )
+
         average_time = 0
 
+        # TODO here would be a good place to parallelize the computation
         for i, filename in enumerate(images_list):
             name = os.path.splitext(filename)[0]
 
@@ -800,8 +738,10 @@ class SegmenterProcess(multiprocessing.Process):
             if recalculate_flat:  # not i % 10 and i < (images_count - 10)
                 recalculate_flat = False
                 if len(images_list) == 10:
+                    # We are too close to the end of the list, take the previous 10 images instead of the next 10
                     flat = self._calculate_flat(images_list, 10, self.__working_path)
                 elif i > (len(images_list) - 11):
+                    # We are too close to the end of the list, take the previous 10 images instead of the next 10
                     flat = self._calculate_flat(images_list[i - 10 : i], 10, self.__working_path)
                 else:
                     flat = self._calculate_flat(images_list[i : i + 10], 10, self.__working_path)  # noqa: F841
@@ -823,6 +763,7 @@ class SegmenterProcess(multiprocessing.Process):
             logger.debug(f"The debug objects path is {self.__working_debug_path}")
             # Create the debug objects path if needed
             if self.__save_debug_img:
+                # create the path!
                 os.makedirs(self.__working_debug_path, exist_ok=True)
 
             start = time.monotonic()
@@ -832,25 +773,34 @@ class SegmenterProcess(multiprocessing.Process):
                 os.path.join(self.__working_path, images_list[i]), self.__flat
             )
 
+            # logger.debug(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+            # logger.debug(time.monotonic() - start)
+
+            # start = time.monotonic()
+            # logger.debug(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+
             mask = self._create_mask(img, self.__working_debug_path)
 
-            objects_count, _, objects_list = self._slice_image(img, name, mask, total_objects)
+            # logger.debug(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+            # logger.debug(time.monotonic() - start)
 
-            # Stream objects to disk incrementally
-            planktoscope.segmenter.streamer.write_image_objects(
-                metadata_dir, name, objects_list
-            )
+            # start = time.monotonic()
+            # logger.debug(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
 
+            objects_count, _ = self._slice_image(img, name, mask, total_objects)
             total_objects += objects_count
             # Simple heuristic to detect a movement of the flow cell and a change in the resulting flat
             # TODO: this heuristic should be improved or removed if deemed unnecessary
             if average_objects != 0 and objects_count > average_objects + 20:
+                # FIXME: this should force a new slice of the current image
                 logger.debug(
                     f"We need to recalculate a flat since we have {objects_count} new objects instead of the average of {average_objects}"
                 )
                 recalculate_flat = True
             average_objects = (average_objects * i + objects_count) / (i + 1)
 
+            # logger.debug(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+            # logger.debug(time.monotonic() - start)
             delay = time.monotonic() - start
             average_time = (average_time * i + delay) / (i + 1)
             logger.success(
@@ -868,6 +818,26 @@ class SegmenterProcess(multiprocessing.Process):
         logger.success(
             f"We also found {total_objects} objects, or an average of {total_objects / (total_duration * 60)}objects per second"
         )
+
+        if ecotaxa_export:
+            if "objects" in self.__global_metadata:
+                if planktoscope.segmenter.ecotaxa.ecotaxa_export(
+                    self.__archive_fn,
+                    self.__global_metadata,
+                    self.__working_obj_path,
+                    keep_files=True,
+                ):
+                    logger.success("Ecotaxa archive export completed for this folder")
+                else:
+                    logger.error("The ecotaxa export could not be completed")
+            else:
+                logger.info("There are no objects to export")
+        else:
+            logger.info("We are not creating the ecotaxa output archive for this folder")
+
+        # cleanup
+        # we're done free some mem
+        self.__flat = None
 
     def segment_all(self, paths: list, force=False, ecotaxa_export=True):
         """Starts the segmentation in all the folders given recursively
@@ -1075,8 +1045,6 @@ class SegmenterProcess(multiprocessing.Process):
                     self.__process_min_ESD = settings.get("process_min_ESD", 20)
 
                     self.__remove_previous_mask = settings.get("remove_previous_mask", False)
-
-                    self.__worker_count = settings.get("worker_count", 3)
 
                 path = last_message["path"] if "path" in last_message else None
 

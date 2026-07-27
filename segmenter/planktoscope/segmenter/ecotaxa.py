@@ -20,9 +20,14 @@ from loguru import logger
 
 
 import csv
-import zipfile
-import os
 import io
+import json
+import math
+import numbers
+import os
+import zipfile
+
+import numpy
 
 """
 Example of metadata file received
@@ -201,11 +206,65 @@ The metadata and data for each image is organised in various levels (image, obje
 """
 
 
-def _infer_ecotaxa_type(value) -> str:
-    """Infer EcoTaxa type annotation [f] or [t] from a Python value."""
-    if isinstance(value, (int, float)):
-        return "[f]"
-    return "[t]"
+def _is_missing(v):
+    if v is None:
+        return True
+    if isinstance(v, float) and math.isnan(v):
+        return True
+    if isinstance(v, numpy.floating) and numpy.isnan(v):
+        return True
+    return False
+
+
+def _is_numeric(v):
+    # bools are numbers in Python; EcoTaxa treats them as text
+    if isinstance(v, bool) or isinstance(v, numpy.bool_):
+        return False
+    if isinstance(v, numbers.Number):
+        return True
+    if isinstance(v, (numpy.integer, numpy.floating)):
+        return True
+    return False
+
+
+def _classify_column(values):
+    """Return '[f]' if every non-missing value is numeric, else '[t]'."""
+    has_value = False
+    for v in values:
+        if _is_missing(v):
+            continue
+        has_value = True
+        if not _is_numeric(v):
+            return "[t]"
+    return "[f]" if has_value else "[t]"
+
+
+def _format_cell(v):
+    if _is_missing(v):
+        return ""
+    if isinstance(v, (numpy.integer, numpy.floating, numpy.bool_)):
+        v = v.item()
+    return str(v)
+
+
+def _write_tsv(rows, out):
+    """Write a 2-header EcoTaxa TSV (columns + type annotations) to a text stream."""
+    # Preserve first-seen column order across all rows
+    columns = []
+    seen = set()
+    for row in rows:
+        for k in row.keys():
+            if k not in seen:
+                seen.add(k)
+                columns.append(k)
+
+    type_row = [_classify_column(row.get(col) for row in rows) for col in columns]
+
+    writer = csv.writer(out, delimiter="\t", lineterminator="\n")
+    writer.writerow(columns)
+    writer.writerow(type_row)
+    for row in rows:
+        writer.writerow([_format_cell(row.get(col)) for col in columns])
 
 
 def ecotaxa_export(archive_filepath, metadata, image_base_path, keep_files=False):
@@ -219,6 +278,8 @@ def ecotaxa_export(archive_filepath, metadata, image_base_path, keep_files=False
     """
     logger.info("Starting the ecotaxa archive export")
     with zipfile.ZipFile(archive_filepath, "w") as archive:
+        tsv_content = []
+
         if "objects" in metadata:
             object_list = metadata.pop("objects")
         else:
@@ -226,60 +287,46 @@ def ecotaxa_export(archive_filepath, metadata, image_base_path, keep_files=False
             return 0
 
         # sometimes the camera resolution is not exported as string
-        if not isinstance(metadata.get("acq_camera_resolution", ""), str):
-            res = metadata["acq_camera_resolution"]
-            metadata["acq_camera_resolution"] = f"{res[0]}x{res[1]}"
+        if not isinstance(metadata["acq_camera_resolution"], str):
+            metadata["acq_camera_resolution"] = (
+                f"{metadata['acq_camera_resolution'][0]}x{metadata['acq_camera_resolution'][1]}"
+            )
 
-        # Build rows, determine columns from first object
-        rows = []
-        columns = None
         for rank, roi in enumerate(object_list, start=1):
-            row = {}
-            row.update(metadata)
-            row.update(("object_" + k, v) for k, v in roi["metadata"].items())
-            row["object_id"] = roi["name"]
+            tsv_line = {}
+            tsv_line.update(metadata)
+            # Array/dict metadata values (e.g. contour polygons) get JSON-encoded
+            # so the TSV cell is a single deterministic string.
+            for k, v in roi["metadata"].items():
+                if isinstance(v, (list, dict)):
+                    tsv_line["object_" + k] = json.dumps(v, separators=(",", ":"))
+                else:
+                    tsv_line["object_" + k] = v
+            tsv_line["object_id"] = roi["name"]
 
             filename = roi["name"] + ".jpg"
-            row["img_file_name"] = filename
-            row["img_rank"] = 1
 
-            if columns is None:
-                columns = list(row.keys())
-            rows.append(row)
+            tsv_line.update({"img_file_name": filename, "img_rank": 1})
+            tsv_content.append(tsv_line)
 
             image_path = os.path.join(image_base_path, filename)
+
             archive.write(image_path, arcname=filename)
             if not keep_files:
-                # we remove the image file if we don't want to keep it!
                 os.remove(image_path)
 
-        if not rows:
-            logger.error("No objects to export")
-            return 0
-
-        # Determine type annotations from first row values
-        type_row = [_infer_ecotaxa_type(rows[0].get(col)) for col in columns]
-
-        # Write TSV to string buffer
-        buf = io.StringIO()
-        writer = csv.writer(buf, delimiter="\t", lineterminator="\n")
-        writer.writerow(columns)
-        writer.writerow(type_row)
-        for row in rows:
-            writer.writerow([row.get(col, "") for col in columns])
-
-        tsv_content = buf.getvalue()
-
-        # create the filename with the project name and acquisition ID
         project = metadata.get("sample_project", "unknown_project").replace(" ", "_")
         acquisition_id = metadata.get("acq_id", "unknown_acq").replace(" ", "_")
         tsv_filename = f"Ecotaxa_{project}_{acquisition_id}.tsv"
 
-        # add the tsv to the archive
-        archive.writestr(tsv_filename, tsv_content.encode("utf-8"))
+        buf = io.StringIO()
+        _write_tsv(tsv_content, buf)
+        tsv_bytes = buf.getvalue().encode("utf-8")
+
+        archive.writestr(tsv_filename, tsv_bytes)
         if keep_files:
             tsv_file = os.path.join(image_base_path, tsv_filename)
-            with open(tsv_file, "w", encoding="utf-8") as f:
-                f.write(tsv_content)
+            with open(tsv_file, "wb") as f:
+                f.write(tsv_bytes)
     logger.success("Ecotaxa archive is ready!")
     return 1

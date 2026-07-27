@@ -14,7 +14,6 @@ classifiers = [
 dependencies = [
     "paho-mqtt>=2.1.0,<3",
     "numpy>=2.3.3,<3",
-
     "loguru>=0.7.3,<0.8",
     "opencv-python-headless>=4.6.0.66,<5",
     "scikit-image>=0.25.2,<0.26",

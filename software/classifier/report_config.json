@@ -1,0 +1,44 @@
+{
+  "report_title": "PlanktoScope Sample Report",
+  "sections": {
+    "sample_info": true,
+    "summary_stats": true,
+    "quality_metrics": true,
+    "size_distribution": true,
+    "spatial_heatmap": true,
+    "blur_distribution": true,
+    "morphology_scatter": true,
+    "temporal_analysis": true,
+    "representative_gallery": true,
+    "size_class_breakdown": true
+  },
+  "gallery": {
+    "enabled": true,
+    "num_clusters": 25,
+    "images_per_cluster": 1,
+    "prefer_least_blurry": true,
+    "min_blur_score": 20,
+    "thumbnail_size": 120,
+    "clustering_method": "morphology",
+    "show_cluster_stats": true,
+    "columns": 5
+  },
+  "plots": {
+    "size_histogram_bins": 30,
+    "show_kde": false,
+    "color_scheme": "viridis",
+    "figure_dpi": 150,
+    "show_median_line": true,
+    "log_scale_area": true
+  },
+  "size_classes": {
+    "enabled": true,
+    "boundaries_um": [10, 20, 50, 100, 200, 500],
+    "labels": ["<10µm", "10-20µm", "20-50µm", "50-100µm", "100-200µm", "200-500µm", ">500µm"]
+  },
+  "output": {
+    "page_size": "A4",
+    "include_timestamp": true,
+    "include_footer": true
+  }
+}
