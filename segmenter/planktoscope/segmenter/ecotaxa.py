@@ -19,11 +19,15 @@
 from loguru import logger
 
 
-import numpy
-import pandas  # FIXME: just use python's csv library, to shave off pandas's 60 MB of unnecessary disk space usage
-import zipfile
-import os
+import csv
 import io
+import json
+import math
+import numbers
+import os
+import zipfile
+
+import numpy
 
 """
 Example of metadata file received
@@ -202,19 +206,65 @@ The metadata and data for each image is organised in various levels (image, obje
 """
 
 
-def dtype_to_ecotaxa(dtype):
-    """Determines the EcoTaxa header field type annotation for the dtype"""
-    # Note: this code was copied from the MIT-licensed MorphoCut library at
-    # https://github.com/morphocut/morphocut/blob/0.1.2/src/morphocut/contrib/ecotaxa.py .
-    # The MorphoCut library is copyright 2019 Simon-Martin Schroeder and others.
-    try:
-        if numpy.issubdtype(dtype, numpy.number):
-            return "[f]"
-    except TypeError:  # pragma: no cover
-        print(type(dtype))
-        raise
+def _is_missing(v):
+    if v is None:
+        return True
+    if isinstance(v, float) and math.isnan(v):
+        return True
+    if isinstance(v, numpy.floating) and numpy.isnan(v):
+        return True
+    return False
 
-    return "[t]"
+
+def _is_numeric(v):
+    # bools are numbers in Python; EcoTaxa treats them as text
+    if isinstance(v, bool) or isinstance(v, numpy.bool_):
+        return False
+    if isinstance(v, numbers.Number):
+        return True
+    if isinstance(v, (numpy.integer, numpy.floating)):
+        return True
+    return False
+
+
+def _classify_column(values):
+    """Return '[f]' if every non-missing value is numeric, else '[t]'."""
+    has_value = False
+    for v in values:
+        if _is_missing(v):
+            continue
+        has_value = True
+        if not _is_numeric(v):
+            return "[t]"
+    return "[f]" if has_value else "[t]"
+
+
+def _format_cell(v):
+    if _is_missing(v):
+        return ""
+    if isinstance(v, (numpy.integer, numpy.floating, numpy.bool_)):
+        v = v.item()
+    return str(v)
+
+
+def _write_tsv(rows, out):
+    """Write a 2-header EcoTaxa TSV (columns + type annotations) to a text stream."""
+    # Preserve first-seen column order across all rows
+    columns = []
+    seen = set()
+    for row in rows:
+        for k in row.keys():
+            if k not in seen:
+                seen.add(k)
+                columns.append(k)
+
+    type_row = [_classify_column(row.get(col) for row in rows) for col in columns]
+
+    writer = csv.writer(out, delimiter="\t", lineterminator="\n")
+    writer.writerow(columns)
+    writer.writerow(type_row)
+    for row in rows:
+        writer.writerow([_format_cell(row.get(col)) for col in columns])
 
 
 def ecotaxa_export(archive_filepath, metadata, image_base_path, keep_files=False):
@@ -228,7 +278,6 @@ def ecotaxa_export(archive_filepath, metadata, image_base_path, keep_files=False
     """
     logger.info("Starting the ecotaxa archive export")
     with zipfile.ZipFile(archive_filepath, "w") as archive:
-        # empty table, one line per object
         tsv_content = []
 
         if "objects" in metadata:
@@ -257,16 +306,21 @@ def ecotaxa_export(archive_filepath, metadata, image_base_path, keep_files=False
                 f"{metadata['acq_camera_resolution'][0]}x{metadata['acq_camera_resolution'][1]}"
             )
 
-        # let's go!
         for rank, roi in enumerate(object_list, start=1):
             tsv_line = {}
             tsv_line.update(metadata)
             # Exclude `object_contour` from the TSV — EcoTaxa rejects fields > 250
-            # chars and the polygon JSON exceeds that for moderately complex shapes.
+            # chars and the polygon JSON exceeds that even after simplification.
             # The contour stays in the per-object metadata.json for the audit visualizer.
-            tsv_line.update(
-                ("object_" + k, v) for k, v in roi["metadata"].items() if k != "contour"
-            )
+            # Any remaining array/dict values are JSON-encoded so the TSV cell is a
+            # single deterministic string.
+            for k, v in roi["metadata"].items():
+                if k == "contour":
+                    continue
+                if isinstance(v, (list, dict)):
+                    tsv_line["object_" + k] = json.dumps(v, separators=(",", ":"))
+                else:
+                    tsv_line["object_" + k] = v
             tsv_line["object_id"] = roi["name"]
 
             filename = roi["name"] + ".jpg"
@@ -278,27 +332,23 @@ def ecotaxa_export(archive_filepath, metadata, image_base_path, keep_files=False
 
             archive.write(image_path, arcname=filename)
             if not keep_files:
-                # we remove the image file if we don't want to keep it!
                 os.remove(image_path)
 
-        tsv_content = pandas.DataFrame(tsv_content)
-
-        tsv_type_header = [dtype_to_ecotaxa(dt) for dt in tsv_content.dtypes]
-        tsv_content.columns = pandas.MultiIndex.from_tuples(
-            list(zip(tsv_content.columns, tsv_type_header))
-        )
-
         # Lowercase `ecotaxa_` prefix — EcoTaxa rejects archives whose TSV starts
-        # with a capital E.
+        # with a capital E. `combined_id` already strips the redundant sample_id
+        # prefix that acq_id carries, so the name doesn't duplicate it.
+        # Column [f]/[t] typing is decided by `_write_tsv` from the values
+        # themselves, so no pandas DataFrame round-trip is needed here.
         tsv_filename = f"ecotaxa_{combined_id}.tsv"
 
-        # add the tsv to the archive
-        archive.writestr(
-            tsv_filename,
-            io.BytesIO(tsv_content.to_csv(sep="\t", encoding="utf-8", index=False).encode()).read(),
-        )
+        buf = io.StringIO()
+        _write_tsv(tsv_content, buf)
+        tsv_bytes = buf.getvalue().encode("utf-8")
+
+        archive.writestr(tsv_filename, tsv_bytes)
         if keep_files:
             tsv_file = os.path.join(image_base_path, tsv_filename)
-            tsv_content.to_csv(path_or_buf=tsv_file, sep="\t", encoding="utf-8", index=False)
+            with open(tsv_file, "wb") as f:
+                f.write(tsv_bytes)
     logger.success("Ecotaxa archive is ready!")
     return 1

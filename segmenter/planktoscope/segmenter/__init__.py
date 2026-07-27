@@ -49,6 +49,7 @@ from loguru import logger
 import planktoscope.mqtt
 import planktoscope.segmenter.ecotaxa
 import planktoscope.segmenter.encoder
+import planktoscope.segmenter.metrics
 import planktoscope.segmenter.operations
 
 logger.info("planktoscope.segmenter is loaded")
@@ -130,6 +131,61 @@ class SegmenterProcess(multiprocessing.Process):
 
     def _save_mask(self, mask, path):
         PIL.Image.fromarray(mask).save(path)
+
+    def _save_flat_artifacts(self, sample_clean_dir, thumb_width=600):
+        """Write flat_color.jpg + stuck_map.jpg to the sample's clean folder.
+
+        stuck_map is a contrast-stretched grayscale image where bright pixels
+        mark regions where flat-field correction subtracts strongly (fiber,
+        smudge, stuck cell).
+
+        The sensor JPEG is landscape (ACROSS rows × ALONG cols), but the audit
+        view is portrait and uses a TRANSPOSE mapping (object_y → canvas_x,
+        object_x → canvas_y). We transpose here so the saved file is already
+        in the right orientation — the frontend can blit it directly.
+        """
+        if self.__flat is None:
+            return
+        try:
+            os.makedirs(sample_clean_dir, exist_ok=True)
+            flat_u8 = np.clip(self.__flat, 0, 255).astype(np.uint8)
+
+            # Rotate 90° CCW so the saved image aligns with the heatmap/contour
+            # axes and the acquisition preview. Same rotation as stuck_map.jpg.
+            flat_u8_portrait = cv2.rotate(flat_u8, cv2.ROTATE_90_COUNTERCLOCKWISE)
+            cv2.imwrite(os.path.join(sample_clean_dir, "flat_color.jpg"), flat_u8_portrait)
+
+            flat_gray = cv2.cvtColor(flat_u8, cv2.COLOR_BGR2GRAY)
+            denom = int(flat_gray.max()) or 1
+            stuck = 1.0 - flat_gray.astype(np.float32) / denom
+
+            # Subtract the background level (median stuckness across the whole
+            # field) so a clean flow cell reads as transparent and only real
+            # features — fibers, smudges, stuck cells — light up.
+            bg = float(np.median(stuck))
+            stuck = np.clip(stuck - bg, 0.0, 1.0)
+
+            # Normalize against the 99th percentile so the strongest stuck
+            # feature saturates. Mild gamma keeps faint features readable.
+            p99 = float(np.percentile(stuck, 99))
+            if p99 > 0.001:
+                stuck = np.clip(stuck / p99, 0.0, 1.0)
+            stuck = np.power(stuck, 0.8)
+            stuck_u8 = (stuck * 255).astype(np.uint8)
+
+            # Rotate 90° CCW so the saved map aligns with the heatmap/contour
+            # axes (raw top-right → audit top-left, matching the preview).
+            stuck_u8 = cv2.rotate(stuck_u8, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
+            h, w = stuck_u8.shape
+            if w > thumb_width:
+                scale = thumb_width / float(w)
+                stuck_u8 = cv2.resize(
+                    stuck_u8, (thumb_width, int(h * scale)), interpolation=cv2.INTER_AREA
+                )
+            cv2.imwrite(os.path.join(sample_clean_dir, "stuck_map.jpg"), stuck_u8)
+        except Exception as e:
+            logger.warning(f"Failed to save flat artifacts: {e}")
 
     def _calculate_flat(self, images_list, images_number, images_root_path):
         """Calculate a flat image from given list and images number
@@ -253,158 +309,6 @@ class SegmenterProcess(multiprocessing.Process):
         logger.success("Mask created")
         return mask
 
-    def _get_color_info(self, bgr_img, mask):
-        # bgr_mean, bgr_stddev = cv2.meanStdDev(bgr_img, mask=mask)
-        # (b_channel, g_channel, r_channel) = cv2.split(bgr_img)
-        # quartiles = [0, 0.05, 0.25, 0.50, 0.75, 0.95, 1]
-        # b_quartiles = np.quantile(b_channel, quartiles)
-        # g_quartiles = np.quantile(g_channel, quartiles)
-        # r_quartiles = np.quantile(r_channel, quartiles)
-        hsv_img = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2HSV)
-        (h_channel, s_channel, v_channel) = cv2.split(hsv_img)
-        # hsv_mean, hsv_stddev = cv2.meanStdDev(hsv_img, mask=mask)
-        h_mean = np.mean(h_channel, where=mask)
-        s_mean = np.mean(s_channel, where=mask)
-        v_mean = np.mean(v_channel, where=mask)
-        h_stddev = np.std(h_channel, where=mask)
-        s_stddev = np.std(s_channel, where=mask)
-        v_stddev = np.std(v_channel, where=mask)
-        # TODO #103 Add skewness and kurtosis calculation (with scipy) here
-        # using https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.skew.html#scipy.stats.skew
-        # and https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.kurtosis.html#scipy.stats.kurtosis
-        # h_quartiles = np.quantile(h_channel, quartiles)
-        # s_quartiles = np.quantile(s_channel, quartiles)
-        # v_quartiles = np.quantile(v_channel, quartiles)
-        return {
-            # "object_MeanRedLevel": bgr_mean[2][0],
-            # "object_MeanGreenLevel": bgr_mean[1][0],
-            # "object_MeanBlueLevel": bgr_mean[0][0],
-            # "object_StdRedLevel": bgr_stddev[2][0],
-            # "object_StdGreenLevel": bgr_stddev[1][0],
-            # "object_StdBlueLevel": bgr_stddev[0][0],
-            # "object_minRedLevel": r_quartiles[0],
-            # "object_Q05RedLevel": r_quartiles[1],
-            # "object_Q25RedLevel": r_quartiles[2],
-            # "object_Q50RedLevel": r_quartiles[3],
-            # "object_Q75RedLevel": r_quartiles[4],
-            # "object_Q95RedLevel": r_quartiles[5],
-            # "object_maxRedLevel": r_quartiles[6],
-            # "object_minGreenLevel": g_quartiles[0],
-            # "object_Q05GreenLevel": g_quartiles[1],
-            # "object_Q25GreenLevel": g_quartiles[2],
-            # "object_Q50GreenLevel": g_quartiles[3],
-            # "object_Q75GreenLevel": g_quartiles[4],
-            # "object_Q95GreenLevel": g_quartiles[5],
-            # "object_maxGreenLevel": g_quartiles[6],
-            # "object_minBlueLevel": b_quartiles[0],
-            # "object_Q05BlueLevel": b_quartiles[1],
-            # "object_Q25BlueLevel": b_quartiles[2],
-            # "object_Q50BlueLevel": b_quartiles[3],
-            # "object_Q75BlueLevel": b_quartiles[4],
-            # "object_Q95BlueLevel": b_quartiles[5],
-            # "object_maxBlueLevel": b_quartiles[6],
-            "MeanHue": h_mean,
-            "MeanSaturation": s_mean,
-            "MeanValue": v_mean,
-            "StdHue": h_stddev,
-            "StdSaturation": s_stddev,
-            "StdValue": v_stddev,
-            # "object_minHue": h_quartiles[0],
-            # "object_Q05Hue": h_quartiles[1],
-            # "object_Q25Hue": h_quartiles[2],
-            # "object_Q50Hue": h_quartiles[3],
-            # "object_Q75Hue": h_quartiles[4],
-            # "object_Q95Hue": h_quartiles[5],
-            # "object_maxHue": h_quartiles[6],
-            # "object_minSaturation": s_quartiles[0],
-            # "object_Q05Saturation": s_quartiles[1],
-            # "object_Q25Saturation": s_quartiles[2],
-            # "object_Q50Saturation": s_quartiles[3],
-            # "object_Q75Saturation": s_quartiles[4],
-            # "object_Q95Saturation": s_quartiles[5],
-            # "object_maxSaturation": s_quartiles[6],
-            # "object_minValue": v_quartiles[0],
-            # "object_Q05Value": v_quartiles[1],
-            # "object_Q25Value": v_quartiles[2],
-            # "object_Q50Value": v_quartiles[3],
-            # "object_Q75Value": v_quartiles[4],
-            # "object_Q95Value": v_quartiles[5],
-            # "object_maxValue": v_quartiles[6],
-        }
-
-    def _extract_metadata_from_regionprop(self, prop, pixel_size_um=None):
-        """Extract morphological metadata from a scikit-image regionprop.
-
-        Args:
-            prop: scikit-image regionprop object
-            pixel_size_um (float or None): pixel size in µm/pixel (process_pixel).
-                If provided, linear measurements are in µm and area measurements in µm².
-                If None, all measurements remain in pixel units.
-        """
-        # Scale factors: linear (µm/px) and area (µm²/px²)
-        px = pixel_size_um if pixel_size_um and pixel_size_um > 0 else 1.0
-        px2 = px * px
-
-        return {
-            "label": prop.label,
-            # width of the smallest rectangle enclosing the object (µm if calibrated)
-            "width": (prop.bbox[3] - prop.bbox[1]) * px,
-            # height of the smallest rectangle enclosing the object (µm if calibrated)
-            "height": (prop.bbox[2] - prop.bbox[0]) * px,
-            # X coordinates of the top left point of the smallest rectangle enclosing the object (pixels)
-            "bx": prop.bbox[1],
-            # Y coordinates of the top left point of the smallest rectangle enclosing the object (pixels)
-            "by": prop.bbox[0],
-            # Width of the bounding box (pixels). Companion to bx/by/x/y for
-            # consumers that draw in pixel space (e.g. the audit visualizer);
-            # `width` above is in µm when calibrated for EcoTaxa compatibility.
-            "bw": prop.bbox[3] - prop.bbox[1],
-            # Height of the bounding box (pixels). See `bw` above.
-            "bh": prop.bbox[2] - prop.bbox[0],
-            # circularity : (4∗π ∗Area)/Perim^2 — dimensionless ratio, unaffected by scaling
-            "circ.": (4 * np.pi * prop.filled_area) / prop.perimeter**2,
-            # Surface area of the object excluding holes (µm² if calibrated)
-            "area_exc": prop.area * px2,
-            # Surface area of the object (µm² if calibrated)
-            "area": prop.filled_area * px2,
-            # Percentage of object’s surface area that is comprised of holes — dimensionless
-            "%area": 1 - (prop.area / prop.filled_area),
-            # Primary axis of the best fitting ellipse for the object (µm if calibrated)
-            "major": prop.major_axis_length * px,
-            # Secondary axis of the best fitting ellipse for the object (µm if calibrated)
-            "minor": prop.minor_axis_length * px,
-            # Y position of the center of gravity of the object (pixels)
-            "y": prop.centroid[0],
-            # X position of the center of gravity of the object (pixels)
-            "x": prop.centroid[1],
-            # The area of the smallest convex polygon enclosing the object (µm² if calibrated)
-            "convex_area": prop.convex_area * px2,
-            # The length of the outside boundary of the object (µm if calibrated)
-            "perim.": prop.perimeter * px,
-            # major/minor — dimensionless ratio
-            "elongation": np.divide(prop.major_axis_length, prop.minor_axis_length),
-            # perim/area_exc — units: 1/µm if calibrated (scales as 1/px)
-            "perimareaexc": prop.perimeter / prop.area * (1.0 / px),
-            # perim/major — dimensionless ratio
-            "perimmajor": prop.perimeter / prop.major_axis_length,
-            # (4 ∗ π ∗ Area_exc)/perim^2 — dimensionless ratio
-            "circex": np.divide(4 * np.pi * prop.area, prop.perimeter**2),
-            # Angle between the primary axis and a line parallel to the x-axis of the image
-            "angle": prop.orientation / np.pi * 180 + 90,
-            # Bounding box area (µm² if calibrated)
-            "bounding_box_area": prop.bbox_area * px2,
-            "eccentricity": prop.eccentricity,
-            # Equivalent spherical diameter (µm if calibrated)
-            "equivalent_diameter": prop.equivalent_diameter * px,
-            "euler_number": prop.euler_number,
-            # extent — dimensionless ratio (area / bounding_box_area)
-            "extent": prop.extent,
-            "local_centroid_col": prop.local_centroid[1],
-            "local_centroid_row": prop.local_centroid[0],
-            # solidity — dimensionless ratio (area / convex_area)
-            "solidity": prop.solidity,
-        }
-
     def _slice_image(self, img, name, mask, start_count=0):
         """Slice a given image using give mask
 
@@ -444,6 +348,12 @@ class SegmenterProcess(multiprocessing.Process):
         labels, nlabels = skimage.measure.label(mask, return_num=True)
         regionprops = skimage.measure.regionprops(labels)
 
+        # Record the frame dimensions once per run so the dashboard can
+        # normalize contour coordinates into stage pixels. labels.shape is
+        # (height, width) — ship it as [H, W] to match numpy convention.
+        if "frame_shape" not in self.__global_metadata:
+            self.__global_metadata["frame_shape"] = [int(labels.shape[0]), int(labels.shape[1])]
+
         # Convert min ESD threshold from µm to pixels for filtering
         # process_min_ESD is in µm; equivalent_diameter_area from regionprops is in pixels
         pixel_size = self.__global_metadata.get("process_pixel", None)
@@ -481,7 +391,9 @@ class SegmenterProcess(multiprocessing.Process):
 
             # First extract to get all the metadata about the image
             obj_image = img[region.slice]
-            colors = self._get_color_info(obj_image, region.filled_image)
+            colors = planktoscope.segmenter.metrics.get_color_info(
+                obj_image, region.filled_image
+            )
             # Convert pixel measurements to physical units (µm / µm²) using process_pixel calibration
             pixel_size_um = self.__global_metadata.get("process_pixel", None)
             if pixel_size_um is not None:
@@ -500,15 +412,15 @@ class SegmenterProcess(multiprocessing.Process):
             else:
                 # Flag that physical unit conversion was applied (for downstream consumers)
                 self.__global_metadata["process_pixel_applied"] = True
-            metadata = self._extract_metadata_from_regionprop(region, pixel_size_um=pixel_size_um)
+            metadata = planktoscope.segmenter.metrics.extract_metadata_from_regionprop(
+                region, pixel_size_um=pixel_size_um
+            )
 
             # Calculate focus measure for this object. Scale- and contrast-
             # invariant (Laplacian-energy / gradient-energy over the edge band);
             # the object mask restricts it to the object so background in the
             # bounding box doesn't dilute the score.
-            blur_laplacian = planktoscope.segmenter.operations.calculate_blur(
-                obj_image, mask=region.filled_image
-            )
+            blur_laplacian = planktoscope.segmenter.metrics.compute_blur(obj_image, region)
             metadata["blur_laplacian"] = blur_laplacian
 
             # Record the threshold value used to segment this image
@@ -518,18 +430,11 @@ class SegmenterProcess(multiprocessing.Process):
 
             # External contour polygon in full-frame pixel coords, for the audit
             # visualizer. Compact JSON list of [x, y] points; consumers can parse
-            # it with JSON.parse.
-            obj_contours, _ = cv2.findContours(
-                np.uint8(region.filled_image),
-                mode=cv2.RETR_EXTERNAL,
-                method=cv2.CHAIN_APPROX_SIMPLE,
-            )
-            if obj_contours:
-                min_row, min_col = region.bbox[0], region.bbox[1]
-                poly = obj_contours[0].reshape(-1, 2)
-                metadata["contour"] = json.dumps(
-                    [[int(p[0] + min_col), int(p[1] + min_row)] for p in poly]
-                )
+            # it with JSON.parse. The polygon is RDP-simplified and point-capped
+            # so the payload stays bounded regardless of object complexity.
+            contour_polygon = planktoscope.segmenter.metrics.extract_contour_polygon(region)
+            if contour_polygon:
+                metadata["contour"] = json.dumps(contour_polygon)
 
             # Second extract to get a bigger image for saving
             obj_image = img[__augment_slice(region.slice, labels.shape, 10)]
@@ -648,6 +553,11 @@ class SegmenterProcess(multiprocessing.Process):
             else:
                 self._calculate_flat(images_list[0:10], 10, self.__working_path)
 
+            # Persist the flat + a derived "stuck-features" map unconditionally so the
+            # audit UI can visualize what flat-field correction subtracts off each frame.
+            # At this point __working_debug_path still refers to the sample folder
+            # (per-image rebinding happens later, line ~697, and only in debug mode).
+            self._save_flat_artifacts(self.__working_debug_path)
             if self.__save_debug_img:
                 self._save_image(
                     self.__flat,
