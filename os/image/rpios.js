@@ -3,7 +3,6 @@
 
 import assert from "node:assert"
 import { basename, join } from "node:path"
-import { fileURLToPath } from "node:url"
 import { access, readFile, readlink } from "node:fs/promises"
 import { once } from "node:events"
 
