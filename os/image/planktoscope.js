@@ -8,10 +8,10 @@ import {
   rm,
   chown,
   cp,
+  readdir,
 } from "node:fs/promises"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { v5 as uuidv5 } from "uuid"
 
 import { $ } from "../../lib/exec.js"
 import { stringify, parse } from "ini"
@@ -21,12 +21,6 @@ import { getBlockDevices, getMountPoint } from "./lib.js"
 
 const default_bootnames = ["A", "B"]
 const bootnames = default_bootnames
-
-// Fixed namespace UUID
-const NAMESPACE = "11311d13-358c-4d63-8e9a-fd2ca83e08ea"
-function stablePartUuid(name) {
-  return uuidv5(name, NAMESPACE)
-}
 
 export async function createPartitions(device, rpios_partitions) {
   // We create the entire partition table first
@@ -63,6 +57,18 @@ export async function updateMountpoints(device, rpios_partitions) {
   await setup_repart(partitions)
 }
 
+const default_partitions = (async () => {
+  const p = {}
+  const children = await readdir(fileURLToPath(import.meta.resolve("./repart.d")), { withFileTypes: true })
+  for (const child of children) {
+    if (!child.isFile()) continue
+    const data = await readFile(join(child.parentPath, child.name), 'utf8')
+    const parsed = parse(data).Partition
+    p[parsed.Label] = parsed
+  }
+  return p
+})()
+
 async function createPartitionTable(device) {
   // Removes existing GPT/MBR data.
   await $`sgdisk --zap-all ${device}`
@@ -78,26 +84,31 @@ async function createPartitionTable(device) {
   // See https://en.wikipedia.org/wiki/GUID_Partition_Table#Partition_entries_(LBA_2%E2%80%9333)
 
   let partn = 0
+  let label
 
   // BOOTLOADER
   partn++
-  await $`sgdisk --new=${partn}:0:+8M --typecode=${partn}:0700 --change-name=${partn}:BOOTLOADER --partition-guid=${partn}:${stablePartUuid("BOOTLOADER")} ${device}`
+  label = "BOOTLOADER"
+  await $`sgdisk --new=${partn}:0:+8M --typecode=${partn}:0700 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${label} --partition-guid=${partn}:${default_partitions[label].UUID} ${device}`
 
   // FIRMWARE X
   for (const bootname of bootnames) {
     partn++
-    await $`sgdisk --new=${partn}:0:+256M --typecode=${partn}:0700 --change-name=${partn}:${"FIRMWARE_" + bootname} --partition-guid=${partn}:${stablePartUuid("FIRMWARE_" + bootname)} ${device}`
+    label = `FIRMWARE_${bootname}`
+    await $`sgdisk --new=${partn}:0:+256M --typecode=${partn}:0700 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${label} --partition-guid=${partn}:${default_partitions[label].UUID} ${device}`
   }
 
   // ROOT X
   for (const bootname of bootnames) {
     partn++
-    await $`sgdisk --new=${partn}:0:+10G --typecode=${partn}:8300 --change-name=${partn}:${"ROOT_" + bootname} --partition-guid=${partn}:${stablePartUuid("ROOT_" + bootname)} ${device}`
+    label = `ROOT_${bootname}`
+    await $`sgdisk --new=${partn}:0:+10G --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${label} --partition-guid=${partn}:${default_partitions[label].UUID} ${device}`
   }
 
   // "DATA"
   partn++
-  await $`sgdisk --new=${partn}:0:0 --typecode=${partn}:8300 --change-name=${partn}:DATA --partition-guid=${partn}:${stablePartUuid("DATA")} ${device}`
+  label = "DATA"
+  await $`sgdisk --new=${partn}:0:0 --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${label} --partition-guid=${partn}:${default_partitions[label].UUID} ${device}`
 
   await $`sgdisk --verify ${device}`
 
@@ -388,20 +399,12 @@ export async function setup_fstab(partitions, bootnames = default_bootnames) {
 // > Note that these definitions may only be used to create and initialize new partitions or to grow existing ones. In the latter case, it will not grow the contained files systems however; separate mechanisms, such as systemd-growfs(8) may be used to grow the file systems inside of these partitions.
 // https://www.freedesktop.org/software/systemd/man/latest/repart.d.html#Description
 async function setup_repart(partitions) {
-  const datafs_partuuid = partitions[`DATA`].partuuid
-  const conf = dedent`
-    [Partition]
-    UUID=${datafs_partuuid}
-    GrowFileSystem=yes
-    Type=linux-generic
-  `
   for (const bootname of bootnames) {
     const path = join(
       partitions[`ROOT_${bootname}`].mountpoint,
       "usr/lib/repart.d",
     )
     await cp(fileURLToPath(import.meta.resolve("./repart.d")), path, {recursive: true})
-    await writeFile(join(path, "60-data.conf"), conf)
   }
 }
 
