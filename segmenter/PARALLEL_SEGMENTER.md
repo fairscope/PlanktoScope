@@ -1,5 +1,44 @@
 # Parallel Segmenter — Design & Implementation
 
+> **STATUS (2026-07-27): the parallel dispatch is NOT currently wired up.**
+>
+> `worker.py` and `streamer.py` are present and correct, but nothing imports
+> them: `_pipe_parallel()`, `_pipe_sequential()` and the `worker_count` setting
+> were backed out of `__init__.py` before this branch was merged onto current
+> main, so `_pipe()` runs the sequential path. **Checking out this branch does
+> not give you parallel segmentation yet.**
+>
+> What this branch *does* give you is everything else: the work rebased onto
+> current main, the pandas-free EcoTaxa writer with per-column `[f]`/`[t]`
+> typing, and `metrics.py` — the shared per-object metrics that both paths use
+> (see below).
+>
+> To finish the job, `_pipe_parallel()`/`_pipe_sequential()` need to be
+> re-implemented against the current `_pipe()`, which has since gained two
+> things this design never accounted for:
+>
+> - **stop-request handling (#952).** `_check_for_stop()` is polled between
+>   images in the sequential loop. In parallel mode the images are in flight in
+>   a process pool, so a stop has to cancel pending futures and drain the
+>   running ones.
+> - **`_save_flat_artifacts()`**, which persists the flat field and derived
+>   stuck-features map for the audit UI.
+
+## A note on duplicated logic
+
+`worker.py` originally carried its **own copies** of the per-object metric
+functions, forked from `__init__.py`. Those copies merged cleanly against main
+while silently disagreeing with the serial path — blur computed without the
+object mask, `bw`/`bh` missing, `object_contour` never emitted. Nothing errored;
+the numbers just differed depending on which path ran.
+
+Those functions now live in `planktoscope/segmenter/metrics.py` and are imported
+by both paths. **Do not re-inline them into either caller** when wiring the
+parallel dispatch back up. `test_metrics_parity.py` guards this.
+
+`_create_mask` is deliberately still duplicated — the parallel path disables
+`remove_previous_mask`, which needs sequential image-to-image state.
+
 ## Overview
 
 This document details the parallelization of the PlanktoScope segmenter pipeline, the incremental metadata streaming system, and the removal of the pandas dependency. These changes target the Raspberry Pi 5 (4 cores) and aim for near-linear scaling of image segmentation throughput.
