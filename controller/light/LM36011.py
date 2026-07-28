@@ -105,10 +105,11 @@ class i2c_led:
 
     def get_torch_value(self) -> int:
         # Mask off the reserved bit so a stray high bit can't report as brightness.
-        return self._read_byte(self.Register.torch) & self.TORCH_MAX
+        # `_read_byte` is untyped, so narrow it explicitly rather than leaking Any.
+        return int(self._read_byte(self.Register.torch) & self.TORCH_MAX)
 
     @classmethod
-    def _clamp_torch(cls, value) -> int:
+    def _clamp_torch(cls, value: float) -> int:
         """Clamp to the 7-bit register range; anything higher would spill into
         the reserved bit rather than getting brighter."""
         return max(0, min(int(value), cls.TORCH_MAX))
