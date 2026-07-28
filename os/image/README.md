@@ -135,11 +135,24 @@ Here is a simplified "high level" sequence of what happens:
 
 ## Full system image
 
+### Install
+
+1. Make a new disk
+2. Setup PlanktoScope as usual on one of the slot
+3. Create a bundle
+4. Install bundle to B
+5. Restart on B
+6. Run prepare-root.js
+7. Install bundle to A
+8. Restart on A
+9. Run prepare-root.js
+
 ### Prepare device
 
 On the live system
 
 ```sh
+
 sync
 # FIXME: mount all filesystems rw to trim
 sudo fstrim --verbose --all
@@ -150,10 +163,13 @@ sync
 
 On a system with the block device
 
+Remove everything in `/data` but `/data/home/pi`, `/data/rauc` and `/data/tmp`
+Remove everything in `/data/home/pi` and `/data/tmp`
+
 ```sh
 sudo apt install libguestfs-tools bmaptool
 version=2026.0.0-beta.4
-sudo dd bs=4M if=/dev/device of=PlanktoScopeOS-$version.img status=progress
+sudo dd bs=4M if=/dev/device status=progress conv=fsync of=PlanktoScopeOS-$version.img
 virt-sparsify --in-place PlanktoScopeOS-$version.img
 mv PlanktoScopeOS-$version.img PlanktoScopeOS-$version.sparse.img
 bmaptool create PlanktoScopeOS-$version.sparse.img --output PlanktoScopeOS-$version.sparse.img.bmap
