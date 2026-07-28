@@ -1029,7 +1029,7 @@ def build_context(acquisition_path: str):
     """Legacy single-acquisition context (full + one-pager). Unchanged output.
 
     Returns ``(full_ctx, panel_ctx, name)``. Still used by the backward-compatible
-    ``acquisition_path`` MQTT payload and by ``make_sandbox.py``."""
+    ``acquisition_path`` MQTT payload"""
     L = _load_acquisition(acquisition_path)
     sharp, conc, homo, spatial, stuck = L["sharp"], L["conc"], L["homo"], L["spatial"], L["stuck"]
     qc = build_qc_table(sharp, stuck, conc, homo)
