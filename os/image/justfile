@@ -1,5 +1,5 @@
 setup:
-    sudo apt install -y gdisk
+    sudo apt install -y gdisk systemd-repart
     npm ci --omit=dev
     sudo cp mount-firmware.service /etc/systemd/system/
     sudo systemctl reenable mount-firmware.service
