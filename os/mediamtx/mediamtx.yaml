@@ -1,4 +1,4 @@
-# https://github.com/bluenviron/mediamtx/blob/v1.16.2/mediamtx.yml
+# https://github.com/bluenviron/mediamtx/blob/v1.18.2/mediamtx.yml
 
 # https://mediamtx.org/docs/usage/webrtc-specific-features#solving-webrtc-connectivity-issues
 webrtcAdditionalHosts: [
@@ -37,3 +37,8 @@ paths:
     alwaysAvailable: true
     alwaysAvailableTracks:
       - codec: H264
+    # Rewrite this file's placeholder hostname/IP (above) with the device's real
+    # values at startup, so WebRTC ICE candidates resolve regardless of how
+    # mediamtx was launched (systemd, `just dev`, manual). mediamtx watches the
+    # config file and hot-reloads after the rewrite. See lib/mediamtx.js.
+    runOnInit: /usr/bin/node /opt/PlanktoScope/lib/mediamtx.js

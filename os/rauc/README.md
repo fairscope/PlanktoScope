@@ -4,17 +4,6 @@
 
 We have an A/B partitioning setup see [os/image](../image) for which RAUC is aware of.
 
-## Create an bundle
-
-A bundle is an update that will be installed on a slot.
-
-```sh
-cd os/rauc
-sudo NODE_DEBUG=execa ./rauc.js create-bundle /dev/device B
-```
-
-This will create a bundle from partitions `FIRMWARE_B` and `ROOT_B` on device `/dev/device`.
-
 ## Install a bundle
 
 ```sh

@@ -8,7 +8,7 @@ This page provides useful snippets and how-tos while developing software for the
 
 ## Building the OS
 
-You will have to flash [2026-04-21-raspios-trixie-arm64-lite.img.xz](https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2026-04-21/).
+You will have to flash [2026-06-18-raspios-trixie-arm64-lite.img.xz](https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2026-06-19/2026-06-18-raspios-trixie-arm64-lite.img.xz).
 
 ⚠️ No other version is supported. ⚠️
 

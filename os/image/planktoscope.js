@@ -7,17 +7,20 @@ import {
   unlink,
   rm,
   chown,
+  cp,
+  readdir,
 } from "node:fs/promises"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { $ } from "execa"
+import { $ } from "../../lib/exec.js"
 import { stringify, parse } from "ini"
 import dedent from "dedent"
 
 import { getBlockDevices, getMountPoint } from "./lib.js"
 
-const bootnames = ["A", "B"]
+const default_bootnames = ["A", "B"]
+const bootnames = default_bootnames
 
 export async function createPartitions(device, rpios_partitions) {
   // We create the entire partition table first
@@ -51,7 +54,20 @@ export async function updateMountpoints(device, rpios_partitions) {
   await setup_fstab(partitions)
   await setup_autoboot(partitions)
   await setup_machineid(partitions)
+  await setup_repart(partitions)
 }
+
+const default_partitions = (async () => {
+  const p = {}
+  const children = await readdir(fileURLToPath(import.meta.resolve("./repart.d")), { withFileTypes: true })
+  for (const child of children) {
+    if (!child.isFile()) continue
+    const data = await readFile(join(child.parentPath, child.name), 'utf8')
+    const parsed = parse(data).Partition
+    p[parsed.Label] = parsed
+  }
+  return p
+})()
 
 async function createPartitionTable(device) {
   // Removes existing GPT/MBR data.
@@ -68,26 +84,31 @@ async function createPartitionTable(device) {
   // See https://en.wikipedia.org/wiki/GUID_Partition_Table#Partition_entries_(LBA_2%E2%80%9333)
 
   let partn = 0
+  let label
 
   // BOOTLOADER
   partn++
-  await $`sgdisk --new=${partn}:0:+8M --typecode=${partn}:0700 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:BOOTLOADER ${device}`
+  label = "BOOTLOADER"
+  await $`sgdisk --new=${partn}:0:+8M --typecode=${partn}:0700 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${label} --partition-guid=${partn}:${default_partitions[label].UUID} ${device}`
 
   // FIRMWARE X
   for (const bootname of bootnames) {
     partn++
-    await $`sgdisk --new=${partn}:0:+256M --typecode=${partn}:0700 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${"FIRMWARE_" + bootname} ${device}`
+    label = `FIRMWARE_${bootname}`
+    await $`sgdisk --new=${partn}:0:+256M --typecode=${partn}:0700 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${label} --partition-guid=${partn}:${default_partitions[label].UUID} ${device}`
   }
 
   // ROOT X
   for (const bootname of bootnames) {
     partn++
-    await $`sgdisk --new=${partn}:0:+10G --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${"ROOT_" + bootname} ${device}`
+    label = `ROOT_${bootname}`
+    await $`sgdisk --new=${partn}:0:+10G --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${label} --partition-guid=${partn}:${default_partitions[label].UUID} ${device}`
   }
 
   // "DATA"
   partn++
-  await $`sgdisk --new=${partn}:0:0 --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1  -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:DATA ${device}`
+  label = "DATA"
+  await $`sgdisk --new=${partn}:0:0 --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${label} --partition-guid=${partn}:${default_partitions[label].UUID} ${device}`
 
   await $`sgdisk --verify ${device}`
 
@@ -97,7 +118,7 @@ async function createPartitionTable(device) {
   await $`udevadm settle`
 }
 
-async function create_bootloaderfs({ partlabel, path }) {
+export async function create_bootloaderfs({ partlabel, path }) {
   const mountpoint = await getMountPoint(partlabel)
   await $`wipefs -a ${path}`
   await $`mkfs.vfat -F12 ${path}`
@@ -105,7 +126,7 @@ async function create_bootloaderfs({ partlabel, path }) {
   await $`cp autoboot.ini ${join(mountpoint, "autoboot.txt")}`
 }
 
-async function create_firmwarefs({ path, partlabel }, rpios_bootfs) {
+export async function create_firmwarefs({ path, partlabel }, rpios_bootfs) {
   const mountpoint = await getMountPoint(partlabel)
   await $`wipefs -a ${path}`
   await $`mkfs.vfat -F32 ${path}`
@@ -119,7 +140,7 @@ async function create_firmwarefs({ path, partlabel }, rpios_bootfs) {
   // await $`rsync -a ${rpios_bootfs.mountpoint}/ ${mountpoint}/`
 }
 
-async function create_rootfs({ path, partlabel }, rpios_rootfs) {
+export async function create_rootfs({ path, partlabel }, rpios_rootfs) {
   const mountpoint = await getMountPoint(partlabel)
   await $`wipefs -a ${path}`
   await $`mkfs.ext4 -q ${path}`
@@ -156,10 +177,6 @@ async function create_datafs(device, rootfs) {
   await $`wipefs -a ${path}`
   await $`mkfs.ext4 -q ${path}`
 
-  // will be grown by x-systemd.growfs, see fstab
-  await $`resize2fs -M ${path}`
-  await $`e2fsck -f -p ${path}`
-
   await $`mount ${path} ${mountpoint}`
 
   // /data/home
@@ -178,7 +195,7 @@ async function create_datafs(device, rootfs) {
 // We need to share /etc/machine-id so we symlink it from `/data/machine-id` on both slots
 // machine-id-setup.service will create it if target does not exist
 // https://www.freedesktop.org/software/systemd/man/latest/machine-id.html
-async function setup_machineid(partitions) {
+export async function setup_machineid(partitions, bootnames = default_bootnames) {
   for (const bootname of bootnames) {
     const root = partitions[`ROOT_${bootname}`].mountpoint
 
@@ -198,7 +215,11 @@ async function setup_machineid(partitions) {
 }
 
 // TODO: Investigate if we can replace cloud init with a simpler systemd solution
-async function setup_cloudinit(rpios_partitions, partitions) {
+export async function setup_cloudinit(
+  rpios_partitions,
+  partitions,
+  bootnames = default_bootnames,
+) {
   // By default RPI OS reads cloud init config from /boot/firmware
   // since we don't mount /boot/firmware; we move the cloud-init config to /bootloader
 
@@ -263,12 +284,17 @@ async function setup_cloudinit(rpios_partitions, partitions) {
   }
 }
 
-async function setup_config(rpios_partitions, partitions) {
+export async function setup_config(
+  rpios_partitions,
+  partitions,
+  bootnames = default_bootnames,
+) {
   const content = await readFile(
     join(rpios_partitions["bootfs"].mountpoint, "config.txt"),
     "utf8",
   )
 
+  // See https://www.raspberrypi.com/documentation/computers/config_txt.html#boot_partition-2
   let config = "[all]\n\n"
   for (const bootname of bootnames) {
     const part = partitions[`FIRMWARE_${bootname}`]
@@ -288,7 +314,11 @@ async function setup_config(rpios_partitions, partitions) {
   }
 }
 
-async function setup_cmdline(rpios_partitions, partitions) {
+export async function setup_cmdline(
+  rpios_partitions,
+  partitions,
+  bootnames = default_bootnames,
+) {
   const rpios_bootfs = rpios_partitions["bootfs"]
   const rpios_rootfs = rpios_partitions["rootfs"]
   const content = await readFile(
@@ -343,7 +373,7 @@ async function setup_cmdline(rpios_partitions, partitions) {
 // cmdline tells the kernel how to mount / (via root)
 // /boot/firmware does not need to be mounted in a image based updates filesystem
 // only apt upgrade and rpi specific tools would require /boot/firmware
-async function setup_fstab(partitions) {
+export async function setup_fstab(partitions, bootnames = default_bootnames) {
   const bootloader_partuuid = partitions[`BOOTLOADER`].partuuid
   const datafs_partuuid = partitions[`DATA`].partuuid
   const fstab = dedent`
@@ -364,6 +394,20 @@ async function setup_fstab(partitions) {
   }
 }
 
+// repart will resize the DATA GPT partition but won't grow the EXT4 filesystem
+// we use x-systemd.growfs in fstab for that
+// > Note that these definitions may only be used to create and initialize new partitions or to grow existing ones. In the latter case, it will not grow the contained files systems however; separate mechanisms, such as systemd-growfs(8) may be used to grow the file systems inside of these partitions.
+// https://www.freedesktop.org/software/systemd/man/latest/repart.d.html#Description
+async function setup_repart(partitions) {
+  for (const bootname of bootnames) {
+    const path = join(
+      partitions[`ROOT_${bootname}`].mountpoint,
+      "usr/lib/repart.d",
+    )
+    await cp(fileURLToPath(import.meta.resolve("./repart.d")), path, {recursive: true})
+  }
+}
+
 export async function getPartitions(device) {
   const devices = await getBlockDevices(device)
   const partitions = Object.create(null)
@@ -381,7 +425,7 @@ export async function getPartitions(device) {
   return partitions
 }
 
-async function setup_autoboot(partitions) {
+export async function setup_autoboot(partitions) {
   const bootloaderfs = partitions["BOOTLOADER"]
 
   const bootname_active = bootnames[0]

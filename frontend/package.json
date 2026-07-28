@@ -1,12 +1,6 @@
 {
   "private": true,
   "type": "module",
-  "devDependencies": {
-    "@eslint/js": "^9.39.1",
-    "eslint": "^9.39.1",
-    "eslint-plugin-solid": "^0.14.5",
-    "globals": "^16.5.0"
-  },
   "dependencies": {
     "@picocss/pico": "^2.1.1",
     "@solid-primitives/pagination": "^0.5.0",
@@ -17,7 +11,7 @@
     "mqtt": "^5.14.1",
     "observable-polyfill": "^0.0.29",
     "postcss": "^8.5.6",
-    "solid-js": "^1.9.10",
+    "solid-js": "^1.9.14",
     "vite": "^7.2.6",
     "vite-plugin-pages": "^0.33.1",
     "vite-plugin-solid": "^2.11.10",

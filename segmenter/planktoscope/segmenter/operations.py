@@ -17,6 +17,7 @@
 
 # Logger library compatible with multiprocessing
 import cv2
+import numpy as np
 from loguru import logger
 
 __mask_to_remove = None
@@ -221,21 +222,59 @@ def reset_previous_mask():
     __mask_to_remove = None
 
 
-def calculate_blur(img):
-    """Calculate blur metric using Laplacian variance.
+def calculate_blur(img, mask=None):
+    """Calculate a scale- and contrast-invariant focus measure for an object.
 
     Higher values indicate a sharper image, lower values indicate more blur.
-    This metric is useful for assessing focus quality of segmented objects.
+
+    The previous metric was the raw Laplacian variance over the bounding-box
+    crop. That metric is biased toward small, high-contrast objects: the edge
+    (high-Laplacian) pixels scale with the object perimeter (~r) while the
+    variance divides by the crop area (~r^2), so the score scales as ~1/r and
+    small objects always look "sharper". It also scales with contrast^2, so a
+    dark, well-focused object can score lower than a faint, blurry one.
+
+    Instead we return the ratio of Laplacian energy to gradient energy over the
+    object's edge band (the standard way scale/contrast invariance is achieved
+    in focus-measure literature, e.g. Pertuz et al. 2013):
+
+        S = sum(Laplacian^2) / sum(|grad I|^2)
+
+    For an edge blurred by a Gaussian of width sigma, |Laplacian| ~ |grad|/sigma,
+    so this ratio scales as ~1/sigma^2 — a direct measure of focus that is
+    independent of object size (both sums run over the same edge pixels) and of
+    contrast (it cancels in the ratio). One extra Sobel pass; cheap on a Pi.
 
     Args:
-        img (cv2 img): Image to calculate blur for (BGR or grayscale)
+        img (cv2 img): Image to calculate blur for (BGR or grayscale).
+        mask (ndarray, optional): Boolean/uint8 object mask aligned with ``img``
+            (e.g. skimage ``region.filled_image``). When given, the measure is
+            restricted to the object's edge band so background corners of the
+            bounding box don't dilute it.
 
     Returns:
-        float: Laplacian variance (blur metric), or None if image is invalid
+        float: Focus score (higher = sharper), or None if the image is invalid
+        or contains no measurable edges.
     """
-    if img is None or img.size == 0:
+    if img is None or img.size == 0 or img.ndim < 2:
         return None
-    if len(img.shape) < 2:
-        return None
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if len(img.shape) == 3 else img
-    return float(cv2.Laplacian(gray, cv2.CV_64F).var())
+
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if img.ndim == 3 else img
+    gray = gray.astype(np.float32)
+
+    lap = cv2.Laplacian(gray, cv2.CV_32F, ksize=3)
+    grad_x = cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3)
+    grad_y = cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3)
+    grad_sq = grad_x * grad_x + grad_y * grad_y
+
+    if mask is not None and mask.shape == gray.shape:
+        # Dilate by one pixel so the object boundary — where the focus signal
+        # lives — is included, then keep only that edge band.
+        band = cv2.dilate(mask.astype(np.uint8), np.ones((3, 3), np.uint8)).astype(bool)
+        lap = lap[band]
+        grad_sq = grad_sq[band]
+
+    edge_energy = float(grad_sq.sum())
+    if edge_energy <= 1e-6:
+        return None  # no edges -> focus is undefined for this object
+    return float((lap * lap).sum() / edge_energy)
