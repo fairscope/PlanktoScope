@@ -11,7 +11,7 @@
     "i2c-bus": "^5.2.3",
     "ini": "^7.0.0",
     "isomorphic-git": "^1.38.5",
-    "js-yaml": "^4.2.0",
+    "js-yaml": "^4.3.0",
     "mime": "^4.1.0",
     "mqtt": "^5.15.1",
     "observable-polyfill": "^0.0.29",
