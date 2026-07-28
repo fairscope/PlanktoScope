@@ -4,7 +4,7 @@ First of all, thank you for contributing to the PlanktoScope! The goal of this d
 
 There are several ways to join the development effort, share your progress with your build or just ask for help.
 
-We are using slack as a communication platform between interested parties. You can [request to join by filling this form](https://docs.google.com/forms/d/e/1FAIpQLSfcod-avpzWVmWj42_hW1v2mMSHm0DAGXHxVECFig2dnKHxGQ/viewform).
+We are using slack as a communication platform between interested parties. You can [request to join by filling this form](https://www.fairscope.com/slack).
 
 This repository is also a good way to get involved. Please fill in an issue if you witnessed a bug in the software or hardware. If you are able, you can also join the development effort. Look through the [issues opened](https://github.com/PlanktonPlanet/PlanktoScope/labels/good%20first%20issue) and choose one that piques your interest. Let us know you want to work on it in the comments, we may even be able to guide your beginnings around the code.
 
