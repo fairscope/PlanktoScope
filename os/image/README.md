@@ -25,7 +25,6 @@ lsblk -d -o +path,ID,model
 sudo NODE_DEBUG=execa ./make-disk.js <PATH>
 ```
 
-
 You know should have a device with the partition table documented below.
 
 username/password is `pi:copepode`
@@ -164,8 +163,7 @@ device=/dev/sda99
 sudo zerofree ${device}p4 # ROOT_A
 sudo zerofree ${device}p5 # ROOT_B
 sudo zerofree ${device}p6 # DATA
-sudo dd bs=4M if=/dev/${device} status=progress conv=fsync of=PlanktoScopeOS-${version}.img
-virt-sparsify --in-place PlanktoScopeOS-${version}.img
+sudo dd bs=4M if=/dev/${device} status=progress conv=fsync conv=sparse of=PlanktoScopeOS-${version}.img
 bmaptool create PlanktoScopeOS-${version}.img --output PlanktoScopeOS-${version}.img.bmap
 xz -T0 -9 PlanktoScopeOS-${version}.img
 ```
@@ -173,17 +171,8 @@ xz -T0 -9 PlanktoScopeOS-${version}.img
 The resulting files are `PlanktoScopeOS-$version.sparse.img.xz` and `PlanktoScopeOS-$version.sparse.img.bmap`.
 
 <!--
-
-Note: `libguestfs-tools` pulls in a lot of dependency. An option is to use something like
-
-```sh
-sudo losetup -Pf disk.img
-sudo zerofree /dev/loop0p2 # for each ext4
-qemu-img convert -O raw disk.img disk-sparse.img
-```
-
-but it is more complex
-
+also an interesting option
+virt-sparsify --in-place PlanktoScopeOS-${version}.img
 -->
 
 ### Write the image
