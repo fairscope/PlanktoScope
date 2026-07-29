@@ -22,7 +22,7 @@ just
 # List disk devices and copy approrpriate "PATH"
 lsblk -d -o +path,ID,model
 # Run the script ⚠️ it will erase everything on the device
-sudo NODE_DEBUG=execa ./make-disk.js <PATH>
+sudo NODE_DEBUG=execa ./make-disk.js
 ```
 
 You know should have a device with the partition table documented below.
@@ -157,22 +157,25 @@ sudo poweroff
 On a system with the block device
 
 ```sh
-sudo apt install libguestfs-tools bmaptool
+sudo apt install bmaptool zerofree
 version=2026.0.0-beta.4
 device=/dev/sda99
-sudo zerofree ${device}p4 # ROOT_A
-sudo zerofree ${device}p5 # ROOT_B
-sudo zerofree ${device}p6 # DATA
-sudo dd bs=4M if=/dev/${device} status=progress conv=fsync conv=sparse of=PlanktoScopeOS-${version}.img
+sudo zerofree -v ${device}p4 # ROOT_A
+sudo zerofree -v ${device}p5 # ROOT_B
+sudo zerofree -v ${device}p6 # DATA
+sudo dd bs=4M if=/dev/${device} status=progress conv=sparse,fsync of=PlanktoScopeOS-${version}.img
 bmaptool create PlanktoScopeOS-${version}.img --output PlanktoScopeOS-${version}.img.bmap
-xz -T0 -9 PlanktoScopeOS-${version}.img
+xz -T0 -9e --keep PlanktoScopeOS-${version}.img
 ```
 
 The resulting files are `PlanktoScopeOS-$version.sparse.img.xz` and `PlanktoScopeOS-$version.sparse.img.bmap`.
 
 <!--
-also an interesting option
+also an interesting option from libguestfs-tools
 virt-sparsify --in-place PlanktoScopeOS-${version}.img
+
+faster compression
+# zstd -T0 -10 --keep PlanktoScopeOS-${version}.img
 -->
 
 ### Write the image
