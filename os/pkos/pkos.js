@@ -14,7 +14,7 @@ import {
 } from "../rauc/rauc.js"
 import { getBootedPartitionNumber } from "../image/rpi.js"
 import { getBlockDevices, getBootedDevice, umount } from "../image/lib.js"
-import { prepare } from "../image/prepare-root.js"
+import { prepareRoot } from "../image/prepare-root.js"
 import { mount_active_firmware } from "../image/mount-firmware.js"
 import {
   create_firmwarefs,
@@ -87,7 +87,7 @@ async function prepare() {
     shell: true,
     stdio: "inherit",
   })`/opt/PlanktoScope/os/postinstall.sh`
-  await prepare()
+  await prepareRoot()
   console.log(
     `✅ Ready, you can reboot to slot ${(await slot()) === "A" ? "B" : "A"}`,
   )

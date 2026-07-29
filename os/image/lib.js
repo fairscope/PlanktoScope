@@ -39,9 +39,3 @@ export async function getBootedDevice() {
   }
   return _booted_device
 }
-
-export async function trimAndSync() {
-  await $`sync`
-  await $`fstrim --verbose --all`
-  await $`sync`
-}

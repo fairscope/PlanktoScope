@@ -135,46 +135,39 @@ Here is a simplified "high level" sequence of what happens:
 
 ## Full system image
 
+You need to have a rauc bundle. See [Creating a bundle](../pkos/README.md)
+
 ### Install
 
-1. Make a new disk
-2. Setup PlanktoScope as usual on one of the slot
-3. Create a bundle
-4. Install bundle to B
-5. Restart on B
-6. Run prepare-root.js
-7. Install bundle to A
-8. Restart on A
-9. Run prepare-root.js
+1. Boot to slot A
+2. Install bundle to slot B
+5. Boot to slot B
+7. Install bundle to slot A
 
 ### Prepare device
 
 On the live system
 
 ```sh
-
-sync
-# FIXME: mount all filesystems rw to trim
-sudo fstrim --verbose --all
-sync
+sudo ./prepare-data.js
+sudo poweroff
 ```
 
 ### Create image
 
 On a system with the block device
 
-Remove everything in `/data` but `/data/home/pi`, `/data/rauc` and `/data/tmp`
-Remove everything in `/data/home/pi` and `/data/tmp`
-
 ```sh
 sudo apt install libguestfs-tools bmaptool
 version=2026.0.0-beta.4
-sudo dd bs=4M if=/dev/device status=progress conv=fsync of=PlanktoScopeOS-$version.img
-virt-sparsify --in-place PlanktoScopeOS-$version.img
-mv PlanktoScopeOS-$version.img PlanktoScopeOS-$version.sparse.img
-bmaptool create PlanktoScopeOS-$version.sparse.img --output PlanktoScopeOS-$version.sparse.img.bmap
-xz -T0 -9 PlanktoScopeOS-$version.sparse.img
-rm PlanktoScopeOS-$version.sparse.img
+device=/dev/sda99
+sudo zerofree ${device}p4 # ROOT_A
+sudo zerofree ${device}p5 # ROOT_B
+sudo zerofree ${device}p6 # DATA
+sudo dd bs=4M if=/dev/${device} status=progress conv=fsync of=PlanktoScopeOS-${version}.img
+virt-sparsify --in-place PlanktoScopeOS-${version}.img
+bmaptool create PlanktoScopeOS-${version}.img --output PlanktoScopeOS-${version}.img.bmap
+xz -T0 -9 PlanktoScopeOS-${version}.img
 ```
 
 The resulting files are `PlanktoScopeOS-$version.sparse.img.xz` and `PlanktoScopeOS-$version.sparse.img.bmap`.
