@@ -243,9 +243,7 @@ class Worker(threading.Thread):
             return '{"status":"Camera settings error"}'
 
         try:
-            helpers.update_hardware_config_sync(
-                {"red_gain": gains.red, "blue_gain": gains.blue}
-            )
+            helpers.update_hardware_config_sync({"red_gain": gains.red, "blue_gain": gains.blue})
         except (OSError, ValueError):
             loguru.logger.exception("Couldn't persist white balance gains to hardware config")
             return '{"status":"Camera settings error"}'
