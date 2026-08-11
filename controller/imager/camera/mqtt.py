@@ -10,6 +10,7 @@ import typing
 
 import loguru
 
+import helpers
 import mqtt as messaging
 
 from . import hardware
@@ -199,6 +200,9 @@ class Worker(threading.Thread):
             self.capture(message["payload"])
             return None
 
+        if message["payload"].get("action", "") == "save_settings":
+            return self._save_settings()
+
         if message["payload"].get("action", "") != "settings":
             return None
 
@@ -222,6 +226,32 @@ class Worker(threading.Thread):
         self._camera.settings = converted_settings
         loguru.logger.success("Updated camera settings!")
         return '{"status":"Camera settings updated"}'
+
+    def _save_settings(self) -> str:
+        """Persist the live white-balance gains as the instrument's calibration.
+
+        The camera reads `red_gain`/`blue_gain` out of hardware.json when it starts, so
+        until they are written back there a white-balance calibration only lasts until the
+        next reboot. Only an explicit save persists, which keeps a preview tweak from
+        quietly replacing a good calibration.
+        """
+        assert self._camera is not None
+
+        gains = self._camera.settings.white_balance_gains
+        if gains is None:
+            loguru.logger.error("No white balance gains to save")
+            return '{"status":"Camera settings error"}'
+
+        try:
+            helpers.update_hardware_config_sync(
+                {"red_gain": gains.red, "blue_gain": gains.blue}
+            )
+        except (OSError, ValueError):
+            loguru.logger.exception("Couldn't persist white balance gains to hardware config")
+            return '{"status":"Camera settings error"}'
+
+        loguru.logger.success(f"Saved white balance gains: red={gains.red}, blue={gains.blue}")
+        return '{"status":"Camera settings saved"}'
 
     @property
     def camera(self) -> typing.Optional[hardware.PiCamera]:
