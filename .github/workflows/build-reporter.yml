@@ -1,0 +1,55 @@
+name: Build the reporter
+
+on:
+  push:
+    branches:
+      - 'main'
+      - 'software/beta'
+      - 'software/stable'
+    tags:
+      - 'reporter/v*'
+    paths:
+      - 'reporter/**'
+      - '.github/workflows/build-reporter.yml'
+  pull_request:
+    paths:
+      - 'reporter/**'
+      - '.github/workflows/build-reporter.yml'
+  merge_group:
+  workflow_dispatch:
+    inputs:
+      git-ref:
+        description: 'Git ref (optional)'
+        required: false
+
+env:
+  IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
+  IMAGE_NAME: 'reporter'
+  MAIN_BRANCH: 'main' # pushing to this branch will update the "edge" tag on the image
+  BETA_BRANCH: 'software/beta' # pushing to this branch will update the "beta" tag on the image
+  STABLE_BRANCH: 'software/stable' # pushing to this branch will update the "stable" tag on the image
+  TAG_PREFIX: 'reporter/v' # pushing tags with this prefix will add a version tag to the image and update the "latest" tag on the image
+  PUSH_IMAGE: ${{ (github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork) || github.event_name == 'push' || github.event_name == 'push tag' }}
+
+jobs:
+  ci-checks:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install dependencies
+        working-directory: ./reporter
+        run: |
+          uv sync --locked --dev
+
+      - name: Run checks
+        working-directory: ./reporter
+        run: uv run poe check
