@@ -143,17 +143,17 @@ jobs:
       # RUN OS SETUP SCRIPTS
 
       - name: Run OS setup scripts in an unbooted container
-        uses: ethanjli/pinspawn-action@v0.1.5
+        uses: ethanjli/pinspawn-qemu@v0.1.5
         with:
           image: ${{ steps.expand-image.outputs.destination }}
           user: ${{ env.SETUP_USER }}
           # Note: CAP_NET_ADMIN is needed for iptables, which is needed for Docker (at least in an
           # unbooted container). Setting the machine ID (and therefore hostname) to `raspberrypi`
           # resolves noisy (but harmless) error messages from sudo.
-          args: >-
-            --bind "$(pwd)":/run/os-setup
-            --capability=CAP_NET_ADMIN
-            --machine=raspberrypi
+          # args: >-
+          #   --bind "$(pwd)":/run/os-setup
+          #   --capability=CAP_NET_ADMIN
+          #   --machine=raspberrypi
           run: |
             echo "Running setup scripts..."
             export DEBIAN_FRONTEND=noninteractive
@@ -167,7 +167,7 @@ jobs:
           DEFAULT_KEYBOARD_LAYOUT: us
         with:
           image: ${{ steps.expand-image.outputs.destination }}
-          args: --machine=raspberrypi
+          # args: --machine=raspberrypi
           run: |
             # Change default settings for the SD card to enable headless & keyboardless first boot
             # Note: we could change the username by making a `userconf.txt` file with the new
@@ -194,7 +194,7 @@ jobs:
       # RUN TESTS
 
       - name: Run tests
-        uses: ethanjli/pinspawn-action@v0.1.5
+        uses: ethanjli/pinspawn-qemu@v0.1.5
         with:
           image: ${{ steps.expand-image.outputs.destination }}
           user: pi
