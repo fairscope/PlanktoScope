@@ -1,0 +1,10 @@
+localhost
+planktoscope.local
+pkscope.local # deprecated
+home.pkscope # deprecated
+192.168.4.1 # WiFi direct
+$hostname
+$hostname.pkscope # deprecated
+$hostname.local
+$hostname.lan
+$hostname.home
