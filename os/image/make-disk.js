@@ -17,13 +17,13 @@ if (import.meta.main) {
     throw new Error("Please run as root.")
   }
 
-  const [, , device] = process.argv
+  const [, , device, dir] = process.argv
   assert.ok(device)
   await umount(device)
 
   let rpios_device, rpios_partitions
   try {
-    ;[rpios_device, rpios_partitions] = await setupRaspberryPiOSDevice()
+    ;[rpios_device, rpios_partitions] = await setupRaspberryPiOSDevice(dir)
     await createPartitions(device, rpios_partitions)
     await updateMountpoints(device, rpios_partitions)
   } finally {

@@ -11,6 +11,10 @@ if (import.meta.main) {
     throw new Error("Please run as root.")
   }
 
+  await prepareRoot()
+}
+
+export async function prepareRoot() {
   // https://systemd.io/BUILDING_IMAGES/
   await rm(`/var/lib/systemd/random-seed`, { force: true })
   await rm(`/var/lib/systemd/credential.secret`, { force: true })
@@ -85,4 +89,8 @@ if (import.meta.main) {
     recursive: true,
   })
   await rm("/opt/PlanktoScope/.git", { force: true, recursive: true })
+
+  await $`sync`
+  await $`fstrim --verbose /`
+  await $`sync`
 }
