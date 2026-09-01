@@ -1,7 +1,7 @@
 setup:
     # node-red projects needs git
     sudo apt install -y git
-    sudo npm list -g node-red@v5.0.0-beta.4 || sudo npm install -g node-red@v5.0.0-beta.4
+    sudo npm list -g node-red@v5.0.0 || sudo npm install -g node-red@v5.0.0
     npm ci --omit=dev
     mkdir -p context/global/
     cp global.json context/global/global.json
@@ -12,9 +12,6 @@ setup:
 
 setup-dev:
     npm install --include=dev
-    cd projects/dashboard && git remote set-url origin git@github.com:fairscope/dashboard.git
-    cd projects/dashboard && git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
-    cd projects/dashboard && git fetch origin
 
 dev:
     -sudo systemctl stop nodered

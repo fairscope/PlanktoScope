@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises"
 import { join } from "node:path"
 
-import { $ } from "execa"
+import { $ } from "../../lib/exec.js"
 import { parse, stringify } from "ini"
 import writeFileAtomic from "write-file-atomic"
 

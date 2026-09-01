@@ -1,13 +1,7 @@
 default: base setup
 
-base: install-uv
-    # https://github.com/nodesource/distributions/wiki/Repository-Manual-Installation
-    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --yes --dearmor -o /etc/apt/keyrings/nodesource.gpg
-    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_24.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list
-    sudo apt update
-    sudo apt install -y git nodejs
-    npm config set prefix /usr/local
-    sudo npm config set prefix /usr/local
+base: install-uv install-node
+    sudo apt install -y git
 
 update:
     git checkout main
@@ -25,6 +19,7 @@ setup:
     just --justfile frontend/justfile      setup
 
 setup-dev:
+    npm install --force
     just --justfile lib/justfile           setup-dev
     just --justfile node-red/justfile      setup-dev
     just --justfile controller/justfile    setup-dev
@@ -36,9 +31,11 @@ setup-dev:
     ./os/developer-mode/install-config-file-validator.sh
 
 format:
+    npx eslint --fix .
     find . -type f -name 'justfile' -exec just --fmt --unstable --justfile {} ';'
 
 test:
+    npx eslint .
     find . -type f -name 'justfile' -exec just --fmt --check --unstable --justfile {} ';'
     just --justfile lib/justfile           test
     just --justfile node-red/justfile      test
@@ -50,7 +47,6 @@ test:
     actionlint --shellcheck="" # TODO: Enable shelcheck for actionlint
 
 developer-mode: setup-dev
-    npm install --prefix /opt/PlanktoScope/os/developer-mode/
     ./os/developer-mode/setup.js
     sudo apt install -y build-essential
     # Install some tools for a nicer command-line experience over ssh
@@ -60,7 +56,6 @@ developer-mode: setup-dev
     # Install some tools for troubleshooting networking stuff
     sudo apt install -y net-tools bind9-dnsutils netcat-openbsd nmap avahi-utils
     ./os/developer-mode/install-github-cli.sh
-    cd ./os/developer-mode && npm install
     ./os/developer-mode/configure.js
 
 reset: base setup
@@ -76,6 +71,15 @@ install-uv:
     sudo rm -f /usr/local/bin/uv /usr/local/bin/uvx
     sudo cp /tmp/uv-aarch64-unknown-linux-gnu/uv /usr/local/bin/
     sudo cp /tmp/uv-aarch64-unknown-linux-gnu/uvx /usr/local/bin/
+
+install-node:
+    # https://github.com/nodesource/distributions/wiki/Repository-Manual-Installation
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --yes --dearmor -o /etc/apt/keyrings/nodesource.gpg
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_24.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list
+    sudo apt update
+    sudo apt install -y nodejs
+    npm config set prefix /usr/local
+    sudo npm config set prefix /usr/local
 
 # We run setup and setup-dev twice to ensure it is idempotent
 

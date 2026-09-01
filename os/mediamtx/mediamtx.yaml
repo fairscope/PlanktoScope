@@ -37,3 +37,7 @@ paths:
     alwaysAvailable: true
     alwaysAvailableTracks:
       - codec: H264
+    # Rewrite this file's placeholder hostname/IP (above) with the device's real
+    # values at startup. mediamtx watches the
+    # config file and hot-reloads after the rewrite. See lib/mediamtx.js.
+    runOnInit: /usr/bin/node /opt/PlanktoScope/lib/mediamtx.js

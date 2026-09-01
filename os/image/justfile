@@ -1,5 +1,5 @@
 setup:
-    sudo apt install -y gdisk
+    sudo apt install -y gdisk systemd-repart
     npm ci --omit=dev
     sudo cp mount-firmware.service /etc/systemd/system/
     sudo systemctl reenable mount-firmware.service
@@ -8,11 +8,7 @@ setup:
 setup-dev:
     npm install --include=dev
 
-format:
-    npx eslint --fix .
-
 test:
-    npx eslint .
     validator user-data.yaml
     validator autoboot.ini
     validator cloud-init-local-override.ini

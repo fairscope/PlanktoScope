@@ -1,9 +1,7 @@
 #!/usr/bin/env node
 
-// https://github.com/sindresorhus/execa/blob/main/docs/bash.md
-
 import { styleText } from "node:util"
-import { $ } from "execa"
+import { $ } from "../../lib/exec.js"
 import readline from "node:readline/promises"
 import { stdin, stdout } from "node:process"
 

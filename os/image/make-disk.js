@@ -5,7 +5,7 @@
 
 import assert from "node:assert"
 import { umount } from "./lib.js"
-import { $ } from "execa"
+import { $ } from "../../lib/exec.js"
 import {
   setupRaspberryPiOSDevice,
   teardownRaspberryPiOSDevice,
