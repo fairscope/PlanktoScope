@@ -3,6 +3,7 @@ Wants=mosquitto.service
 After=mosquitto.service
 After=nodered.service
 After=mediamtx.service
+PartOf=mediamtx.service
 
 [Service]
 Type=simple
