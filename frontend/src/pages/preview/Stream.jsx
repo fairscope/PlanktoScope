@@ -22,14 +22,20 @@ export default function Stream() {
       class={styles.video}
       muted
       autoplay
+      playsinline
       disablepictureinpicture
       preload="auto"
     />
   )
 
+  function playVideo() {
+    video.play().catch((err) => console.error("video play rejected", err))
+  }
+
   function onVideoLoad() {
     stream_container.style.display = "flex"
     loader_container.style.display = "none"
+    playVideo()
     new Zoomist(zoomist_container, {
       slider: true,
       zoomer: true,
@@ -49,6 +55,7 @@ export default function Stream() {
     onTrack: (evt) => {
       console.debug("mediamtx track", evt)
       video.srcObject = evt.streams[0]
+      playVideo()
     },
     onDataChannel: (evt) => {
       evt.channel.binaryType = "arraybuffer"
