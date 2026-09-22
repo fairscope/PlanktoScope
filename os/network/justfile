@@ -29,18 +29,10 @@ setup:
     sudo systemctl reenable planktoscope-org.wifi.service
     sudo systemctl restart planktoscope-org.wifi.service
 
-    wget https://github.com/grishy/go-avahi-cname/releases/download/v2.3.0/go-avahi-cname_2.3.0_linux_arm64.tar.gz -P /tmp
-    cd /tmp && tar -xzf /tmp/go-avahi-cname_2.3.0_linux_arm64.tar.gz go-avahi-cname
-    -sudo systemctl stop avahi-publish-cname@planktoscope.local.service
-    # cp: cannot create regular file '/usr/local/bin/go-avahi-cname': Text file busy
-    -sudo killall go-avahi-cname
-    sudo cp /tmp/go-avahi-cname /usr/local/bin/go-avahi-cname
-    sudo cp avahi-publish-cname@.service /usr/lib/systemd/system
-    sudo systemctl reenable avahi-publish-cname@planktoscope.local.service
-    sudo systemctl restart avahi-publish-cname@planktoscope.local.service
-
     sudo cp hosts /etc/
     sudo cp dnsmasq-shared.properties /etc/NetworkManager/dnsmasq-shared.d/40-config.conf
+    sudo systemctl restart update-hostname
+    sudo systemctl restart NetworkManager
 
 test:
     validator wlan0-hotspot.ini

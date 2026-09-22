@@ -48,7 +48,6 @@ Power on your PlanktoScope, and wait for it to start up. Note that it may take a
 
 Once your PlanktoScope has created its Wi-Fi hotspot, you can connect your computer (or phone/tablet/etc.) directly to the PlanktoScope - either through its Wi-Fi hotspot or through an Ethernet cable directly to the PlanktoScope's Ethernet port. Afterwards, you can open a web browser on your computer to access the PlanktoScope's graphical user interface at one of the following URLs (try them in the following order, and just use the first one which works):
 
-- <http://planktoscope.local> (this should work unless you're on a computer or web browser without mDNS support; notably, older versions of Android did not support mDNS, and web browsers installed on Linux computers via Flatpak [do not yet support mDNS](https://github.com/flatpak/xdg-desktop-portal/discussions/1365))
 - <http://planktoscope-{machine-name}.local> (this should work unless you're on a computer or web browser without mDNS support)
 - <http://192.168.4.1> (this should always work on computers connected to the PlanktoScope's Wi-Fi hotspot, unless your computer is also connected to some other device meant to be accessed with that URL)
 

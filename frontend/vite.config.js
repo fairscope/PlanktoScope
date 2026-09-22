@@ -20,7 +20,6 @@ export default defineConfig({
     allowedHosts: [
       os.hostname(),
       `${os.hostname()}.local`,
-      "planktoscope.local",
       "192.168.4.1",
     ],
   },
