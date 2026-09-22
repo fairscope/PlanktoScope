@@ -1,0 +1,50 @@
+[project]
+name = "planktoscope-reporter"
+version = "0.0.1"
+description = "Server-side PDF acquisition report generator for the PlanktoScope"
+requires-python = ">=3.13.5,<4.0"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+keywords = ["planktoscope"]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "Natural Language :: English",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "aiomqtt>=2.4.0,<3",
+    "numpy>=2.3.3,<3",
+    "pillow>=11.0,<12",
+    "matplotlib>=3.9,<4",
+    "jinja2>=3.1,<4",
+    "weasyprint>=61,<70",
+]
+
+[project.urls]
+Homepage = "https://www.planktoscope.org"
+Repository = "https://github.com/fairscope/PlanktoScope/tree/main/reporter"
+Documentation = "https://docs.planktoscope.community/"
+
+[dependency-groups]
+dev = [
+    "poethepoet>=0.37.0,<0.38",
+    "mypy>=1.18.2,<2",
+    "ruff>=0.13.3,<0.14",
+]
+
+[tool.uv]
+package = false
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+
+[tool.poe.tasks]
+fmt = "ruff format"
+lint-ruff = "ruff check"
+lint = ["lint-ruff"]
+fmt-check = "ruff format --check"
+check = ["fmt-check", "lint"]
