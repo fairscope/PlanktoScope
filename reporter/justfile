@@ -1,0 +1,20 @@
+setup:
+    # WeasyPrint renders through Pango; harfbuzz-subset embeds subset fonts in the PDF
+    sudo apt install -y --no-install-recommends libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0
+    uv sync --no-group dev
+    sudo cp planktoscope-org.reporter.service /etc/systemd/system/
+    sudo systemctl reenable planktoscope-org.reporter
+    sudo systemctl restart planktoscope-org.reporter
+
+setup-dev:
+    uv sync --group dev
+
+dev:
+    -sudo systemctl stop planktoscope-org.reporter
+    uv run main.py
+
+format:
+    uv run poe fmt
+
+test:
+    uv run poe check

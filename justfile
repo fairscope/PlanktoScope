@@ -14,6 +14,7 @@ setup:
     just --justfile node-red/justfile      setup
     just --justfile controller/justfile    setup
     just --justfile segmenter/justfile     setup
+    just --justfile reporter/justfile      setup
     just --justfile os/justfile            setup
     just --justfile backend/justfile       setup
     just --justfile frontend/justfile      setup
@@ -24,6 +25,7 @@ setup-dev:
     just --justfile node-red/justfile      setup-dev
     just --justfile controller/justfile    setup-dev
     just --justfile segmenter/justfile     setup-dev
+    just --justfile reporter/justfile      setup-dev
     just --justfile os/justfile            setup-dev
     just --justfile backend/justfile       setup-dev
     just --justfile frontend/justfile      setup-dev
@@ -41,6 +43,7 @@ test:
     just --justfile node-red/justfile      test
     just --justfile controller/justfile    test
     just --justfile segmenter/justfile     test
+    just --justfile reporter/justfile      test
     just --justfile os/justfile            test
     just --justfile backend/justfile       test
     just --justfile frontend/justfile      test
