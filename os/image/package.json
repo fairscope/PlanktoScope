@@ -3,6 +3,7 @@
   "type": "module",
   "dependencies": {
     "dedent": "^1.7.2",
+    "del": "^8.0.1",
     "ini": "^6.0.0",
     "write-file-atomic": "^7.0.1"
   }
