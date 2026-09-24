@@ -1,0 +1,33 @@
+---
+name: build-os-trixie
+on:
+  push:
+    tags:
+      - 'software/v*'
+  merge_group:
+  workflow_dispatch:
+    inputs:
+      git-ref:
+        description: 'Git ref (optional)'
+        required: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    uses: ./.github/workflows/build-os.yml
+    secrets: inherit
+    with:
+      name: PlanktoScope-OS
+      base_release_name: trixie
+      base_image_variant: lite
+      base_release_date: 2025-10-02
+      base_file_release_date: 2025-10-01
+      arch: arm64
