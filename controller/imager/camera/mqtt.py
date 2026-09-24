@@ -54,6 +54,13 @@ class Worker(threading.Thread):
         )
         settings = settings.overlay(hardware.config_to_settings_values(configuration))
 
+        # Whether the light controller will drive the LED through the LM36011, whose
+        # coarse torch register decides the default ISO below. 3.2 is the same
+        # threshold LM36011.py uses to detect pre-v3 HATs; an absent or unreadable
+        # hat_version falls through to the v3 default rather than guessing.
+        hat_version = float(configuration.get("hat_version") or 0)
+        self._coarse_led = 0 < hat_version < 3.2
+
         # I/O
         self._camera: typing.Optional[hardware.PiCamera] = hardware.PiCamera(
             initial_settings=settings
@@ -76,7 +83,23 @@ class Worker(threading.Thread):
             return
         self._camera_checked.set()
 
-        default_iso = 150
+        # The lightness calibration loop's only knob is the LED, so the ISO decides
+        # how finely it can land on its target.
+        #
+        # On v2.6 the LED is an LM36011 driven by a 7-bit torch register, ~2.94 mA
+        # per step. At ISO 150 the lightness-230 target falls at register ~5.5, and
+        # one step there moves lightness ~12.8 units against the loop's +/-5
+        # acceptance band — so 230 is unreachable. Halving the ISO doubles the
+        # current the LED must supply for the same image, moving the operating point
+        # up to register ~14 where a step is ~6.2 units and lands in-band.
+        #
+        # v3 drives the LED through a 4096-level MCP4725 DAC, which already resolves
+        # the target far more finely than the band requires. It gains nothing here,
+        # so leave it on 150 rather than shift its acquisition brightness and force
+        # every v3 device to re-calibrate.
+        #
+        # See fairscope/PlanktoScope3#309.
+        default_iso = 75 if self._coarse_led else 150
         loguru.logger.debug(f"Setting camera image gain for default ISO value of {default_iso}...")
         changes = hardware.SettingsValues(image_gain=default_iso / hardware.ISO_CALIBRATION)
         try:
