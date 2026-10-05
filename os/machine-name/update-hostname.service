@@ -1,5 +1,5 @@
 [Unit]
-Description=Make systemd-hostnamed update the hostname from /etc/hostname
+Description=Update hostname
 ConditionPathExists=/etc/hostname
 Wants=generate-hostname.service
 After=generate-hostname.service
@@ -8,10 +8,12 @@ After=systemd-hostnamed.service
 Wants=network-pre.target
 Before=network-pre.target
 Before=avahi-daemon.service
+Before=mediamtx.service
+Before=cockpit.service
 
 [Service]
 Type=oneshot
-ExecStart=sh -c 'hostnamectl hostname "$(cat /etc/hostname)"'
+ExecStart=/opt/PlanktoScope/os/machine-name/update-hostname.js
 
 [Install]
 WantedBy=multi-user.target

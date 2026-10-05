@@ -1,0 +1,5 @@
+{
+  "high":   { "factory": 0.53, "user_calibrated": null },
+  "medium": { "factory": 0.75, "user_calibrated": null },
+  "low":    { "factory": 1.34, "user_calibrated": null }
+}

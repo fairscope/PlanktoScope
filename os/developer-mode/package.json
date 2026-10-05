@@ -1,6 +1,0 @@
-{
-  "private": true,
-  "dependencies": {
-    "execa": "^9.6.0"
-  }
-}

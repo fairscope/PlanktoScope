@@ -1,15 +1,19 @@
 setup:
-    wget https://github.com/bluenviron/mediamtx/releases/download/v1.15.6/mediamtx_v1.15.6_linux_arm64.tar.gz -P /tmp
-    cd /tmp && tar -xf /tmp/mediamtx_v1.15.6_linux_arm64.tar.gz
+    sudo ./setup_h264_sysctl.sh
+    wget https://github.com/bluenviron/mediamtx/releases/download/v1.21.0/mediamtx_v1.21.0_linux_arm64.tar.gz -P /tmp
+    wget https://raw.githubusercontent.com/bluenviron/mediamtx/refs/tags/v1.21.0/internal/servers/webrtc/reader.js -O /opt/PlanktoScope/frontend/src/pages/preview/reader.js
+    cd /tmp && tar -xf /tmp/mediamtx_v1.21.0_linux_arm64.tar.gz
     -sudo systemctl stop mediamtx
     sudo cp /tmp/mediamtx /usr/local/bin/mediamtx
     sudo cp mediamtx.service /etc/systemd/system/
+    sudo cp mediamtx.yaml /etc/mediamtx.yaml
+    sudo chown pi:pi /etc/mediamtx.yaml
     sudo systemctl reenable mediamtx
     sudo systemctl restart mediamtx
 
 test:
-    validator mediamtx.yml
+    validator mediamtx.yaml
 
 dev:
     -sudo systemctl stop mediamtx
-    mediamtx mediamtx.yml
+    mediamtx /etc/mediamtx.yaml

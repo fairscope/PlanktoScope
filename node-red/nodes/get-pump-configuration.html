@@ -1,0 +1,26 @@
+<script type="text/javascript">
+  RED.nodes.registerType("get pump configuration", {
+    category: "PlanktoScope",
+    color: "#8E7DC4",
+    defaults: {
+      name: { value: "" },
+    },
+    inputs: 1,
+    outputs: 1,
+    icon: "planktoscope.png",
+    label: function () {
+      return this.name || "Get Pump Configuration"
+    },
+  })
+</script>
+
+<script type="text/x-red" data-template-name="get pump configuration">
+  <div class="form-row">
+      <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+      <input type="text" id="node-input-name" placeholder="Name">
+  </div>
+</script>
+
+<script type="text/html" data-help-name="get pump configuration">
+  <p>Get the pump configuration.</p>
+</script>

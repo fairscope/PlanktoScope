@@ -4,18 +4,27 @@
 # It is meant to be run on a specific Raspberry OS Pi OS standard installation.
 
 line=$(head -n 1 /etc/rpi-issue)
-date="2025-12-04"
-expected="Raspberry Pi reference $date"
+reference="2026-06-18"
+expected="Raspberry Pi reference $reference"
 
 if [ "$line" != "$expected" ]; then
-  echo "ERROR: Only Raspberry Pi OS $date is supported."
+  echo "ERROR: Only Raspberry Pi OS $reference is supported."
   exit 1
 fi
 
-cd /home/pi
+sudo mount -o remount,rw /boot/firmware
+sudo apt update -y
 sudo apt install -y git just
-if cd PlanktoScope; then git pull; else git clone https://github.com/PlanktoScope/PlanktoScope.git; fi
-cd PlanktoScope
+cd /opt
+if cd PlanktoScope; then
+    git pull
+else
+    sudo mkdir PlanktoScope
+    sudo chown pi:pi PlanktoScope
+    git clone https://github.com/fairscope/PlanktoScope.git
+    cd PlanktoScope
+fi
+git submodule update --init
 just
 ./os/postinstall.sh
 

@@ -78,28 +78,18 @@ class Worker(threading.Thread):
 
         default_iso = 150
         loguru.logger.debug(f"Setting camera image gain for default ISO value of {default_iso}...")
-        # 100 is the default calibration because that's what's used in the Pi Camera v1 Module, and
-        # it's a round number:
-        calibration = ISO_CALIBRATIONS.get(self._camera.sensor_name, 100)
-        changes = hardware.SettingsValues(image_gain=default_iso / calibration)
+        changes = hardware.SettingsValues(image_gain=default_iso / hardware.ISO_CALIBRATION)
         try:
             _validate_settings(changes)
         except (TypeError, ValueError) as e:
             raise ValueError("Invalid default ISO") from e
         self._camera.settings = changes
         loguru.logger.debug(
-            f"Set image gain to {changes.image_gain} for sensor {self._camera.sensor_name}!",
+            f"Set image gain to {changes.image_gain}!",
         )
 
         loguru.logger.info("Starting the MQTT backend...")
-        # TODO(ethanjli): expose the camera settings over "camera/settings" instead! This requires
-        # removing the "settings" action from the "imager/image" route which is a breaking change
-        # to the MQTT API, so we'll do this later.
         mqtt = messaging.MQTT_Client(topic="imager/image", name="imager_camera_client")
-        # TODO(ethanjli): allow an MQTT client to trigger this broadcast with an MQTT command. This
-        # requires modifying the MQTT API (by adding a new route), and we'll want to make the
-        # Node-RED dashboard query that route at startup, so we'll do this later.
-        mqtt.client.publish("status/imager", json.dumps({"camera_name": self._camera.camera_name}))
         self.mqtt = mqtt
 
         try:
@@ -165,6 +155,9 @@ class Worker(threading.Thread):
                 config=picam2.camera_configuration()["raw"],
                 file_output=path_dng,
             )
+            # Use fsync to ensure write completes
+            with open(path_dng, "ab") as f:
+                os.fsync(f.fileno())
 
         path_jpeg = None
         if payload.get("jpeg") is not False:
@@ -175,6 +168,9 @@ class Worker(threading.Thread):
             picam2.helpers.save(
                 img=image_main, metadata=metadata, format="jpeg", file_output=path_jpeg
             )
+            # Use fsync to ensure write completes
+            with open(path_jpeg, "ab") as f:
+                os.fsync(f.fileno())
 
         assert self.mqtt
         self.mqtt.client.publish(
@@ -214,7 +210,7 @@ class Worker(threading.Thread):
         settings = message["payload"]["settings"]
         try:
             converted_settings = _convert_settings(
-                settings, self._camera.settings.white_balance_gains, self._camera.sensor_name
+                settings, self._camera.settings.white_balance_gains
             )
             _validate_settings(converted_settings)
         except (TypeError, ValueError) as e:
@@ -249,7 +245,6 @@ class Worker(threading.Thread):
 def _convert_settings(
     command_settings: dict[str, typing.Any],
     default_white_balance_gains: typing.Optional[hardware.WhiteBalanceGains],
-    camera_sensor_name: str,
 ) -> hardware.SettingsValues:
     """Convert MQTT command settings to camera hardware settings.
 
@@ -278,7 +273,6 @@ def _convert_settings(
     converted = converted.overlay(
         _convert_image_gain_settings(
             command_settings,
-            camera_sensor_name,
         )
     )
     if "white_balance" in command_settings:
@@ -292,19 +286,8 @@ def _convert_settings(
     return converted
 
 
-# Refer to https://picamera.readthedocs.io/en/release-1.13/fov.html#sensor-gain for
-# details on how ISO values correspond to image gains with the Pi Camera v2 Module,
-# and refer to https://forums.raspberrypi.com/viewtopic.php?t=282760 for details on ISO
-# vs. image gain calibration for the Pi HQ Camera Module:
-ISO_CALIBRATIONS = {  # this is ISO / image-gain
-    "IMX219": 100 / 1.84,  # Pi Camera v2 Module
-    "IMX477": 100 / 2.3125,  # Pi HQ Camera Module
-}
-
-
 def _convert_image_gain_settings(
     command_settings: dict[str, typing.Any],
-    camera_sensor_name: str,
 ) -> hardware.SettingsValues:
     """Convert image gains in MQTT command settings to camera hardware settings.
 
@@ -335,10 +318,7 @@ def _convert_image_gain_settings(
             iso = float(command_settings["iso"])
         except (TypeError, ValueError) as e:
             raise ValueError("Iso number not valid") from e
-        # 100 is the default calibration because that's what's used in the Pi Camera v1 Module, and
-        # it's a round number:
-        calibration = ISO_CALIBRATIONS.get(camera_sensor_name, 100)
-        converted = converted._replace(image_gain=iso / calibration)
+        converted = converted._replace(image_gain=iso / hardware.ISO_CALIBRATION)
 
     return converted
 

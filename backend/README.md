@@ -29,8 +29,6 @@ Run all checks (including code formatting and linting):
 just test
 ```
 
-We recommand using [VSCode SSH](https://code.visualstudio.com/docs/remote/ssh)
-
 ## Notes
 
 See https://github.com/raspberrypi/utils/blob/master/eeptools

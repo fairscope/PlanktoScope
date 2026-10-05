@@ -1,8 +1,21 @@
 setup:
+    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --yes --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+    sudo chmod o+r /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+    sudo chmod o+r /etc/apt/sources.list.d/caddy-stable.list
+    sudo apt update
     sudo apt install -y caddy
     sudo cp Caddyfile /etc/caddy/
+    # For some reason override did not work
+    sudo sed -i 's/After=network.target network-online.target/After=network.target/; s/Requires=network-online.target/Requires=network.target/' /usr/lib/systemd/system/caddy.service
+    sudo sed -i 's/After=network.target network-online.target/After=network.target/; s/Requires=network-online.target/Requires=network.target/' /usr/lib/systemd/system/caddy-api.service
+    sudo systemctl daemon-reload
     sudo systemctl reenable caddy
     sudo systemctl restart caddy
+    # allow group traversal
+    chmod g+x /home/pi
+    # allow caddy access to /home/pi and /opt/PlanktoScope files
+    sudo usermod -aG pi caddy
 
 format:
     caddy fmt --overwrite Caddyfile

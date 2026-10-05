@@ -17,6 +17,8 @@ Start service for development:
 just dev
 ```
 
+Use `http://planktoscope-sponge-bob:3000/bookmarks` for preview.
+
 Run the code auto-formatter on the project:
 
 ```sh
@@ -28,5 +30,3 @@ Run all checks (including code formatting and linting):
 ```sh
 just test
 ```
-
-We recommand using [VSCode SSH](https://code.visualstudio.com/docs/remote/ssh)

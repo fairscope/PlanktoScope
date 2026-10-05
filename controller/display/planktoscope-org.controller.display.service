@@ -5,7 +5,7 @@ After=mosquitto.service
 [Service]
 Type=simple
 Environment=HOME=/home/pi
-WorkingDirectory=/home/pi/PlanktoScope/controller
+WorkingDirectory=/opt/PlanktoScope/controller
 ExecStart=/usr/local/bin/uv run python -m display.main
 User=pi
 Group=pi

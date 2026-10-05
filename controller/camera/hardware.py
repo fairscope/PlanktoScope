@@ -1,24 +1,37 @@
 """hardware provides basic I/O abstractions for camera hardware."""
 
+import os
 import typing
 
+import libcamera  # type: ignore
 import loguru
 import picamera2  # type: ignore
 from picamera2 import encoders, outputs
-from readerwriterlock import rwlock
 from picamera2.platform import Platform, get_platform  # type: ignore
+from readerwriterlock import rwlock
 
 # The width & height (in pixels) of camera preview; defaults to the max allowed size for the
 # camera sensor:
-#
 # capture uses 4056x3040 (4:3 ratio)
-# we use half on RPI5 as it doesn't have hardware encoder and we want to limit bandwidth
+preview_size = None
 # we use 1440x1080 on RPI4 to stay within the hardware encoder capabilities while maintaining ratio
 # anything <= 1920x1080 divisible by 16 (required by H.264 macroblock alignment) (or 2) is fine
 # See supported levels with
 # v4l2-ctl -D -d /dev/video11 -l -L
 # https://en.wikipedia.org/wiki/Advanced_Video_Coding#Levels
-preview_size = (1440, 1080) if (get_platform() == Platform.VC4) else (2028, 1520)
+if get_platform() == Platform.VC4:
+    preview_size = (1440, 1080)
+# we use 1920x1440 on RPI5 as it doesn't have hardware encoder and we want to limit bandwidth
+# and keep the software encoder resource usage in check
+# 1920x1440 maintains the ratio and is macroblock aligned
+else:
+    preview_size = (1920, 1440)
+
+# This constant is a calibration factor for the Pi HQ camera.
+# On the HQ module, “ISO 100” corresponds to an overall gain of ~2.3125 (analogue × digital),
+# so we scale gain → ISO-like values with ISO ≈ overall_gain * (100/2.3125).
+# This keeps our UI/inputs consistent with the HQ camera’s tuning.
+ISO_CALIBRATION = 100 / 2.3125
 
 
 class StreamConfig(typing.NamedTuple):
@@ -195,7 +208,7 @@ def config_to_settings_values(config: dict[str, typing.Any]) -> SettingsValues:
     # TODO(ethanjli): add exposure time (previously called "shutter speed") and image gain
     # (previously called "iso" but with a different scaling factor) and auto_white_balance to the
     # hardware.json config. Maybe also add jpeg_quality? For details, refer to
-    # https://github.com/PlanktoScope/PlanktoScope/issues/290
+    # https://github.com/fairscope/PlanktoScope/issues/290
     if "red_gain" in config or "blue_gain" in config:
         try:
             red_gain = float(config["red_gain"])
@@ -271,6 +284,12 @@ class PiCamera:
             lores_config,
             buffer_count=self._stream_config.buffer_count,
             queue=self._stream_config.queue,
+            # Request BT.601 limited-range YUV (Smpte170m) for the lores stream so that the H.264
+            # encoder's default color_range tag (limited) matches the pixel data. Without this, the
+            # ISP delivers full-range sYCC YUV but the H.264 VUI advertises limited range, causing
+            # browser/RTSP decoders to re-expand the values and display the preview ~5% brighter than
+            # the saved JPEG. See https://github.com/fairscope/PlanktoScope/pull/941
+            colour_space=libcamera.ColorSpace.Smpte170m(),
         )
         loguru.logger.debug(f"Camera configuration: {config}")
         self._camera.configure(config)
@@ -285,6 +304,8 @@ class PiCamera:
         loguru.logger.debug("Starting the camera...")
 
         encoder = encoders.H264Encoder(
+            # Use baseline profile to optimize for real time / network
+            profile="baseline",
             # picamera2-manual.pdf 7.1.1. H264Encoder
             # the bitrate (in bits per second) to use. The default value None will cause the encoder to
             # choose an appropriate bitrate according to the Quality when it starts.
@@ -293,18 +314,18 @@ class PiCamera:
             # whether to repeat the stream’s sequence headers with every Intra frame (I-frame). This can
             # be sometimes be useful when streaming video over a network, when the client may not receive the start of the
             # stream where the sequence headers would normally be located.
-            # repeat=False,
+            repeat=True,
             # picamera2-manual.pdf 7.1.1. H264Encoder
             # iperiod (default None) - the number of frames from one I-frame to the next. The value None leaves this at the
             # discretion of the hardware, which defaults to 60 frames.
-            # iperiod=None
+            iperiod=30,
         )
         encoder.audio = False
         # picamera2-manual.pdf 7.1. Encoders
         # Normally, the encoder of necessity runs at the same frame rate as the camera. By default, every received camera frame
         # gets sent to the encoder. However, you can use the encoder frame_skip_count property to instead receive every nth frame.
         # encoder.frame_skip_count = 2
-        # rtsp://pkscope-$planktoscope:8554/cam/
+        # rtsp://$planktoscope:8554/cam/
         output = outputs.PyavOutput("rtsp://127.0.0.1:8554/cam", format="rtsp")
         self._camera.start_recording(
             encoder=encoder,
@@ -357,48 +378,6 @@ class PiCamera:
                 self._camera.options[key] = value
             self._cached_settings = new_values
 
-    @property
-    def sensor_name(self) -> str:
-        """Name of the camera sensor.
-
-        Returns:
-            Usually one of: `IMX219` (RPi Camera Module 2, used in PlanktoScope hardware v2.1)
-            or `IMX477` (RPi High Quality Camera, used in PlanktoScope hardware v2.3+).
-
-        Raises:
-            RuntimeError: the method was called before the camera was started, or after it was
-              closed.
-        """
-        if self._camera is None:
-            raise RuntimeError("The camera has not been started yet!")
-
-        model = self._camera.camera_properties["Model"]
-        assert isinstance(model, str)
-        return model.upper()
-
-    @property
-    def camera_name(self) -> str:
-        """Name of the camera model.
-
-        Returns:
-            "Camera v2.1" for an IMX219 sensor, "HQ Camera" for an IMX477 sensor, or
-            "Not recognized" otherwise.
-
-        Raises:
-            RuntimeError: the method was called before the camera was started, or after it was
-              closed.
-        """
-        if self._camera is None:
-            raise RuntimeError("The camera has not been started yet!")
-
-        camera_names = {
-            "IMX219": "Camera v2.1",
-            # Note(ethanjli): Currently the PlanktoScope GUI requires this to be "HQ Camera" rather
-            # than "Camera HQ".
-            "IMX477": "HQ Camera",
-        }
-        return camera_names.get(self.sensor_name, "Not recognized")
-
     def capture_file(self, path: str) -> None:
         """Capture an image from the main stream (in full resolution) and save it as a file.
 
@@ -422,6 +401,11 @@ class PiCamera:
         loguru.logger.debug(
             f"Image metadata: {request.get_metadata()}"  # pylint: disable=no-member
         )
+
+        # Use fsync to ensure write completes
+        with open(path, "ab") as f:
+            os.fsync(f.fileno())
+
         request.release()  # pylint: disable=no-member
 
     def close(self) -> None:

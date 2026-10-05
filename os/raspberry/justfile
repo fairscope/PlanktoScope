@@ -1,6 +1,5 @@
 setup:
-    ./firmware.sh
-    ./raspi-config.sh
+    sudo NODE_DEBUG=execa ./firmware.js
     ./bootloader.sh
 
 test:

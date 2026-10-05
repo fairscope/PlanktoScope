@@ -10,15 +10,13 @@ In order to operate your PlanktoScope, you will need to connect to your PlanktoS
 
 ### Connect with an Ethernet cable
 
-You can connect your PlanktoScope to a router with an Ethernet cable. It will be accessible via its network ip address or `http://pkscope-{machine-name}`.
+You can connect your PlanktoScope to a router with an Ethernet cable. It will be accessible via its network ip address or `http://planktoscope-{machine-name}`.
 
 ### Connect with the PlanktoScope's Wi-Fi hotspot
 
 Your PlanktoScope will create its own isolated Wi-Fi network (like a Wi-Fi hotspot, but without internet access). The Wi-Fi hotspot created by your PlanktoScope should appear on your computer's list of available Wi-Fi networks a few minutes after you turn on power to your PlanktoScope.
 
-![wifi-network.png](images/wifi-network.png)
-
-As you can see, the name of your PlanktoScope's Wi-Fi hotspot will be of the format `pkscope-{machine-name}`; `{machine-name}` has the format `{random word}-{random word}-{random number}`; in the above screenshot, the highlighted Wi-Fi hotspot is from a PlanktoScope with machine name `chain-list-27764`. Your PlanktoScope's machine name corresponds exactly to the serial number of the Raspberry Pi computer in your PlanktoScope. You should connect your computer to the Wi-Fi hotspot specific to your PlanktoScope.
+The name of your PlanktoScope's Wi-Fi hotspot will be of the format `PlanktoScope {machine-name}`; `{machine-name}` has the format `{random word}-{random word}`; in the above screenshot, the highlighted Wi-Fi hotspot is from a PlanktoScope with machine name `chain-list-27764`. Your PlanktoScope's machine name corresponds exactly to the serial number of the Raspberry Pi computer in your PlanktoScope. You should connect your computer to the Wi-Fi hotspot specific to your PlanktoScope.
 
 !!! tip
 
@@ -30,26 +28,12 @@ The password is `copepode`.
 
 Once you connect your computer (or phone/tablet/etc.) to your PlanktoScope, you will need to access your PlanktoScope's software from a web browser on your computer.
 
-If you know the machine name of your PlanktoScope (which you can determine from the name of your PlanktoScope's Wi-Fi hotspot, as described above), you can try using your web browser to open a URL of format `http://pkscope-{machine-name}.local`, where `{machine-name}` should be substituted with your PlanktoScope's machine name. If you don't know your PlanktoScope's machine name, you can try using your web browser to open <http://planktoscope.local> or <http://pkscope.local>. All three of these URLs should work unless you're on a computer or web browser without mDNS support; notably, older versions of Android did not support mDNS, and web browsers installed on Linux computers via Flatpak [do not yet support mDNS](https://github.com/flatpak/xdg-desktop-portal/discussions/1365).
+If you know the machine name of your PlanktoScope (which you can determine from the name of your PlanktoScope's Wi-Fi hotspot, as described above), you can try using your web browser to open a URL of format `http://planktoscope-{machine-name}.local`, where `{machine-name}` should be substituted with your PlanktoScope's machine name. If you don't know your PlanktoScope's machine name, you can try using your web browser to open <http://planktoscope.local>. Both of these URLs should work unless you're on a computer or web browser without mDNS support; notably, older versions of Android did not support mDNS, and web browsers installed on Linux computers via Flatpak [do not yet support mDNS](https://github.com/flatpak/xdg-desktop-portal/discussions/1365).
 !!! warning
 
-    <http://planktoscope.local> and <http://pkscope.local> may behave in weird ways if your computer is directly connected to multiple PlanktoScopes or if it's connected to a Wi-Fi router or Ethernet router (or to a VPN or other LAN) which has multiple PlanktoScopes connected to it. In such a situation, those URLs may cause you to access the software for a different PlanktoScope connected to your computer than the one you had intended to access. You should instead use the machine-specific URL of format `http://pkscope-{machine-name}.local`.
+    <http://planktoscope.local> may behave in weird ways if your computer is directly connected to multiple PlanktoScopes or if it's connected to a Wi-Fi router or Ethernet router (or to a VPN or other LAN) which has multiple PlanktoScopes connected to it. In such a situation, those URLs may cause you to access the software for a different PlanktoScope connected to your computer than the one you had intended to access. You should instead use the machine-specific URL of format `http://planktoscope-{machine-name}.local`.
 
-If those URLs don't work for you and you're connecting your computer directly to your PlanktoScope (i.e. via your PlanktoScope's Wi-Fi hotspot, or via an Ethernet cable from your computer to your PlanktoScope's Ethernet port), then you can try opening the following URLs in your web browser instead (try opening them in the following order, and just use the first one which works):
-
-- a URL of format `http://{machine-name}.pkscope`, where `{machine-name}` should be substituted with your PlanktoScope's machine name (this should work unless your web browser is configured to use a Private DNS provider)
-- <http://home.pkscope> (this should work unless your web browser is configured to use a Private DNS provider)
-- <http://192.168.4.1> (this should always work on computers connected to the PlanktoScope's Wi-Fi hotspot, unless your computer is also connected to some other device meant to be accessed with that URL)
-
-One of the above URLs should work, and your web browser should show a landing page with a list of links, as well as its machine-specific URL with format `http://pkscope-{machine-name}.local`; in this screenshot of the landing page accessed via the URL <http://home.pkscope>, the PlanktoScope's machine name is `clear-request-6329`:
-
-![landing-page.png](images/landing-page.png)
-
-!!! tip
-
-    If you access the landing page using any URL not of the format `http://pkscope-{machine-name}.local`, then the landing page will suggest its own machine-specific URL for you to try opening; you can see that in the above screenshot, which shows a yellow information box with the URL for the PlanktoScope used to make that screenshot. You should try opening the corresponding URL on the landing page for your PlanktoScope to see if it works in your web browser.
-
-Next, you should click on the "Node-RED dashboard" link; this will open a new tab with the primary interface for operating your PlanktoScope. Once you have opened the Node-RED dashboard, you should proceed to our [User interface guide](user-interface.md) to understand how to use it.
+If those URLs don't work for you and you're connecting your computer directly to your PlanktoScope (i.e. via your PlanktoScope's Wi-Fi hotspot, or via an Ethernet cable from your computer to your PlanktoScope's Ethernet port), then you can try opening <http://192.168.4.1> in your web browser instead.
 
 ## Acquire data on plankton samples
 

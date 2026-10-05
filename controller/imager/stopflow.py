@@ -99,6 +99,7 @@ class Routine:
 
         # Routine state
         self._interrupted = threading.Event()  # routine interrupted before completion
+        self._paused = threading.Event()  # routine paused between steps
         self._progress = 0  # the number of images acquired so far
         self._progress_lock = threading.Lock()
 
@@ -120,6 +121,12 @@ class Routine:
             if self._progress >= self.settings.total_images:
                 return None
 
+        # Block while paused, checking for interruption every second
+        while self._paused.is_set():
+            if self._interrupted.wait(timeout=1.0):
+                loguru.logger.info("Image acquisition was interrupted while paused!")
+                return None
+
         self._pump.run_discrete(self.settings.pump)
         if self._interrupted.wait(timeout=self.settings.stabilization_duration):
             loguru.logger.info("Image acquisition was interrupted during an acquisition step!")
@@ -129,11 +136,11 @@ class Routine:
             filename = f"{dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%d_%H-%M-%S-%f')}.jpg"
             capture_path = os.path.join(self.output_path, filename)
             loguru.logger.info(
-                f"Capturing image {self._progress}/{self.settings.total_images} to "
+                f"Capturing image {self._progress + 1}/{self.settings.total_images} to "
                 + f"{capture_path}...",
             )
             self._camera.capture_file(capture_path)
-            os.sync()
+
             # Note(ethanjli): updating the integrity file is the responsibility of the code which
             # calls this `run_step()` method.
 
@@ -151,7 +158,28 @@ class Routine:
             self._pump.stop()
             loguru.logger.info("The image-acquisition routine has been interrupted!")
 
+    def pause(self) -> None:
+        """Pause the routine between steps."""
+        self._paused.set()
+        loguru.logger.info("The image-acquisition routine has been paused.")
+
+    def resume(self) -> None:
+        """Resume the routine after being paused."""
+        self._paused.clear()
+        loguru.logger.info("The image-acquisition routine has been resumed.")
+
+    @property
+    def paused(self) -> bool:
+        """Check whether the routine is currently paused."""
+        return self._paused.is_set()
+
     @property
     def interrupted(self) -> bool:
         """Check whether the routine was manually interrupted."""
         return self._interrupted.is_set()
+
+    @property
+    def progress(self) -> int:
+        """The number of images actually captured so far."""
+        with self._progress_lock:
+            return self._progress

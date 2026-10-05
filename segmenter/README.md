@@ -10,7 +10,7 @@ This repository contains the PlanktoScope's segmenter, which detects objects fro
 
 ### Deployment
 
-The segmenter is published for deployment as a Docker container image at [https://ghcr.io/PlanktoScope/segmenter](https://github.com/PlanktoScope/PlanktoScope/pkgs/container/segmenter). Note that the segmenter requires an MQTT broker accessible on the port 1883 of the host, as well as something to send MQTT commands to the segmenter.
+The segmenter is published for deployment as a Docker container image at [https://ghcr.io/PlanktoScope/segmenter](https://github.com/fairscope/PlanktoScope/pkgs/container/segmenter). Note that the segmenter requires an MQTT broker accessible on the port 1883 of the host, as well as something to send MQTT commands to the segmenter.
 
 ### Development
 
@@ -24,7 +24,7 @@ just
 Start segmenter for development:
 
 ```sh
-just dev
+PLANKTOSCOPE_DATA_PATH=/home/pi/data just dev
 # make changes and restart
 ```
 
@@ -40,7 +40,29 @@ Run all checks (including code formatting and linting):
 just test
 ```
 
-We recommand using [VSCode SSH](https://code.visualstudio.com/docs/remote/ssh)
+We have an [example dataset](https://drive.google.com/drive/folders/1g6OPaUIhYkU2FPqtIK4AW6U4FYmhFxuw) which you can use for testing the segmenter.
+
+### Running on your computer
+
+You will need a running MQTT broker. We recommend [Mosquitto](https://mosquitto.org/) with the following configuration
+
+```
+listener 1883
+protocol mqtt
+
+listener 9001
+protocol websockets
+
+allow_anonymous true
+```
+
+Then you can install and start the segmenter with
+
+```sh
+cd segmenter
+uv sync
+uv run main.py
+```
 
 ### Prerequisites
 

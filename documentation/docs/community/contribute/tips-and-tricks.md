@@ -8,22 +8,24 @@ This page provides useful snippets and how-tos while developing software for the
 
 ## Building the OS
 
-### Install Raspberry Pi OS
+You will have to flash [2026-06-18-raspios-trixie-arm64-lite.img.xz](https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2026-06-19/2026-06-18-raspios-trixie-arm64-lite.img.xz).
 
-Download [2025-11-24-raspios-trixie-arm64-lite.img.xz](https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2025-11-24/).
+⚠️ No other version is supported. ⚠️
 
-Use [Raspberry Pi Imager](https://www.raspberrypi.com/software/) and select **Use custom** to pick the downloaded `.img.xz` file.
+* For PlanktoScope v2.6 flash to SDCard
+* For PlanktoScope v3.0 flash to SSD (from SDCard or with USB NVME adapter)
 
-Use the following OS customization:
+You can use `Raspberry Pi Imager` (v2) -> `OS` -> `Use custom`
 
-* Set **Username** to `pi`
-* Set **Password** to `copepode`
-* Enable SSH with `Use password authentication`
+1. Wait for the image to be written
+2. Re-insert the SDCard
+3. Open the `bootfs` partition
+4. Replace the content of the file `user-data` with [this](/os/image/user-data.yaml)
 
-Boot into Raspberry Pi OS and type the following commands using SSH
+Then boot into Raspberry Pi OS and type the following commands using SSH
 
 ```sh
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/PlanktoScope/PlanktoScope/HEAD/os/setup.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/FairScope/PlanktoScope/HEAD/os/setup.sh)"
 # After the script ran succesfully
 sudo reboot
 ```
@@ -37,10 +39,12 @@ PlanktoScope OS is ready.
 Type the following commands
 
 ```sh
-cd /home/pi/PlanktoScope
-git checkout main
-git pull
-just
+cd /opt/PlanktoScope
+just update
+# don't forget to copy default configs if needed/wanted
+# cp default-configs/v3.0.hardware.json hardware.json
+# cp default-configs/v3.0.config.json config.json
+
 # After the script ran succesfully
 sudo reboot
 ```
@@ -64,7 +68,7 @@ sudo reboot
 
 To setup the recommended development environment, run the following commands.
 
-Make sure to replace `$planktoscope` with your PlanktoScope hostname, eg. `pkscope-sponge-bob-123`
+Make sure to replace `$planktoscope` with your PlanktoScope hostname, eg. `planktoscope-sponge-bob`
 
 <details>
     <summary>On your computer</summary>
@@ -95,7 +99,7 @@ You can now SSH into your PlanktoScope without username / password (using `ssh $
     <summary>On the PlanktoScope</summary>
 
 ```sh
-cd ~/PlanktoScope
+cd /opt/PlanktoScope
 just developer-mode
 git checkout main
 git status
@@ -103,7 +107,7 @@ git status
 
 </details>
 
-We recommend developping directly from the PlanktoScope using [Visual Studio Code and the Remote - SSH extension](https://code.visualstudio.com/docs/remote/ssh) or [Zed - Remote Development](https://zed.dev/docs/remote-development). Use `$planktoscope` as the host to connect to and open the `/home/pi/PlanktoScope` directory.
+We recommend developping directly from the PlanktoScope using [Visual Studio Code and the Remote - SSH extension](https://code.visualstudio.com/docs/remote/ssh) or [Zed - Remote Development](https://zed.dev/docs/remote-development). Use `$planktoscope` as the host to connect to and open the `/opt/PlanktoScope` directory.
 
 ## Connect to router
 
@@ -118,9 +122,9 @@ nmcli device wifi connect "<SSID>" --ask
 
 Your PlanktoScope should be accessible via its hostname which you can retrieve from the PlanktoScope with `hostnamectl`
 
-You can then ssh into it with `ssh://pi@pkscope-example-name-0000`
+You can then ssh into it with `ssh://pi@planktoscope-sponge-bob`
 
-And access the UI with http://pkscope-example-name-0000/
+And access the UI with http://planktoscope-sponge-bob/
 
 If that doesn't work, type `nmap -sn 192.168.1.0/24` from your computer to find the PlanktoScope hostname and/or ip address.
 
@@ -159,7 +163,7 @@ https://lloydrochester.com/post/hardware/libgpiod-intro-rpi/
 
 This is a quick setup guide. See also
 
-- [documentation README](https://github.com/PlanktoScope/PlanktoScope/blob/main/documentation/README.md)
+- [documentation README](https://github.com/fairscope/PlanktoScope/blob/main/documentation/README.md)
 - [Writing Documentation](./documentation.md)
 
 Install dependencies:
@@ -209,27 +213,3 @@ uv run poe preview
 ```
 
 Visit [`http://localhost:8000`](http://localhost:8000) to see local changes.
-
-## Test dataset for segmenter
-
-We have an
-[example dataset](https://drive.google.com/drive/folders/1g6OPaUIhYkU2FPqtIK4AW6U4FYmhFxuw)
-which you can use for testing the segmenter.
-
-To use it, first download it as a `.zip` archive, e.g. to
-`~/Downloads/BTS2023_S3_A2-TIMESTAMP-001.zip`. Then extract it:
-
-```sh
-unzip BTS2023_S3_A2-TIMESTAMP-001.zip
-```
-
-This will result in a new directory named `BTS2023_S3_A2`. Upload that new directory into the
-PlanktoScope's `data/img` directory, e.g. via SCP:
-
-```sh
-scp -r BTS2023_S3_A2 pi@planktoscope.local:~/data/img
-```
-
-In the Node-RED dashboard's "Segmentation" page, press the "Update acquisition's folder list"
-button. Then a new dataset named `BTS2023_S3_A2` should appear. If you run the segmenter on that
-dataset, the segmenter should segment approximately 365 objects.

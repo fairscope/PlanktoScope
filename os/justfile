@@ -1,4 +1,6 @@
 setup:
+    # Should be first
+    just --justfile image/justfile        setup
     just --justfile machine-name/justfile setup
     just --justfile localization/justfile setup
     just --justfile caddy/justfile        setup
@@ -9,11 +11,16 @@ setup:
     just --justfile mosquitto/justfile    setup
     just --justfile raspberry/justfile    setup
     just --justfile mediamtx/justfile     setup
+    just --justfile rauc/justfile         setup
+    sudo systemctl restart update-hostname
 
 setup-dev:
     sudo apt install -y shellcheck
+    just --justfile image/justfile        setup-dev
+    just --justfile rauc/justfile         setup-dev
 
 test:
     shellcheck **/*.sh
     systemd-analyze verify **/*.service
-    just --justfile mediamtx/justfile     test
+    just --justfile mediamtx/justfile test
+    just --justfile image/justfile    test

@@ -5,12 +5,12 @@ import {
   DeviceWireless,
   getWifis,
   scan,
-} from "../../lib/network.js"
+} from "../../lib/network/wireless.js"
 
 async function publishAccessPoints() {
   try {
     const wifis = await getWifis()
-    publish("config/wifis", wifis, null, { retain: true })
+    await publish("config/wifis", wifis, null, { retain: true })
   } catch (err) {
     console.error(err)
   }

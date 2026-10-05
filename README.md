@@ -39,7 +39,7 @@ Here are some key features of the PlanktoScope:
 
 ## How do I get one?
 
-You can access the complete documentation here: https://planktoscope.github.io/PlanktoScope/
+You can access the complete documentation here: [https://planktoscope.github.io/PlanktoScope/](https://docs.planktoscope.community/)
 |Get the kit|Assemble your kit|Start your machine|
 |--|--|--|
 |![Get the kit](documentation/docs/images/readme/get_kit.png)|![Assemble your kit](documentation/docs/images/readme/assemble_kit.png)|![Start your machine](documentation/docs/images/readme/start_pscope.png)|
@@ -50,7 +50,7 @@ There are several ways you can join the development effort and contribute to thi
 
 ### Communication Platform
 
-We use Slack as a communication platform for interested parties. You can request to join by filling out [this form](https://docs.google.com/forms/d/e/1FAIpQLSfcod-avpzWVmWj42_hW1v2mMSHm0DAGXHxVECFig2dnKHxGQ/viewform).
+We use Slack as a communication platform for interested parties. You can request to join by filling out [this form](https://www.fairscope.com/slack).
 
 ### Reporting Issues
 
@@ -58,7 +58,7 @@ If you have identified a bug in the software or hardware, please open an issue i
 
 ### Contributing to Development
 
-You can also contribute to the development effort by working on open issues. Check out the [issues labeled as good first issues](https://github.com/PlanktoScope/PlanktoScope/labels/good%20first%20issue) and let us know in the comments if you are interested in working on one. We may be able to provide guidance as you get started with the code.
+You can also contribute to the development effort by working on open issues. Check out the [issues labeled as good first issues](https://github.com/fairscope/PlanktoScope/labels/good%20first%20issue) and let us know in the comments if you are interested in working on one. We may be able to provide guidance as you get started with the code.
 
 ## License Information
 

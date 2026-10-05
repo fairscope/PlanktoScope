@@ -2,7 +2,7 @@
 site_name: PlanktoScope Documentation # poe(release-channels): substitute
 site_description: An open and affordable imaging platform for citizen oceanography
 site_url: !ENV DOCS_SITEURL
-repo_url: https://github.com/PlanktoScope/PlanktoScope
+repo_url: https://github.com/fairscope/PlanktoScope
 edit_uri: edit/main/documentation/docs/
 
 nav:

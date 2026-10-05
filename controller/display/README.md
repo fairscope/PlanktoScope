@@ -20,3 +20,22 @@ cd display
 just dev
 # make changes and restart
 ```
+
+### API
+
+### Configure the display:
+
+**topic** `display`
+
+**payload:**
+```json
+{
+  "action": "configure",
+  "config": {
+    "url": "http://...",
+    "online": false,
+  }
+}
+```
+
+Make sure to send the message with `retain`.

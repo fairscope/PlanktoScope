@@ -1,9 +1,9 @@
 {
   "microsteps": 256,
-  "focus_steps_per_mm": 27,
-  "pump_steps_per_ml": 2045,
+  "focus_steps_per_mm": 40,
+  "pump_steps_per_ml": 3220,
   "focus_max_speed": 5,
-  "pump_max_speed": 50,
+  "pump_max_speed": 20,
   "red_gain": 1.99,
   "blue_gain": 1.65,
   "analog_gain": 1.0,

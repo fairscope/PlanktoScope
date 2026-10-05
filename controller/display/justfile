@@ -1,7 +1,7 @@
 setup:
     sudo cp planktoscope-org.controller.display.service /etc/systemd/system/
-    # sudo systemctl reenable planktoscope-org.controller.display
-    # sudo systemctl restart planktoscope-org.controller.display
+    sudo systemctl reenable planktoscope-org.controller.display
+    sudo systemctl restart planktoscope-org.controller.display
 
 dev:
     -sudo systemctl stop planktoscope-org.controller.display

@@ -6,9 +6,9 @@ For around $800, and with parts freely available in most parts of the globe, any
 
 ## Engage on GitHub
 
-Feel free to visit the **[GitHub](https://github.com/PlanktoScope/PlanktoScope)** and engage if you want.
+Feel free to visit the **[GitHub](https://github.com/fairscope/PlanktoScope)** and engage if you want.
 
-<a href="https://github.com/PlanktoScope/PlanktoScope" rel="GitHub">![GitHub](../images/community/github.png)</a>
+<a href="https://github.com/fairscope/PlanktoScope" rel="GitHub">![GitHub](../images/community/github.png)</a>
 
 GitHub is a web-based platform that is widely used in the PlanktoScope Community for version control and collaboration. It allows members to easily share, track, and manage code and other project files. The platform is built around the Git version control system, which allows multiple contributors to work on the same codebase simultaneously while keeping a record of every change made.
 

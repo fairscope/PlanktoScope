@@ -1,0 +1,18 @@
+[Unit]
+Description=Run the PlanktoScope PDF report generator
+Wants=mosquitto.service
+After=mosquitto.service
+After=nodered.service
+
+[Service]
+Type=simple
+Environment=HOME=/home/pi
+Environment=REPORTER_OUTPUT=/home/pi/data/reports
+WorkingDirectory=/opt/PlanktoScope/reporter
+ExecStart=/usr/local/bin/uv run main.py
+User=pi
+Group=pi
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

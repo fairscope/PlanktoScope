@@ -32,6 +32,7 @@ import os
 
 # Library to be able to sleep for a given duration
 import time
+from uuid import uuid4
 
 import cv2
 import numpy as np
@@ -45,7 +46,6 @@ import skimage.measure
 from loguru import logger
 
 # Basic planktoscope libraries
-import planktoscope.identity
 import planktoscope.mqtt
 import planktoscope.segmenter.ecotaxa
 import planktoscope.segmenter.encoder
@@ -101,6 +101,7 @@ class SegmenterProcess(multiprocessing.Process):
         self.__process_min_ESD = 20  # microns
         # https://planktoscope.slack.com/archives/C01V5ENKG0M/p1714146253356569
         self.__remove_previous_mask = False
+        self._interrupt_requested = False
 
         # create all base path
         for path in [
@@ -331,74 +332,76 @@ class SegmenterProcess(multiprocessing.Process):
             # "object_maxValue": v_quartiles[6],
         }
 
-    def _extract_metadata_from_regionprop(self, prop):
+    def _extract_metadata_from_regionprop(self, prop, pixel_size_um=None):
+        """Extract morphological metadata from a scikit-image regionprop.
+
+        Args:
+            prop: scikit-image regionprop object
+            pixel_size_um (float or None): pixel size in µm/pixel (process_pixel).
+                If provided, linear measurements are in µm and area measurements in µm².
+                If None, all measurements remain in pixel units.
+        """
+        # Scale factors: linear (µm/px) and area (µm²/px²)
+        px = pixel_size_um if pixel_size_um and pixel_size_um > 0 else 1.0
+        px2 = px * px
+
         return {
             "label": prop.label,
-            # width of the smallest rectangle enclosing the object
-            "width": prop.bbox[3] - prop.bbox[1],
-            # height of the smallest rectangle enclosing the object
-            "height": prop.bbox[2] - prop.bbox[0],
-            # X coordinates of the top left point of the smallest rectangle enclosing the object
+            # width of the smallest rectangle enclosing the object (µm if calibrated)
+            "width": (prop.bbox[3] - prop.bbox[1]) * px,
+            # height of the smallest rectangle enclosing the object (µm if calibrated)
+            "height": (prop.bbox[2] - prop.bbox[0]) * px,
+            # X coordinates of the top left point of the smallest rectangle enclosing the object (pixels)
             "bx": prop.bbox[1],
-            # Y coordinates of the top left point of the smallest rectangle enclosing the object
+            # Y coordinates of the top left point of the smallest rectangle enclosing the object (pixels)
             "by": prop.bbox[0],
-            # circularity : (4∗π ∗Area)/Perim^2 a value of 1 indicates a perfect circle, a value approaching 0 indicates an increasingly elongated polygon
+            # Width of the bounding box (pixels). Companion to bx/by/x/y for
+            # consumers that draw in pixel space (e.g. the audit visualizer);
+            # `width` above is in µm when calibrated for EcoTaxa compatibility.
+            "bw": prop.bbox[3] - prop.bbox[1],
+            # Height of the bounding box (pixels). See `bw` above.
+            "bh": prop.bbox[2] - prop.bbox[0],
+            # circularity : (4∗π ∗Area)/Perim^2 — dimensionless ratio, unaffected by scaling
             "circ.": (4 * np.pi * prop.filled_area) / prop.perimeter**2,
-            # Surface area of the object excluding holes, in square pixels (=Area*(1-(%area/100))
-            "area_exc": prop.area,
-            # Surface area of the object in square pixels
-            "area": prop.filled_area,
-            # Percentage of object’s surface area that is comprised of holes, defined as the background grey level
+            # Surface area of the object excluding holes (µm² if calibrated)
+            "area_exc": prop.area * px2,
+            # Surface area of the object (µm² if calibrated)
+            "area": prop.filled_area * px2,
+            # Percentage of object’s surface area that is comprised of holes — dimensionless
             "%area": 1 - (prop.area / prop.filled_area),
-            # Primary axis of the best fitting ellipse for the object
-            "major": prop.major_axis_length,
-            # Secondary axis of the best fitting ellipse for the object
-            "minor": prop.minor_axis_length,
-            # Y position of the center of gravity of the object
+            # Primary axis of the best fitting ellipse for the object (µm if calibrated)
+            "major": prop.major_axis_length * px,
+            # Secondary axis of the best fitting ellipse for the object (µm if calibrated)
+            "minor": prop.minor_axis_length * px,
+            # Y position of the center of gravity of the object (pixels)
             "y": prop.centroid[0],
-            # X position of the center of gravity of the object
+            # X position of the center of gravity of the object (pixels)
             "x": prop.centroid[1],
-            # The area of the smallest polygon within which all points in the object fit
-            "convex_area": prop.convex_area,
-            # # Minimum grey value within the object (0 = black)
-            # "min": prop.min_intensity,
-            # # Maximum grey value within the object (255 = white)
-            # "max": prop.max_intensity,
-            # # Average grey value within the object ; sum of the grey values of all pixels in the object divided by the number of pixels
-            # "mean": prop.mean_intensity,
-            # # Integrated density. The sum of the grey values of the pixels in the object (i.e. = Area*Mean)
-            # "intden": prop.filled_area * prop.mean_intensity,
-            # The length of the outside boundary of the object
-            "perim.": prop.perimeter,
-            # major/minor
+            # The area of the smallest convex polygon enclosing the object (µm² if calibrated)
+            "convex_area": prop.convex_area * px2,
+            # The length of the outside boundary of the object (µm if calibrated)
+            "perim.": prop.perimeter * px,
+            # major/minor — dimensionless ratio
             "elongation": np.divide(prop.major_axis_length, prop.minor_axis_length),
-            # max-min
-            # "range": prop.max_intensity - prop.min_intensity,
-            # perim/area_exc
-            "perimareaexc": prop.perimeter / prop.area,
-            # perim/major
+            # perim/area_exc — units: 1/µm if calibrated (scales as 1/px)
+            "perimareaexc": prop.perimeter / prop.area * (1.0 / px),
+            # perim/major — dimensionless ratio
             "perimmajor": prop.perimeter / prop.major_axis_length,
-            # (4 ∗ π ∗ Area_exc)/perim 2
+            # (4 ∗ π ∗ Area_exc)/perim^2 — dimensionless ratio
             "circex": np.divide(4 * np.pi * prop.area, prop.perimeter**2),
             # Angle between the primary axis and a line parallel to the x-axis of the image
             "angle": prop.orientation / np.pi * 180 + 90,
-            # # X coordinate of the top left point of the image
-            # 'xstart': data_object['raw_img']['meta']['xstart'],
-            # # Y coordinate of the top left point of the image
-            # 'ystart': data_object['raw_img']['meta']['ystart'],
-            # Maximum feret diameter, i.e. the longest distance between any two points along the object boundary
-            # 'feret': data_object['raw_img']['meta']['feret'],
-            # feret/area_exc
-            # 'feretareaexc': data_object['raw_img']['meta']['feret'] / property.area,
-            # perim/feret
-            # 'perimferet': property.perimeter / data_object['raw_img']['meta']['feret'],
-            "bounding_box_area": prop.bbox_area,
+            # Bounding box area (µm² if calibrated)
+            "bounding_box_area": prop.bbox_area * px2,
             "eccentricity": prop.eccentricity,
-            "equivalent_diameter": prop.equivalent_diameter,
+            # Equivalent spherical diameter (µm if calibrated)
+            "equivalent_diameter": prop.equivalent_diameter * px,
             "euler_number": prop.euler_number,
+            # extent — dimensionless ratio (area / bounding_box_area)
             "extent": prop.extent,
             "local_centroid_col": prop.local_centroid[1],
             "local_centroid_row": prop.local_centroid[0],
+            # solidity — dimensionless ratio (area / convex_area)
             "solidity": prop.solidity,
         }
 
@@ -440,10 +443,29 @@ class SegmenterProcess(multiprocessing.Process):
 
         labels, nlabels = skimage.measure.label(mask, return_num=True)
         regionprops = skimage.measure.regionprops(labels)
+
+        # Convert min ESD threshold from µm to pixels for filtering
+        # process_min_ESD is in µm; equivalent_diameter_area from regionprops is in pixels
+        pixel_size = self.__global_metadata.get("process_pixel", None)
+        try:
+            pixel_size = float(pixel_size) if pixel_size is not None else None
+        except (ValueError, TypeError):
+            pixel_size = None
+        if pixel_size and pixel_size > 0:
+            min_esd_pixels = self.__process_min_ESD / pixel_size
+        else:
+            # No calibration: assume process_min_ESD is already in pixels (legacy behavior)
+            min_esd_pixels = self.__process_min_ESD
+            logger.warning(
+                f"No valid process_pixel calibration — using min ESD of {min_esd_pixels} as pixels"
+            )
+        logger.debug(
+            f"Min ESD filter: {self.__process_min_ESD} µm = {min_esd_pixels:.1f} px "
+            f"(process_pixel={pixel_size})"
+        )
+
         regionprops_filtered = [
-            region
-            for region in regionprops
-            if region.equivalent_diameter_area >= self.__process_min_ESD
+            region for region in regionprops if region.equivalent_diameter_area >= min_esd_pixels
         ]
         object_number = len(regionprops_filtered)
         logger.debug(f"Found {nlabels} labels, or {object_number} after size filtering")
@@ -460,7 +482,54 @@ class SegmenterProcess(multiprocessing.Process):
             # First extract to get all the metadata about the image
             obj_image = img[region.slice]
             colors = self._get_color_info(obj_image, region.filled_image)
-            metadata = self._extract_metadata_from_regionprop(region)
+            # Convert pixel measurements to physical units (µm / µm²) using process_pixel calibration
+            pixel_size_um = self.__global_metadata.get("process_pixel", None)
+            if pixel_size_um is not None:
+                try:
+                    pixel_size_um = float(pixel_size_um)
+                except (ValueError, TypeError):
+                    logger.warning(
+                        f"Invalid process_pixel value: {pixel_size_um}, measurements will be in pixels"
+                    )
+                    pixel_size_um = None
+            if pixel_size_um is None or pixel_size_um <= 0:
+                logger.warning(
+                    "No valid process_pixel calibration found — measurements will be in pixel units"
+                )
+                pixel_size_um = None
+            else:
+                # Flag that physical unit conversion was applied (for downstream consumers)
+                self.__global_metadata["process_pixel_applied"] = True
+            metadata = self._extract_metadata_from_regionprop(region, pixel_size_um=pixel_size_um)
+
+            # Calculate focus measure for this object. Scale- and contrast-
+            # invariant (Laplacian-energy / gradient-energy over the edge band);
+            # the object mask restricts it to the object so background in the
+            # bounding box doesn't dilute the score.
+            blur_laplacian = planktoscope.segmenter.operations.calculate_blur(
+                obj_image, mask=region.filled_image
+            )
+            metadata["blur_laplacian"] = blur_laplacian
+
+            # Record the threshold value used to segment this image
+            threshold_value = planktoscope.segmenter.operations.get_last_threshold_value()
+            if threshold_value is not None:
+                metadata["threshold"] = threshold_value
+
+            # External contour polygon in full-frame pixel coords, for the audit
+            # visualizer. Compact JSON list of [x, y] points; consumers can parse
+            # it with JSON.parse.
+            obj_contours, _ = cv2.findContours(
+                np.uint8(region.filled_image),
+                mode=cv2.RETR_EXTERNAL,
+                method=cv2.CHAIN_APPROX_SIMPLE,
+            )
+            if obj_contours:
+                min_row, min_col = region.bbox[0], region.bbox[1]
+                poly = obj_contours[0].reshape(-1, 2)
+                metadata["contour"] = json.dumps(
+                    [[int(p[0] + min_col), int(p[1] + min_row)] for p in poly]
+                )
 
             # Second extract to get a bigger image for saving
             obj_image = img[__augment_slice(region.slice, labels.shape, 10)]
@@ -531,6 +600,22 @@ class SegmenterProcess(multiprocessing.Process):
                 )
         return (object_number, len(regionprops))
 
+    def _check_for_stop(self):
+        """Check if a stop request arrived via MQTT during the pipeline.
+
+        Idempotent — once True, stays True until segment_list() resets it.
+        """
+        if self._interrupt_requested:
+            return True
+        if self.segmenter_client.new_message_received():
+            peek = self.segmenter_client.msg
+            if peek and peek.get("payload", {}).get("action") == "stop":
+                logger.info("Stop requested during active segmentation")
+                self.segmenter_client.read_message()
+                self._interrupt_requested = True
+                return True
+        return False
+
     def _pipe(self, ecotaxa_export):
         logger.info("Finding images")
         images_list = self._find_files(self.__working_path, ("JPG", "jpg", "JPEG", "jpeg"))
@@ -573,6 +658,8 @@ class SegmenterProcess(multiprocessing.Process):
 
         # TODO here would be a good place to parallelize the computation
         for i, filename in enumerate(images_list):
+            if self._check_for_stop():
+                break
             name = os.path.splitext(filename)[0]
 
             # Publish the object_id to via MQTT to Node-RED
@@ -609,9 +696,9 @@ class SegmenterProcess(multiprocessing.Process):
 
             logger.debug(f"The debug objects path is {self.__working_debug_path}")
             # Create the debug objects path if needed
-            if self.__save_debug_img and not os.path.exists(self.__working_debug_path):
+            if self.__save_debug_img:
                 # create the path!
-                os.makedirs(self.__working_debug_path)
+                os.makedirs(self.__working_debug_path, exist_ok=True)
 
             start = time.monotonic()
             logger.info(f"Starting work on {name}, image {i + 1}/{images_count}")
@@ -712,7 +799,13 @@ class SegmenterProcess(multiprocessing.Process):
         logger.info(f"The pipeline will be run in {len(path_list)} directories")
         logger.debug(f"Those are {path_list}")
 
-        self.__process_uuid = planktoscope.identity.load_machine_name()
+        # Drain any stop/garbage messages buffered between runs and reset the
+        # interrupt flag so a stale click from a previous run can't kill this one.
+        while self.segmenter_client.new_message_received():
+            self.segmenter_client.read_message()
+        self._interrupt_requested = False
+
+        self.__process_uuid = str(uuid4())
 
         if self.__process_id == "":
             self.__process_id = self.__process_uuid
@@ -722,6 +815,9 @@ class SegmenterProcess(multiprocessing.Process):
         exception = None
 
         for path in path_list:
+            if self._check_for_stop():
+                logger.info("Stop honored — skipping remaining paths")
+                break
             logger.debug(f"{path}: Checking for the presence of metadata.json")
             if os.path.exists(os.path.join(path, "metadata.json")):
                 # The file exists, let's check if we force or not
@@ -739,8 +835,11 @@ class SegmenterProcess(multiprocessing.Process):
             else:
                 logger.debug(f"Moving to the next folder, {path} has no metadata.json")
         if exception is None:
-            # Publish the status "Done" to via MQTT to Node-RED
-            self.segmenter_client.client.publish("status/segmenter", '{"status":"Done"}')
+            # Publish "Interrupted" if user-stopped, otherwise "Done"
+            if self._interrupt_requested:
+                self.segmenter_client.client.publish("status/segmenter", '{"status":"Interrupted"}')
+            else:
+                self.segmenter_client.client.publish("status/segmenter", '{"status":"Done"}')
         else:
             self.segmenter_client.client.publish(
                 "status/segmenter",
@@ -760,10 +859,12 @@ class SegmenterProcess(multiprocessing.Process):
             self.__global_metadata = json.load(config_file)
             logger.debug(f"Configuration loaded is {self.__global_metadata}")
 
-        # Remove all the key,value pairs that don't start with acq, sample, object or process (for Ecotaxa)
+        # Remove all the key,value pairs that don't start with acq, sample, object, process, or calibration (for Ecotaxa)
         self.__global_metadata = dict(
             filter(
-                lambda item: item[0].startswith(("acq", "sample", "object", "process")),
+                lambda item: item[0].startswith(
+                    ("acq", "sample", "object", "process", "calibration")
+                ),
                 self.__global_metadata.items(),
             )
         )
@@ -807,12 +908,19 @@ class SegmenterProcess(multiprocessing.Process):
             "parameters": {"kernel_size": 8, "kernel_shape": "ellipse"},
         }
 
-        # Define the name of the .zip file that will contain the images and the .tsv table for EcoTaxa
+        # Define the name of the .zip file that will contain the images and the .tsv table for EcoTaxa.
+        # acq_id is built downstream of sample_id (the imager directory layout
+        # produces acq_id = "<sample_id>_<suffix>"), so naively joining them
+        # duplicates the sample_id; strip the redundant prefix when present.
+        # Lowercase `ecotaxa_` prefix — EcoTaxa rejects archives starting with capital E.
+        if acquisition.startswith(sample + "_"):
+            acq_suffix = acquisition[len(sample) + 1 :]
+        else:
+            acq_suffix = acquisition
         self.__archive_fn = os.path.join(
             self.__ecotaxa_path,
-            # filename includes project name, timestamp and sample id
-            f"ecotaxa_{acquisition}.zip",
             # TODO #102 sanitize the filename to remove potential problems with spaces and special characters
+            f"ecotaxa_{sample}_{acq_suffix}.zip",
         )
 
         self.__working_path = path
@@ -850,10 +958,13 @@ class SegmenterProcess(multiprocessing.Process):
             logger.exception(f"There was an error in the pipeline {e}")
             raise e
 
-        # Add file 'done' to path to mark the folder as already segmented
-        with open(os.path.join(self.__working_path, "done.txt"), "w") as done_file:
-            done_file.writelines(datetime.datetime.utcnow().isoformat())
-        logger.info(f"Pipeline has been run for {path}")
+        if self._interrupt_requested:
+            logger.info(f"Pipeline interrupted by user for {path}, not marking as done")
+        else:
+            # Add file 'done' to path to mark the folder as already segmented
+            with open(os.path.join(self.__working_path, "done.txt"), "w") as done_file:
+                done_file.writelines(datetime.datetime.utcnow().isoformat())
+            logger.info(f"Pipeline has been run for {path}")
 
         return True
 

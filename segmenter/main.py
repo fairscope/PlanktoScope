@@ -15,9 +15,9 @@
 # You should have received a copy of the GNU General Public License
 # along with PlanktoScope.  If not, see <http://www.gnu.org/licenses/>.
 import multiprocessing
-import time
-import signal  # for handling SIGINT/SIGTERM
 import os
+import signal  # for handling SIGINT/SIGTERM
+import time
 
 from loguru import logger
 
@@ -26,6 +26,10 @@ import planktoscope.segmenter
 logger.info("Starting the PlanktoScope data processing segmenter!")
 
 run = True  # global variable to enable clean shutdown from stop signals
+
+data_path = os.getenv(
+    "PLANKTOSCOPE_DATA_PATH", os.path.normpath(os.path.join(os.path.dirname(__file__), "../data"))
+)
 
 
 def handler_stop_signals(signum, _):
@@ -37,15 +41,15 @@ def handler_stop_signals(signum, _):
 
 if __name__ == "__main__":
     logger.info("Welcome!")
+    logger.info(f"Using data_path {data_path}")
     logger.info("Initialising signals handling and sanitizing the directories (step 1/2)")
     signal.signal(signal.SIGINT, handler_stop_signals)
     signal.signal(signal.SIGTERM, handler_stop_signals)
 
-    export_path = "/home/pi/data/export/ecotaxa"
-    # check if this path exists
-    if not os.path.exists(export_path):
-        # create the path!
-        os.makedirs(export_path)
+    export_path = os.path.join(data_path, "export/ecotaxa")
+
+    # create the path!
+    os.makedirs(export_path, exist_ok=True)
 
     # Prepare the event for a graceful shutdown
     shutdown_event = multiprocessing.Event()
@@ -54,7 +58,7 @@ if __name__ == "__main__":
     # Starts the segmenter process
     logger.info("Starting the segmenter control process (step 2/2)")
     try:
-        segmenter_thread = planktoscope.segmenter.SegmenterProcess(shutdown_event, "/home/pi/data")
+        segmenter_thread = planktoscope.segmenter.SegmenterProcess(shutdown_event, data_path)
     except Exception:
         logger.error("The segmenter control process could not be started")
         segmenter_thread = None

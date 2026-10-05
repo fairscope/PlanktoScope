@@ -32,8 +32,8 @@ just dev
 {
   "action": "move",
   "direction": "FORWARD", // "FORWARD" or "BACKWARD"
-  "volume": 10, // volume to pump in mL
-  "flowrate": 10, // speed of pumping, in mL/min
+  "volume": 0.5, // volume to pump in mL
+  "flowrate": 0.5, // speed of pumping, in mL/min
 }
 ```
 
@@ -45,6 +45,37 @@ just dev
 ```json
 {
   "action": "stop",
+}
+```
+
+### Set pump configuration
+
+**topic** `actuator/pump`
+
+**payload:**
+```json
+{
+  "action": "set-configuration",
+  "pump_steps_per_ml": 3408,
+}
+```
+
+### Read pump configuration
+
+**topic** `actuator/pump`
+
+**payload:**
+```json
+{
+  "action": "get-configuration",
+}
+```
+
+**response**
+
+```json
+{
+  "pump_steps_per_ml": 3408,
 }
 ```
 

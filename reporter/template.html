@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PlanktoScope Acquisition Report — {{ meta.acq_id }} (full)</title>
+<style>
+  :root{
+    --ink:#111418; --mid:#6a7079; --faint:#9aa0a8;
+    --accent:#125A9C; --line:#1a1d22; --hair:#d7dade;
+  }
+  @page{ size:A4 portrait; margin:0; }
+  *{ box-sizing:border-box; }
+  html{ -weasy-hyphens:none; }
+  body{ margin:0; background:#e6e5e1; color:var(--ink);
+    font-family:Helvetica,"Helvetica Neue",Arial,sans-serif;
+    font-size:8.6pt; line-height:1.45; -webkit-font-smoothing:antialiased; }
+  .sheet{ width:210mm; min-height:297mm; padding:15mm 16mm 12mm; background:#fff;
+    margin:0 auto 8mm; box-shadow:0 2px 20px rgba(0,0,0,.16); display:flex; flex-direction:column; }
+  @media print{ body{ background:#fff; } .sheet{ box-shadow:none; margin:0; } }
+  .sheet + .sheet{ page-break-before:always; }
+  .tnum{ font-variant-numeric:tabular-nums; }
+  h1,h2,h3,h4,p,table{ margin:0; }
+  .grid6{ display:grid; grid-template-columns:repeat(6,1fr); column-gap:4mm; }
+
+  /* ===== full masthead (cover) ===== */
+  .mast{ display:flex; justify-content:space-between; align-items:flex-end;
+    padding-bottom:6px; border-bottom:1.6px solid var(--line); }
+  .mast .brand{ display:flex; align-items:center; gap:10px; }
+  .mark-img{ width:32px; height:32px; border-radius:50%; display:block; flex:none; }
+  .mast .wm{ font-size:12pt; font-weight:700; line-height:1; }
+  .mast .wm s{ display:block; text-decoration:none; font-size:6.2pt; font-weight:400;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--mid); margin-top:3px; }
+  .mast .run{ text-align:right; }
+  .mast .run .t{ font-size:6.2pt; letter-spacing:.18em; text-transform:uppercase; color:var(--mid); }
+  .mast .run .v{ font-size:8.6pt; font-weight:700; margin-top:3px; }
+
+  /* ===== slim running header (interior pages) ===== */
+  .rhead{ display:flex; justify-content:space-between; align-items:baseline;
+    padding-bottom:5px; border-bottom:0.8px solid var(--line);
+    font-size:6.1pt; letter-spacing:.14em; text-transform:uppercase; color:var(--mid); }
+  .rhead .l b{ color:var(--ink); font-weight:700; letter-spacing:.16em; }
+  .rhead .r{ font-variant-numeric:tabular-nums; }
+
+  /* ===== footer ===== */
+  .foot{ margin-top:auto; border-top:0.5px solid var(--hair); padding-top:5px;
+    display:flex; justify-content:space-between; font-size:5.9pt; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--faint); }
+  .foot .pg{ color:var(--mid); font-weight:700; }
+
+  /* ===== section head ===== */
+  .sec{ display:flex; align-items:baseline; justify-content:space-between;
+    margin:18px 0 14px; padding-bottom:6px; border-bottom:1.6px solid var(--line); }
+  .sec .n{ display:flex; align-items:baseline; gap:11px; }
+  .sec .n .num{ font-size:9pt; font-weight:700; color:var(--accent); letter-spacing:.04em; }
+  .sec .n h2{ font-size:13pt; font-weight:700; letter-spacing:-.01em; }
+  .sec .cap{ font-size:6.6pt; letter-spacing:.14em; text-transform:uppercase; color:var(--mid); }
+
+  /* ===== COVER ===== */
+  .cover-title{ margin-top:26mm; }
+  .cover-title .eyebrow{ font-size:8pt; letter-spacing:.18em; text-transform:uppercase; color:var(--mid); margin-bottom:12px; }
+  .cover-title h1{ font-size:58pt; font-weight:700; letter-spacing:-.022em; line-height:.9; }
+  .cover-title .desc{ font-size:11pt; line-height:1.5; color:#39414f; max-width:124mm; margin-top:18px; }
+  .cover-title .desc b{ color:var(--ink); font-weight:700; }
+  .stamp{ margin-top:22px; display:flex; align-items:stretch; border:1.6px solid var(--line); max-width:140mm; }
+  .stamp .bar{ width:6px; background:var(--accent); flex:none; }
+  .stamp .bd{ padding:12px 16px; flex:1; }
+  .stamp .lab{ font-size:6.4pt; letter-spacing:.16em; text-transform:uppercase; color:var(--mid); }
+  .stamp .det{ font-size:14pt; font-weight:700; color:var(--accent); margin-top:5px; }
+  .stamp .sub{ font-size:7.6pt; color:var(--mid); margin-top:4px; }
+  .stamp .rt{ border-left:1px solid var(--hair); padding:12px 16px; text-align:right;
+    display:flex; flex-direction:column; justify-content:center; flex:none; width:40mm; }
+  .stamp .rt .n{ font-size:19pt; font-weight:700; font-variant-numeric:tabular-nums; line-height:1; }
+  .stamp .rt .nl{ font-size:6pt; letter-spacing:.13em; text-transform:uppercase; color:var(--mid); margin-top:4px; }
+  .cover-ledger{ margin-top:auto; padding-top:12px; border-top:1.6px solid var(--line); row-gap:10px; }
+  .field .k{ font-size:5.9pt; letter-spacing:.13em; text-transform:uppercase; color:var(--mid); }
+  .field .val{ font-size:8.8pt; font-weight:700; margin-top:2px; font-variant-numeric:tabular-nums; }
+
+  /* ===== metadata ledgers ===== */
+  .mcol{ display:grid; grid-template-columns:1fr 1fr; column-gap:11mm; }
+  table.fp{ width:100%; border-collapse:collapse; }
+  table.fp caption{ text-align:left; font-size:6.6pt; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--accent); font-weight:700; padding-bottom:7px; border-bottom:1.4px solid var(--line); margin-bottom:2px; }
+  table.fp td{ padding:6.4px 0; vertical-align:baseline; border-bottom:0.5px solid var(--hair);
+    font-variant-numeric:tabular-nums; }
+  table.fp tr:last-child td{ border-bottom:none; }
+  table.fp td.k{ color:var(--mid); font-size:7.2pt; letter-spacing:.04em; text-transform:uppercase; width:46%; }
+  table.fp td.v{ text-align:right; font-weight:700; font-size:9pt; }
+  .note{ margin-top:18px; }
+  .note h4{ font-size:6.6pt; letter-spacing:.16em; text-transform:uppercase; color:var(--accent);
+    font-weight:700; padding-bottom:7px; border-bottom:1px solid var(--line); margin-bottom:8px; }
+  .note p{ font-size:8.8pt; line-height:1.6; color:#39414f; max-width:152mm; }
+  .note p + p{ margin-top:9px; }
+
+  /* ===== QC + composition tables ===== */
+  table.qc{ width:100%; border-collapse:collapse; }
+  table.qc th{ font-size:6.2pt; letter-spacing:.13em; text-transform:uppercase; color:var(--mid);
+    font-weight:400; text-align:right; padding:0 0 8px; }
+  table.qc th.l{ text-align:left; }
+  table.qc td{ padding:9px 0; border-top:0.5px solid var(--hair); vertical-align:baseline;
+    font-variant-numeric:tabular-nums; font-size:9.2pt; }
+  table.qc tr:last-child td{ border-bottom:0.5px solid var(--hair); }
+  td.metric{ font-weight:700; text-align:left; }
+  td.meas{ text-align:right; font-weight:700; }
+  td.meas.flag{ color:var(--accent); }
+  td.lim{ text-align:right; color:var(--mid); width:30mm; }
+  td.res{ text-align:right; width:22mm; font-size:7.6pt; letter-spacing:.08em; font-weight:700; }
+  td.res.pass{ color:var(--faint); }
+  td.res.fail{ color:var(--accent); }
+
+  /* ===== figures ===== */
+  .fig{ margin-top:17px; break-inside:avoid; }
+  .fig .ft{ display:flex; justify-content:space-between; align-items:baseline;
+    border-bottom:1px solid var(--line); padding-bottom:4px; margin-bottom:8px; }
+  .fig .ft .t{ font-weight:700; font-size:9.2pt; }
+  .fig .ft .u{ font-size:6.2pt; letter-spacing:.1em; text-transform:uppercase; color:var(--mid); }
+  .fig img{ width:100%; display:block; border:0.5px solid var(--hair); }
+  .fig.cap-flat img{ width:auto; max-width:100%; max-height:68mm; margin:0 auto; }
+  .fig.cap-sharp img{ width:auto; max-width:100%; max-height:42mm; margin:0 auto; }
+  .fig.cap-heat img{ width:auto; max-width:100%; max-height:62mm; }
+  .fcap{ font-size:7.2pt; color:var(--mid); margin-top:8px; line-height:1.45; }
+  .fcap b{ color:var(--accent); font-weight:700; margin-right:6px; }
+
+  /* ===== metric band ===== */
+  .band{ margin-top:2px; grid-template-columns:repeat(5,1fr); column-gap:4mm;
+    padding:13px 0; border-top:1.6px solid var(--line); border-bottom:1.6px solid var(--line); }
+  .band .kpi{ border-left:1px solid var(--hair); padding-left:4mm; }
+  .band .kpi:first-child{ border-left:none; padding-left:0; }
+  .band .kpi .k{ font-size:6pt; letter-spacing:.13em; text-transform:uppercase; color:var(--mid); }
+  .band .kpi .big{ font-size:20pt; font-weight:700; letter-spacing:-.02em; line-height:1.05; margin-top:7px; font-variant-numeric:tabular-nums; }
+  .band .kpi .u{ font-size:6.4pt; color:var(--mid); margin-top:4px; }
+
+  /* size-page split */
+  .split{ display:grid; grid-template-columns:4fr 2fr; column-gap:9mm; margin-top:17px; align-items:start; }
+  .split .bt{ font-size:6.6pt; letter-spacing:.16em; text-transform:uppercase; color:var(--accent);
+    font-weight:700; padding-bottom:7px; border-bottom:1.4px solid var(--line); margin-bottom:2px; }
+  .split table.fp td.v.flag{ color:var(--accent); }
+
+  /* ===== gallery ===== */
+  .g-head{ margin-top:16px; align-items:end; }
+  .g-head .h{ grid-column:1 / span 4; }
+  .g-head .eyebrow{ font-size:6.8pt; letter-spacing:.16em; text-transform:uppercase; color:var(--mid); margin-bottom:6px; }
+  .g-head h1{ font-size:27pt; font-weight:700; letter-spacing:-.018em; line-height:.95; }
+  .g-head .sub{ grid-column:5 / span 2; text-align:right; align-self:end;
+    font-size:6.8pt; letter-spacing:.1em; text-transform:uppercase; color:var(--mid); line-height:1.5; }
+  .gallery{ display:grid; grid-template-columns:repeat(6,1fr); gap:7px; margin-top:13px;
+    padding-top:11px; border-top:1.6px solid var(--line); }
+  .tile{ break-inside:avoid; }
+  .tile img.roi{ width:100%; height:70px; object-fit:contain; background:#f3f4f6;
+    display:block; border:0.5px solid var(--hair); }
+  .tile .meta{ display:flex; justify-content:space-between; align-items:baseline; gap:4px; padding:4px 2px 0; }
+  .tile .ix{ font-size:6.2pt; color:var(--faint); font-variant-numeric:tabular-nums; }
+  .tile .esd{ font-size:7.2pt; font-weight:700; font-variant-numeric:tabular-nums; }
+  .plate-note{ font-size:7.2pt; color:var(--mid); margin-top:14px; max-width:132mm; }
+  .plate-note b{ color:var(--ink); font-weight:700; text-transform:uppercase; letter-spacing:.1em; font-size:6.4pt; }
+</style>
+</head>
+<body>
+
+<!-- ===================== PAGE 1 — COVER ===================== -->
+<div class="sheet">
+  <header class="mast">
+    <div class="brand">
+      <img class="mark-img" src="{{ brand_logo }}" alt="PlanktoScope">
+      <div class="wm">PlanktoScope<s>FairScope · Quantitative Imaging</s></div>
+    </div>
+    <div class="run">
+      <div class="t">Acquisition Report</div>
+      <div class="v tnum">{{ serial }} · {{ instrument_short }}</div>
+    </div>
+  </header>
+
+  <div class="cover-title">
+    <div class="eyebrow">Quantitative plankton imaging · Quality-control readout</div>
+    <h1>{{ meta.acq_id }}</h1>
+    <p class="desc">Automated quality-control and size-distribution report for acquisition <b>{{ meta.acq_id }}</b>, project {{ meta.sample_project }}, sample {{ meta.sample_id }}. <b>{{ stats.total }}</b> objects were segmented from <b>{{ meta.acq_nb_frame }}</b> frames across a <b>{{ meta.acq_imaged_volume }} mL</b> imaged volume.</p>
+    <div class="stamp">
+      <div class="bar"></div>
+      <div class="bd">
+        <div class="lab">Quality control · Determination</div>
+        <div class="det">{{ 'Passed' if qc_pass else 'Review required' }}</div>
+        <div class="sub">{{ qc|length }} metrics evaluated · {{ qc|rejectattr('pass')|list|length }} outside acceptable range</div>
+      </div>
+      <div class="rt">
+        <div class="n tnum">{{ stats.total }}</div>
+        <div class="nl">Objects segmented</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid6 cover-ledger">
+    <div class="field"><div class="k">Project</div><div class="val">{{ meta.sample_project or "—" }}</div></div>
+    <div class="field"><div class="k">Sample ID</div><div class="val">{{ meta.sample_id or "—" }}</div></div>
+    <div class="field"><div class="k">Acquisition ID</div><div class="val">{{ meta.acq_id or "—" }}</div></div>
+    <div class="field"><div class="k">Operator</div><div class="val">{{ meta.sample_operator or "—" }}</div></div>
+    <div class="field"><div class="k">Gear</div><div class="val">{{ meta.sample_gear or "—" }}</div></div>
+    <div class="field"><div class="k">Serial</div><div class="val">{{ serial }}</div></div>
+    <div class="field"><div class="k">Position</div><div class="val">{{ position }}</div></div>
+    <div class="field"><div class="k">Sampled (UTC)</div><div class="val">{{ sampled }}</div></div>
+    <div class="field"><div class="k">Instrument</div><div class="val">{{ instrument_short }}</div></div>
+    <div class="field"><div class="k">Median ESD</div><div class="val">{{ "%.1f"|format(stats.esd_median) }} µm</div></div>
+    <div class="field"><div class="k">Imaged volume</div><div class="val">{{ meta.acq_imaged_volume }} mL</div></div>
+    <div class="field"><div class="k">Generated (UTC)</div><div class="val">{{ generated.split(' ')[0] }}</div></div>
+  </div>
+
+  <div class="foot">
+    <span>Generated {{ generated }} · WeasyPrint</span>
+    <span class="pg">Cover · 01 / 05</span>
+  </div>
+</div>
+
+<!-- ===================== PAGE 2 — §01 METADATA ===================== -->
+<div class="sheet">
+  <div class="rhead">
+    <div class="l"><b>PlanktoScope</b> · Acquisition Report</div>
+    <div class="r">{{ meta.acq_id }} · {{ serial }} · 02 / 05</div>
+  </div>
+
+  <div class="sec">
+    <div class="n"><span class="num">01</span><h2>Sample &amp; acquisition metadata</h2></div>
+    <div class="cap">EcoTaxa identity fields</div>
+  </div>
+
+  <div class="mcol">
+    <table class="fp">
+      <caption>Sample</caption>
+      <tr><td class="k">Project</td><td class="v">{{ meta.sample_project or "—" }}</td></tr>
+      <tr><td class="k">Sample ID</td><td class="v">{{ meta.sample_id or "—" }}</td></tr>
+      <tr><td class="k">Operator</td><td class="v">{{ meta.sample_operator or "—" }}</td></tr>
+      <tr><td class="k">Gear</td><td class="v">{{ meta.sample_gear or "—" }}</td></tr>
+      <tr><td class="k">Latitude</td><td class="v">{{ lat_disp }}</td></tr>
+      <tr><td class="k">Longitude</td><td class="v">{{ lon_disp }}</td></tr>
+      <tr><td class="k">Date / time (UTC)</td><td class="v">{{ sampled }}</td></tr>
+      <tr><td class="k">Pumped volume</td><td class="v">{{ meta.acq_pumped_volume }} mL</td></tr>
+      <tr><td class="k">Imaged volume</td><td class="v">{{ meta.acq_imaged_volume }} mL</td></tr>
+    </table>
+    <table class="fp">
+      <caption>Acquisition</caption>
+      <tr><td class="k">Acquisition ID</td><td class="v">{{ meta.acq_id or "—" }}</td></tr>
+      <tr><td class="k">Instrument</td><td class="v">{{ instrument_short }}</td></tr>
+      <tr><td class="k">Serial</td><td class="v">{{ serial }}</td></tr>
+      <tr><td class="k">Frames captured</td><td class="v">{{ meta.acq_nb_frame }}</td></tr>
+      <tr><td class="k">Pixel size</td><td class="v">{{ meta.process_pixel_size }} µm/px</td></tr>
+      <tr><td class="k">Flowcell thickness</td><td class="v">{{ meta.acq_flowcell_thickness }} µm</td></tr>
+      <tr><td class="k">Camera ISO</td><td class="v">{{ meta.acq_camera_iso }}</td></tr>
+      <tr><td class="k">Shutter speed</td><td class="v">{{ meta.acq_camera_shutter_speed }} ms</td></tr>
+      <tr><td class="k">Minimum ESD</td><td class="v">{{ meta.process_min_ESD }} µm</td></tr>
+    </table>
+  </div>
+
+  <div class="note">
+    <h4>Comment</h4>
+    <p>{{ meta.sample_comment or "No sample comment recorded." }} Processed {{ (meta.process_datetime or meta.acq_local_datetime or "—")|replace("T", " ") }} with the PlanktoScope segmentation pipeline; objects below the {{ meta.process_min_ESD }} µm minimum ESD were excluded.</p>
+  </div>
+
+  <div class="note">
+    <h4>Method &amp; QC thresholds</h4>
+    <p>ESD denotes the object equivalent spherical diameter in µm and is reported as measured. Acceptance limits — focus &lt; 30% blurry; flowcell clogging &lt; 10% stuck; concentration 1–50 objects per frame; spatial homogeneity CV &lt; 100%.</p>
+  </div>
+
+  <div class="foot">
+    <span>{{ instrument_short }} · {{ serial }}</span>
+    <span class="pg">§01 Metadata · 02 / 05</span>
+  </div>
+</div>
+
+<!-- ===================== PAGE 3 — §02 QUALITY CONTROL ===================== -->
+<div class="sheet">
+  <div class="rhead">
+    <div class="l"><b>PlanktoScope</b> · Acquisition Report</div>
+    <div class="r">{{ meta.acq_id }} · {{ serial }} · 03 / 05</div>
+  </div>
+
+  <div class="sec">
+    <div class="n"><span class="num">02</span><h2>Quality control summary</h2></div>
+    <div class="cap">Dashboard thresholds · n = {{ stats.total }}</div>
+  </div>
+
+  <table class="qc">
+    <thead><tr><th class="l">Metric</th><th>Measured</th><th>Acceptable range</th><th>Determination</th></tr></thead>
+    <tbody>
+      {% for row in qc %}
+      <tr>
+        <td class="metric">{{ row.label }}</td>
+        <td class="meas{{ ' flag' if not row.pass else '' }}">{{ row.value }}</td>
+        <td class="lim">{{ row.limit }}</td>
+        <td class="res {{ 'pass' if row.pass else 'fail' }}">{{ 'PASS' if row.pass else 'FAIL' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if flat_field %}
+  <div class="fig cap-flat">
+    <div class="ft"><span class="t">Flat field</span><span class="u">Fig. 1 · Illumination</span></div>
+    <img src="{{ flat_field }}" alt="flat field">
+    <div class="fcap"><b>Fig. 1</b> Median of the first frames, used for illumination correction across the field of view before segmentation.</div>
+  </div>
+  {% endif %}
+
+  {% if chart_sharpness %}
+  <div class="fig cap-sharp">
+    <div class="ft"><span class="t">Sharpness distribution</span><span class="u">Fig. 2 · Laplacian var.</span></div>
+    <img src="{{ chart_sharpness }}" alt="sharpness distribution">
+    <div class="fcap"><b>Fig. 2</b> Object sharpness (object_blur_laplacian). Median {{ "%.3f"|format(sharp.median) }}; {{ "%.1f"|format(sharp.blurryPct) }}% of objects fall below the blurry cutoff (dashed).</div>
+  </div>
+  {% endif %}
+
+  <div class="foot">
+    <span>{{ instrument_short }} · {{ serial }}</span>
+    <span class="pg">§02 Quality control · 03 / 05</span>
+  </div>
+</div>
+
+<!-- ===================== PAGE 4 — §03 SIZE DISTRIBUTION ===================== -->
+<div class="sheet">
+  <div class="rhead">
+    <div class="l"><b>PlanktoScope</b> · Acquisition Report</div>
+    <div class="r">{{ meta.acq_id }} · {{ serial }} · 04 / 05</div>
+  </div>
+
+  <div class="sec">
+    <div class="n"><span class="num">03</span><h2>Size distribution</h2></div>
+    <div class="cap">Equivalent spherical diameter · {{ stats.total }} objects</div>
+  </div>
+
+  <div class="grid6 band">
+    <div class="kpi"><div class="k">Median ESD</div><div class="big tnum">{{ "%.1f"|format(stats.esd_median) }}</div><div class="u">µm · P50</div></div>
+    <div class="kpi"><div class="k">Interdecile</div><div class="big tnum">{{ stats.esd_p10|round|int }}–{{ stats.esd_p90|round|int }}</div><div class="u">µm · P10–P90</div></div>
+    <div class="kpi"><div class="k">Full range</div><div class="big tnum">{{ stats.esd_min|round|int }}–{{ stats.esd_max|round|int }}</div><div class="u">µm · min–max</div></div>
+    <div class="kpi"><div class="k">Objects / frame</div><div class="big tnum">{{ "%.1f"|format(stats.perFrame) }}</div><div class="u">1–50</div></div>
+    <div class="kpi"><div class="k">Total</div><div class="big tnum">{{ stats.total }}</div><div class="u">segmented</div></div>
+  </div>
+
+  {% if chart_esd %}
+  <div class="fig">
+    <div class="ft"><span class="t">Size distribution</span><span class="u">Fig. 3 · ESD µm · log</span></div>
+    <img src="{{ chart_esd }}" alt="ESD histogram">
+    <div class="fcap"><b>Fig. 3</b> Log-binned equivalent spherical diameter. Flowing objects {{ "%.1f"|format(stats.flowingPct) }}%; stuck objects {{ "%.1f"|format(stats.stuckPct) }}%; dashed line marks the median.</div>
+  </div>
+  {% endif %}
+
+  <div class="split">
+    {% if chart_heatmap %}
+    <div class="fig cap-heat" style="margin-top:0;">
+      <div class="ft"><span class="t">Spatial density</span><span class="u">Fig. 4 · Flowcell field</span></div>
+      <img src="{{ chart_heatmap }}" alt="spatial heatmap">
+      <div class="fcap"><b>Fig. 4</b> Object distribution across the flowcell (camera orientation).</div>
+    </div>
+    {% endif %}
+    <div>
+      <div class="bt">Spatial summary</div>
+      <table class="fp">
+        <tr><td class="k">Total objects</td><td class="v">{{ stats.total }}</td></tr>
+        <tr><td class="k">Flowing</td><td class="v">{{ "%.1f"|format(stats.flowingPct) }}%</td></tr>
+        <tr><td class="k">Stuck</td><td class="v flag">{{ "%.1f"|format(stats.stuckPct) }}%</td></tr>
+        <tr><td class="k">Left / Ctr / Right</td><td class="v">{{ "%.0f"|format(spatial.leftPct) }} / {{ "%.0f"|format(spatial.centerPct) }} / {{ "%.0f"|format(spatial.rightPct) }}%</td></tr>
+        <tr><td class="k">Homogeneity (CV)</td><td class="v">{{ "%.0f"|format(homo.cv) }}%</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span>{{ instrument_short }} · {{ serial }}</span>
+    <span class="pg">§03 Size distribution · 04 / 05</span>
+  </div>
+</div>
+
+<!-- ===================== PAGE 5 — §04 OBJECT GALLERY ===================== -->
+<div class="sheet">
+  <div class="rhead">
+    <div class="l"><b>PlanktoScope</b> · Object Gallery</div>
+    <div class="r">{{ meta.acq_id }} · {{ serial }} · 05 / 05</div>
+  </div>
+
+  <div class="grid6 g-head">
+    <div class="h">
+      <div class="eyebrow">§ 04 · Largest objects by diameter</div>
+      <h1>Object Gallery</h1>
+    </div>
+    <div class="sub">Plate I<br>{{ gallery|length }} objects · descending ESD</div>
+  </div>
+
+  <div class="gallery">
+    {% for o in gallery %}
+    <div class="tile">
+      <img class="roi" src="{{ o.img }}" alt="object {{ loop.index }}">
+      <div class="meta"><span class="ix">{{ '%02d'|format(loop.index) }}</span><span class="esd">{{ o.esd }}</span></div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <p class="plate-note"><b>Plate I</b>&nbsp;&nbsp;The {{ gallery|length }} largest segmented objects by equivalent spherical diameter, in descending order. Index above each thumbnail; ESD at right.</p>
+
+  <div class="foot">
+    <span>Generated {{ generated }} · WeasyPrint</span>
+    <span class="pg">§04 Object gallery · 05 / 05</span>
+  </div>
+</div>
+
+</body>
+</html>

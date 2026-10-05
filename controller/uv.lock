@@ -428,6 +428,25 @@ wheels = [
 ]
 
 [[package]]
+name = "openexr"
+version = "3.4.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/bd/9e/3111996e000859586d4cba01d9792b7081f2eab0d1d4afacd148534a6336/openexr-3.4.4.tar.gz", hash = "sha256:9bf1f559a3133bb9c5cbfdea74d867816a06a654189ecbc6b3b44c8276fa0441", size = 25334958, upload-time = "2025-11-19T22:04:07.652Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/85/af/6758e64f2e35774af6ca5679444b7ec6480d31b55864a34530829250ffc6/openexr-3.4.4-cp313-cp313-macosx_10_15_universal2.whl", hash = "sha256:cca3bb1bd0e94b5654e1ead81cc5eccd7f8336a245d1a8f663a58e339fd178e8", size = 2159371, upload-time = "2025-11-19T22:03:30.693Z" },
+    { url = "https://files.pythonhosted.org/packages/b6/17/35b87465ba422661536192f65840c134d4d4b7119666c3094e08bcbb0ce8/openexr-3.4.4-cp313-cp313-macosx_10_15_x86_64.whl", hash = "sha256:9f09c29aa634fa438abd59ead775c3ca3fc3d234585f9437add249866cee7b0e", size = 1148062, upload-time = "2025-11-19T22:03:31.991Z" },
+    { url = "https://files.pythonhosted.org/packages/fb/51/2759d7728dc38ecc50d22f2ef18ed0120491d9f8937cd332f2bacd487e14/openexr-3.4.4-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:01ba479d80a2fb784ab7afed460d922735f2aab8f45ad20cb1d70af5c46ab931", size = 1019630, upload-time = "2025-11-19T22:03:34.562Z" },
+    { url = "https://files.pythonhosted.org/packages/ea/0f/7b507bb029510e99c0eb48a42972f70422b114aaf99d944693b4607cca9b/openexr-3.4.4-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:39b09d703a0c631d7b56c91bba7ace2ab7d174e296964dae4c7d186d051c6780", size = 1157649, upload-time = "2025-11-19T22:03:36.147Z" },
+    { url = "https://files.pythonhosted.org/packages/69/b0/de87e8ed7c2bdd7914b2728ef2245ea60c806b241b98ad9c1c5819edc68a/openexr-3.4.4-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:292cc335ae44b1ac71c16282767b7cff4b7a6303e894107a53416cf51146d91c", size = 1290388, upload-time = "2025-11-19T22:03:37.592Z" },
+    { url = "https://files.pythonhosted.org/packages/49/13/7d5484f652483dad9a0cd45e9557783014f56e50a328b5926f34b8c118d9/openexr-3.4.4-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:6663b09c0ad01f17974c50fea192baa07235879ac4a3d7308f5ec5e624c51d9f", size = 2152188, upload-time = "2025-11-19T22:03:38.852Z" },
+    { url = "https://files.pythonhosted.org/packages/65/f4/1e25f12a3d5f3a0405f087583676489aca84085fc33bd8f0e317f8d53fae/openexr-3.4.4-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:0c6059f9ab04dfa138ebc27d21a4849e3eacb6bff93479c95d626320694a35ac", size = 2335961, upload-time = "2025-11-19T22:03:40.152Z" },
+    { url = "https://files.pythonhosted.org/packages/70/30/ed9fc25ccd3f3056cbb32e16c58d042078b800245ebfbb256d18cbb68256/openexr-3.4.4-cp313-cp313-win_amd64.whl", hash = "sha256:c6a80b0ad7120c01d870caffa680130a7b0d4d2e2396d2e79e14cfaa037245a9", size = 723997, upload-time = "2025-11-19T22:03:41.75Z" },
+]
+
+[[package]]
 name = "paho-mqtt"
 version = "2.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -456,13 +475,14 @@ wheels = [
 
 [[package]]
 name = "picamera2"
-version = "0.3.31"
+version = "0.3.34"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "av" },
     { name = "jsonschema" },
     { name = "libarchive-c" },
     { name = "numpy" },
+    { name = "openexr" },
     { name = "pidng" },
     { name = "piexif" },
     { name = "pillow" },
@@ -471,9 +491,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "videodev2" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/73/1d/2f2e4f4edeae31d34086c850ab6ccd229a7bae8241878b2426949e8eba07/picamera2-0.3.31.tar.gz", hash = "sha256:46538e83a8b495d0d58c27b2231df4a19d80692e294b9dd1a926920834561f21", size = 102934, upload-time = "2025-09-12T11:40:29.685Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b1/f3/4cb82c4d39b5573fd19257c6ff08b99b5506a0201d8bbb1cf8f1c67cd8c9/picamera2-0.3.34.tar.gz", hash = "sha256:fa923c2d25a124b1b591b332e10836a08690a1cf6bd233bb25862466d881229d", size = 108661, upload-time = "2026-02-02T13:13:37.752Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/71/fd/512dafc445dd0c2eedb972bad4c3ec5430738af6767a8b989158d97c7a5e/picamera2-0.3.31-py3-none-any.whl", hash = "sha256:0f94221f6fcd6ca16a7ea7fd77654c40583cecac39971a8dcc9b974a0cef7e6d", size = 122281, upload-time = "2025-09-12T11:40:28.094Z" },
+    { url = "https://files.pythonhosted.org/packages/57/eb/ef4ec16258285093e90d26195deb58d5b473cd334f713c2d4691955eaafe/picamera2-0.3.34-py3-none-any.whl", hash = "sha256:08635c902b43cfa6349b2dec460005f92bf4d97655caf3cd57b06fc3bb8b19c5", size = 129389, upload-time = "2026-02-02T13:13:36.615Z" },
 ]
 
 [[package]]

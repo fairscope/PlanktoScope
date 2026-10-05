@@ -1,0 +1,3 @@
+[submodule "node-red/projects/dashboard"]
+	path = node-red/projects/dashboard
+	url = https://github.com/fairscope/dashboard.git

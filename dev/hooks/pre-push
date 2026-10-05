@@ -1,0 +1,11 @@
+#!/bin/sh
+
+while read local_ref local_sha remote_ref remote_sha
+do
+  case "$local_ref" in
+    refs/heads/main)
+      echo "Pushing main → running checks"
+      just test || exit 1
+      ;;
+  esac
+done

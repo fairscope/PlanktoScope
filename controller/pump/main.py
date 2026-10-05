@@ -3,7 +3,6 @@ import json
 import signal
 from pprint import pprint
 
-import aiofiles
 import aiomqtt
 
 import helpers
@@ -14,11 +13,13 @@ FORWARD = 1
 """"Step backward"""
 BACKWARD = 2
 
-# 507 steps per ml for PlanktoScope standard
-# 5200 for custom NEMA14 pump with 0.8mm ID Tube
-pump_steps_per_ml = 507
-# pump max speed is in ml/min
-pump_max_speed = 50
+pump_steps_per_ml = None
+pump_max_speed = None
+
+# TMC5160 velocity conversion factor
+# The TMC5160 uses internal velocity units: actual_velocity = VMAX * (fCLK / 2^24)
+# With internal oscillator (~12 MHz), we need to multiply desired speed by 2^24/fCLK
+TMC5160_VELOCITY_FACTOR = 1.398
 
 pump_started = False
 
@@ -35,60 +36,72 @@ async def start() -> None:
 
     hardware_config = None
     try:
-        async with aiofiles.open("/home/pi/PlanktoScope/hardware.json", mode="r") as file:
-            hardware_config = json.loads(await file.read())
+        hardware_config = await helpers.read_hardware_config()
     except FileNotFoundError:
         return None
 
-    if hardware_config is not None:
-        # parse the config data. If the key is absent, we are using the default value
-        pump_steps_per_ml = hardware_config.get("pump_steps_per_ml", pump_steps_per_ml)
-        pump_max_speed = hardware_config.get("pump_max_speed", pump_max_speed)
+    pump_steps_per_ml = hardware_config.get("pump_steps_per_ml")
+    pump_max_speed = hardware_config.get("pump_max_speed")
 
-    pump_stepper.speed = int(pump_max_speed * pump_steps_per_ml * 256 / 60)
+    if pump_steps_per_ml is None or pump_max_speed is None:
+        return None
+
+    pump_stepper.speed = int(
+        pump_max_speed * pump_steps_per_ml * 256 / 60 * TMC5160_VELOCITY_FACTOR
+    )
 
     client = aiomqtt.Client(hostname="localhost", port=1883, protocol=aiomqtt.ProtocolVersion.V5)
-
-    async with client:
+    task_group = asyncio.TaskGroup()
+    async with client, task_group:
         _ = await asyncio.gather(
             client.subscribe("actuator/pump"),
             # publish_status(),
         )
         async for message in client.messages:
-            asyncio.create_task(handle_message(message))
+            task_group.create_task(handle_message(message))
 
 
 async def handle_message(message) -> None:
     if not message.topic.matches("actuator/pump"):
         return
 
-    payload = json.loads(message.payload.decode("utf-8"))
+    payload = None
+    try:
+        payload = json.loads(message.payload.decode("utf-8"))
+        assert isinstance(payload, dict)
+    except Exception:
+        return
     pprint(payload)
 
     action = payload.get("action")
+    response = None
     if action is not None:
-        await handle_action(action, payload)
+        response = await handle_action(action, payload)
 
     if client is not None:
-        await helpers.mqtt_reply(client, message)
+        await helpers.mqtt_reply(client, message, response)
 
 
-async def handle_action(action: str, payload) -> None:
+async def handle_action(action: str, payload) -> dict | None:
     if action == "move":
         await startPump(payload)
     elif action == "stop":
         await stopPump()
+    elif action == "set-configuration":
+        await setConfiguration(payload)
+    elif action == "get-configuration":
+        return await getConfiguration()
 
 
-async def startPump(payload) -> None:
+async def startPump(payload: dict) -> None:
     direction = None
     volume = None
     flowrate = None
 
     try:
         direction = payload["direction"]
-        volume = int(payload["volume"])
-        flowrate = int(payload["flowrate"])
+        volume = float(payload["volume"])
+        flowrate = float(payload["flowrate"])
     except Exception:
         # FIXME: add error handling
         return
@@ -100,12 +113,9 @@ async def startPump(payload) -> None:
     await pump(direction, volume, flowrate)
 
 
-# The pump max speed will be at about 400 full steps per second
-# This amounts to 0.9mL per seconds maximum, or 54mL/min
-# NEMA14 pump with 3 rollers is 0.509 mL per round, actual calculation at
-# Stepper is 200 steps/round, or 393steps/ml
-# https://www.wolframalpha.com/input/?i=pi+*+%280.8mm%29%C2%B2+*+54mm+*+3
-async def pump(direction: str, volume: float, flowrate: float = pump_max_speed):
+async def pump(direction: str, volume: float, flowrate: float):
+    assert pump_steps_per_ml is not None
+    assert pump_max_speed is not None
     global pump_started
 
     """Moves the pump stepper
@@ -126,7 +136,7 @@ async def pump(direction: str, volume: float, flowrate: float = pump_max_speed):
     if flowrate > pump_max_speed:
         flowrate = pump_max_speed
     steps_per_second = flowrate * pump_steps_per_ml * 256 / 60
-    pump_stepper.speed = int(steps_per_second)
+    pump_stepper.speed = int(steps_per_second * TMC5160_VELOCITY_FACTOR)
 
     pump_started = True
     if direction == "FORWARD":
@@ -144,7 +154,7 @@ async def pump(direction: str, volume: float, flowrate: float = pump_max_speed):
     # FIXME: We should NOT poll spi
     # instead we should configure DIAG0 or DIAG1
     # to change state when the motor is at at goal
-    # see https://github.com/PlanktoScope/PlanktoScope/issues/836
+    # see https://github.com/fairscope/PlanktoScope/issues/836
     while not await asyncio.to_thread(pump_stepper.at_goal):
         await asyncio.sleep(0.01)
 
@@ -165,6 +175,22 @@ async def stopPump() -> None:
         await client.publish(
             topic="status/pump", payload=json.dumps({"status": "Interrupted"}), retain=True
         )
+
+
+async def getConfiguration() -> dict:
+    return {"pump_steps_per_ml": pump_steps_per_ml}
+
+
+async def setConfiguration(config: dict) -> None:
+    steps_per_ml = config.get("pump_steps_per_ml")
+    # FIXME: add error handling
+    if steps_per_ml is None:
+        return
+
+    await helpers.update_hardware_config({"pump_steps_per_ml": steps_per_ml})
+
+    global pump_steps_per_ml
+    pump_steps_per_ml = steps_per_ml
 
 
 async def stop() -> None:

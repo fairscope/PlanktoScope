@@ -10,5 +10,8 @@ node_modules
 # PlanktoScope config files
 hardware.json
 config.json
+calibration.json
 
-push.sh
+data
+
+gitinfo.json

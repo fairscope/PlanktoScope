@@ -14,13 +14,13 @@ Write the sdcard, choose US internal keyboard layout, `pi` username and `copepod
 ```sh
 sudo apt install -y git
 cd ~
-git clone https://github.com/PlanktoScope/PlanktoScope.git --depth=1
+git clone https://github.com/fairscope/PlanktoScope.git --depth=1
 cd PlanktoScope/infra
 ./setup.sh
 
 cd ~/actions-runner
 
-# Go to https://github.com/PlanktoScope/PlanktoScope/settings/actions/runners/new?arch=arm64&os=linux
+# Go to https://github.com/fairscope/PlanktoScope/settings/actions/runners/new?arch=arm64&os=linux
 
 # Enter the  "config.sh" instruction only
 # TODO: Use the API https://docs.github.com/en/rest/actions/self-hosted-runners?apiVersion=2022-11-28#create-a-registration-token-for-a-repository

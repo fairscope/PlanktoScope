@@ -367,7 +367,6 @@ The `update_config` command sets/changes the metadata which will be saved with t
     "acq_maximum_mesh": 300,
     "acq_min_esd": 300,
     "acq_max_esd": 300,
-    "acq_camera_name": "HQ Camera",
     "acq_nb_frame": 500,
     "acq_local_datetime": "2024-05-15T09:00:00Z",
     "acq_caamera_iso": 400,
@@ -426,7 +425,6 @@ Acquisition information:
 | `acq_maximum_mesh`         | Maximum mesh size.                     | float   |
 | `acq_min_esd`              | Minimum equivalent spherical diameter. | float   |
 | `acq_max_esd`              | Maximum equivalent spherical diameter. | float   |
-| `acq_camera_name`          | Camera name.                           | string  |
 | `acq_nb_frame`             | Number of frames captured.             | integer |
 | `acq_local_datetime`       | Local date and time of acquisition.    | string  |
 | `acq_camera_resolution`    | Camera resolution.                     | string  |
@@ -437,16 +435,18 @@ Object information:
 
 | Field              | Description                           | Type   |
 | ------------------ | ------------------------------------- | ------ |
-| `object_date`      | Date of the object recording.         | string |
-| `object_time`      | Time of the object recording.         | string |
+| `object_date`      | Date of the sample recording.         | string |
+| `object_time`      | Time of the sample recording.         | string |
 | `object_lat`       | Latitude of the sample location.      | float  |
 | `object_lon`       | Longitude of the sample location.     | float  |
 | `object_depth_min` | Minimum depth of the sample location. | float  |
 | `object_depth_max` | Maximum depth of the sample location. | float  |
-| `object_date_end`  | End date of the object recording.     | string |
-| `object_time_end`  | End time of the object recording.     | string |
+| `object_date_end`  | End date of the sample recording.     | string |
+| `object_time_end`  | End time of the sample recording.     | string |
 | `object_lat_end`   | End latitude of the sample location.  | float  |
 | `object_lon_end`   | End longitude of the sample location. | float  |
+
+`object` here refers to sample, it is not related to segmentation. [ref](https://planktoscope.slack.com/archives/C01V5ENKG0M/p1770830726633419)
 
 Processing information:
 
