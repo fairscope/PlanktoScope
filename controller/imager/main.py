@@ -13,10 +13,10 @@ import loguru
 
 import integrity
 import mqtt
-from imager.camera.hardware import ISO_CALIBRATION
+# from imager.camera.hardware import ISO_CALIBRATION
 
 from . import stopflow
-from .camera import mqtt as camera
+# from .camera import mqtt as camera
 
 HAT_CUSTOM_DATA_PATH = "/proc/device-tree/hat/custom_0"
 
@@ -47,7 +47,8 @@ class Imager:
     commands received over the MQTT API.
     """
 
-    def __init__(self, configuration: dict[str, typing.Any]):
+    # def __init__(self, configuration: dict[str, typing.Any]):
+    def __init__(self):
         # Internal state
         self._metadata: dict[str, typing.Any] = {}
         self._active_routine: typing.Optional[ImageAcquisitionRoutine] = None
@@ -58,9 +59,9 @@ class Imager:
         # TODO(ethanjli): instead of having the ImagerWorker start the camera worker, this should
         # be started from the main script; and then the camera object should be passed into the
         # constructor.
-        self._camera: typing.Optional[camera.Worker] = None
+        # self._camera: typing.Optional[camera.Worker] = None
 
-        self.configuration = configuration
+        # self.configuration = configuration
 
         loguru.logger.success("planktoscope.imager is initialized and ready to go!")
 
@@ -75,15 +76,15 @@ class Imager:
         self._pump.open()
         loguru.logger.success("Pump RPC client is ready!")
 
-        loguru.logger.info("Starting the camera...")
-        self._camera = camera.Worker(self.configuration)
-        self._camera.start()
-        if self._camera.camera is None:
-            loguru.logger.error("Missing camera - maybe it's disconnected or it never started?")
-            # TODO(ethanjli): officially add this error status to the MQTT API!
-            self._mqtt.client.publish("status/imager", '{"status": "Error: missing camera"}')
-            self._cleanup()
-            return
+        # loguru.logger.info("Starting the camera...")
+        # self._camera = camera.Worker(self.configuration)
+        # self._camera.start()
+        # if self._camera.camera is None:
+        #     loguru.logger.error("Missing camera - maybe it's disconnected or it never started?")
+        #     # TODO(ethanjli): officially add this error status to the MQTT API!
+        #     self._mqtt.client.publish("status/imager", '{"status": "Error: missing camera"}')
+        #     self._cleanup()
+        #     return
 
         loguru.logger.success("Camera is ready!")
         self._mqtt.client.publish("status/imager", '{"status":"Ready"}')
@@ -113,10 +114,10 @@ class Imager:
         if self._pump is not None:
             self._pump.close()
             self._pump = None
-        if self._camera is not None:
-            self._camera.shutdown()
-            self._camera.join()
-            self._camera = None
+        # if self._camera is not None:
+        #     self._camera.shutdown()
+        #     self._camera.join()
+        #     self._camera = None
 
     @loguru.logger.catch
     def _handle_new_message(self) -> None:
@@ -174,16 +175,16 @@ class Imager:
         """Handle a new imager command to start image acquisition."""
         assert self._mqtt is not None
         assert self._pump is not None
-        assert self._camera is not None
+        # assert self._camera is not None
 
         if (acquisition_settings := _parse_acquisition_settings(latest_message)) is None:
             self._mqtt.client.publish("status/imager", '{"status":"Error"}')
             return
-        if self._camera.camera is None:
-            loguru.logger.error("Missing camera - maybe it was closed?")
-            # TODO(ethanjli): officially add this error status to the MQTT API!
-            self._mqtt.client.publish("status/imager", '{"status": "Error: missing camera"}')
-            raise RuntimeError("Camera is not available")
+        # if self._camera.camera is None:
+        #     loguru.logger.error("Missing camera - maybe it was closed?")
+        #     # TODO(ethanjli): officially add this error status to the MQTT API!
+        #     self._mqtt.client.publish("status/imager", '{"status": "Error: missing camera"}')
+        #     raise RuntimeError("Camera is not available")
 
         assert (capture_size := self._camera.camera.stream_config.capture_size) is not None
         camera_settings = self._camera.camera.settings
@@ -564,8 +565,8 @@ def read_config() -> typing.Any:
 
 
 def main():
-    configuration = read_config()
-    imager = Imager(configuration)
+    # configuration = read_config()
+    imager = Imager()
     imager.run()
 
 

@@ -1,0 +1,8 @@
+setup:
+    sudo cp planktoscope-org.controller.camera.service /etc/systemd/system/
+    sudo systemctl reenable planktoscope-org.controller.camera
+    sudo systemctl restart planktoscope-org.controller.camera
+
+dev:
+    -sudo systemctl stop planktoscope-org.controller.camera
+    cd .. && uv run python -m camera.main

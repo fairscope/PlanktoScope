@@ -2,14 +2,13 @@
 Wants=mosquitto.service
 After=mosquitto.service
 After=nodered.service
+After=mediamtx.service
 
 [Service]
 Type=simple
 Environment=HOME=/home/pi
-WorkingDirectory=/opt/PlanktoScope/controller
-# FIXME: https://github.com/fairscope/PlanktoScope/issues/842
-ExecStartPre=/bin/sleep 5
-ExecStart=/usr/local/bin/uv run python -m imager.main
+WorkingDirectory=/home/pi/PlanktoScope/controller
+ExecStart=/usr/local/bin/uv run python -m camera.main
 User=pi
 Group=pi
 Restart=on-failure
