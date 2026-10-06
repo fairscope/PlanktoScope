@@ -2,7 +2,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@flowfuse/node-red-dashboard": "~1.31.0",
+    "@flowfuse/node-red-dashboard": "~1.32.0",
     "@flowfuse/node-red-dashboard-2-ui-flowviewer": "~1.0.2",
     "node-red-node-ui-list": "~0.3.6"
   },
