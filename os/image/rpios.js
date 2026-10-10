@@ -12,9 +12,9 @@ import { getBlockDevices, umount, getMountPoint } from "./lib.js"
 import { getRaspberryPiOSReference } from "./rpi.js"
 
 // ⚠️ IMPORTANT sync reference with setup.sh
-const url = `https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2026-06-19/2026-06-18-raspios-trixie-arm64-lite.img.xz`
+const url = `https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2026-09-15/2026-09-15-raspios-trixie-arm64-lite.img.xz`
 const sha256 =
-  "acff736ca7945e3b305f07cda4abdb870910e12634991da69783611756e381b3"
+  "cdf4f3bfac35ae947b46e4e767f935453810549779ac3290e05a6754aee627e5"
 const file = basename(url)
 const img = basename(url, ".xz")
 const reference = file.match(/(.*)-raspios-.*.img/)?.[1]
