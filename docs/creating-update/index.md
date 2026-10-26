@@ -41,13 +41,18 @@ ssh pixxx
 # Run setup scripts
 sudo NODE_DEBUG=execa pkos prepare
 
-# Boot to inactive slot TODO
-sudo pkos reboot A
+# Boot to inactive slot
+sudo pkos reboot X
 
+# SSH
 ssh pi@xxx
 
 # Create bundle
 sudo NODE_DEBUG=execa pkos create-bundle /dev/nvme0n1 B 2026.4.0
+# It will display the path of the raucb file
+
+# From your computer; download the file
+scp pi@xxx:/data/tmp/PlanktoScopeOS-2026.4.0.raucb .
 ```
 
 You can swap A and B.

@@ -20,11 +20,7 @@ import {
   create_firmwarefs,
   create_rootfs,
   getPartitions,
-  setup_cloudinit,
-  setup_cmdline,
-  setup_config,
-  setup_fstab,
-  setup_machineid,
+  updateMountpoints,
 } from "../image/planktoscope.js"
 import {
   setupRaspberryPiOSDevice,
@@ -175,14 +171,10 @@ export async function installRaspberryPiOSToSlot(device, bootname) {
 
     partitions = await getPartitions(device)
 
-    await setup_cmdline(rpios_partitions, partitions, [bootname])
-    await setup_config(rpios_partitions, partitions, [bootname])
+    // TODO: Ideally this does not updates files on current slot
     await $`mount -o remount,rw ${partitions["BOOTLOADER"].path}`
-    await setup_cloudinit(rpios_partitions, partitions, [bootname])
+    await updateMountpoints(device, rpios_partitions)
     await $`mount -o remount,ro ${partitions["BOOTLOADER"].path}`
-    await setup_fstab(partitions, [bootname])
-    // await setup_autoboot(...)
-    await setup_machineid(partitions, [bootname])
   } finally {
     await $`sync`
     await umount(partitions[`FIRMWARE_${bootname}`].path)
