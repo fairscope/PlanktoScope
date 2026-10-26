@@ -4,7 +4,6 @@ import {
   writeFile,
   mkdir,
   copyFile,
-  unlink,
   rm,
   chown,
   cp,
@@ -19,7 +18,7 @@ import dedent from "dedent"
 
 import { getBlockDevices, getMountPoint } from "./lib.js"
 
-const default_bootnames = ["A", "B"]
+export const default_bootnames = ["A", "B"]
 const bootnames = default_bootnames
 
 export async function createPartitions(device, rpios_partitions) {
@@ -59,10 +58,13 @@ export async function updateMountpoints(device, rpios_partitions) {
 
 const default_partitions = (async () => {
   const p = {}
-  const children = await readdir(fileURLToPath(import.meta.resolve("./repart.d")), { withFileTypes: true })
+  const children = await readdir(
+    fileURLToPath(import.meta.resolve("./repart.d")),
+    { withFileTypes: true },
+  )
   for (const child of children) {
     if (!child.isFile()) continue
-    const data = await readFile(join(child.parentPath, child.name), 'utf8')
+    const data = await readFile(join(child.parentPath, child.name), "utf8")
     const parsed = parse(data).Partition
     p[parsed.Label] = parsed
   }
@@ -154,7 +156,7 @@ export async function create_rootfs({ path, partlabel }, rpios_rootfs) {
   await mkdir(join(mountpoint, "bootloader"))
   await mkdir(join(mountpoint, "data"))
 
-  await unlink(
+  await rm(
     join(
       mountpoint,
       "/etc/systemd/system/sysinit.target.wants/rpi-resize.service",
@@ -162,7 +164,7 @@ export async function create_rootfs({ path, partlabel }, rpios_rootfs) {
   )
 
   // TODO: host keys should be the same on all slots
-  // await unlink(
+  // await rm(
   //   join(
   //     mountpoint,
   //     "/etc/systemd/system/sysinit.target.wants/regenerate_ssh_host_keys.service",
@@ -195,7 +197,10 @@ async function create_datafs(device, rootfs) {
 // We need to share /etc/machine-id so we symlink it from `/data/machine-id` on both slots
 // machine-id-setup.service will create it if target does not exist
 // https://www.freedesktop.org/software/systemd/man/latest/machine-id.html
-export async function setup_machineid(partitions, bootnames = default_bootnames) {
+export async function setup_machineid(
+  partitions,
+  bootnames = default_bootnames,
+) {
   for (const bootname of bootnames) {
     const root = partitions[`ROOT_${bootname}`].mountpoint
 
@@ -210,7 +215,7 @@ export async function setup_machineid(partitions, bootnames = default_bootnames)
       join(root, "/etc/systemd/system/machine-id-setup.service"),
     )
 
-    await $`ln -s ${join(root, "/etc/systemd/system/machine-id-setup.service")} ${join(root, "/etc/systemd/system/sysinit.target.wants/machine-id-setup.service")}`
+    await $`ln -sf ${join(root, "/etc/systemd/system/machine-id-setup.service")} ${join(root, "/etc/systemd/system/sysinit.target.wants/machine-id-setup.service")}`
   }
 }
 
@@ -231,7 +236,7 @@ export async function setup_cloudinit(
   await copyFile(join(bootfs, "meta-data"), join(bootloader, "meta-data"))
   for (const bootname of bootnames) {
     const mp = partitions[`FIRMWARE_${bootname}`].mountpoint
-    await unlink(join(mp, "meta-data"))
+    await rm(join(mp, "meta-data"), { force: true })
   }
 
   // network-config
@@ -241,7 +246,7 @@ export async function setup_cloudinit(
   )
   for (const bootname of bootnames) {
     const mp = partitions[`FIRMWARE_${bootname}`].mountpoint
-    await unlink(join(mp, "network-config"))
+    await rm(join(mp, "network-config"), { force: true })
   }
 
   // user-data
@@ -251,7 +256,7 @@ export async function setup_cloudinit(
   )
   for (const bootname of bootnames) {
     const mp = partitions[`FIRMWARE_${bootname}`].mountpoint
-    await unlink(join(mp, "user-data"))
+    await rm(join(mp, "user-data"), { force: true })
   }
 
   // update cloud-init source
@@ -360,7 +365,7 @@ export async function setup_cmdline(
       await writeFile(join(firmware_mp, file), content)
     }
     // remove original cmdline.txt
-    await unlink(join(firmware_mp, "cmdline.txt"))
+    await rm(join(firmware_mp, "cmdline.txt"), { force: true })
   }
 }
 
@@ -404,7 +409,9 @@ async function setup_repart(partitions) {
       partitions[`ROOT_${bootname}`].mountpoint,
       "usr/lib/repart.d",
     )
-    await cp(fileURLToPath(import.meta.resolve("./repart.d")), path, {recursive: true})
+    await cp(fileURLToPath(import.meta.resolve("./repart.d")), path, {
+      recursive: true,
+    })
   }
 }
 
