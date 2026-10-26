@@ -19,12 +19,9 @@ import { mount_active_firmware } from "../image/mount-firmware.js"
 import {
   create_firmwarefs,
   create_rootfs,
+  default_bootnames,
   getPartitions,
-  setup_cloudinit,
-  setup_cmdline,
-  setup_config,
-  setup_fstab,
-  setup_machineid,
+  updateMountpoints,
 } from "../image/planktoscope.js"
 import {
   setupRaspberryPiOSDevice,
@@ -175,14 +172,13 @@ export async function installRaspberryPiOSToSlot(device, bootname) {
 
     partitions = await getPartitions(device)
 
-    await setup_cmdline(rpios_partitions, partitions, [bootname])
-    await setup_config(rpios_partitions, partitions, [bootname])
-    await $`mount -o remount,rw ${partitions["BOOTLOADER"].path}`
-    await setup_cloudinit(rpios_partitions, partitions, [bootname])
-    await $`mount -o remount,ro ${partitions["BOOTLOADER"].path}`
-    await setup_fstab(partitions, [bootname])
-    // await setup_autoboot(...)
-    await setup_machineid(partitions, [bootname])
+    for (const bootname of default_bootnames) {
+      await $`mount -o remount,rw ${partitions[`FIRMWARE_${bootname}`].path}`
+    }
+
+    // TODO: Ideally installing RPI OS on slot A does not touch slot B
+    // and vice versa
+    await updateMountpoints(device, rpios_partitions)
   } finally {
     await $`sync`
     await umount(partitions[`FIRMWARE_${bootname}`].path)
