@@ -22,6 +22,9 @@ class i2c_led:
     DEVICE_ADDRESS = 0x64
     # This constant defines the current (mA) sent to the LED, 10 allows the use of the full ISO scale and results in a voltage of 2.77v
     DEFAULT_CURRENT = 10
+    # The torch brightness register is 7 bits wide (bit 7 is reserved), so the
+    # usable range is 0-127: ~2.4 mA at 0 up to ~376 mA at 127.
+    TORCH_MAX = 127
 
     def __init__(self):
         with open("/home/pi/PlanktoScope/hardware.json", "r") as file:
@@ -90,6 +93,27 @@ class i2c_led:
         value = int(current * 0.34)
         self._write_byte(self.Register.torch, value)
 
+    def set_torch_value(self, value: int) -> None:
+        """Write the torch brightness register directly, in native 0-127 units.
+
+        Prefer this over `set_torch_current` when the caller wants brightness
+        rather than a specific current: going through mA quantises the range
+        twice (mA * 0.34 collapses 0-20 down to just 7 distinct register
+        values), which is what made lightness 230 unreachable on v2.6.
+        """
+        self._write_byte(self.Register.torch, self._clamp_torch(value))
+
+    def get_torch_value(self) -> int:
+        # Mask off the reserved bit so a stray high bit can't report as brightness.
+        # `_read_byte` is untyped, so narrow it explicitly rather than leaking Any.
+        return int(self._read_byte(self.Register.torch) & self.TORCH_MAX)
+
+    @classmethod
+    def _clamp_torch(cls, value: float) -> int:
+        """Clamp to the 7-bit register range; anything higher would spill into
+        the reserved bit rather than getting brighter."""
+        return max(0, min(int(value), cls.TORCH_MAX))
+
     def get_torch_current(self):
         return self._read_byte(self.Register.torch)
 
@@ -152,9 +176,25 @@ def deinit() -> None:
 
 
 def get_value() -> float:
-    return int(round(led.get_torch_current() / 20))
+    # A 0-1 fraction, matching what `set_value` accepts and what the v3 MCP4725
+    # driver reports. This used to divide the raw register by 20 and round to an
+    # int, so `status/light` reported 0 for every register below 10.
+    return led.get_torch_value() / i2c_led.TORCH_MAX
 
 
 def set_value(value: float) -> None:
-    led.set_torch_current(int(round(value * 20)))
+    # `value` is a 0-1 fraction of full brightness, mapped straight onto the
+    # 7-bit torch register for the full 128 levels the LM36011 offers.
+    #
+    # This used to route through set_torch_current(round(value * 20)), which
+    # quantised twice: 0-1 became 0-20, then mA * 0.34 collapsed that to 7
+    # distinct register values (0-6). Three neighbouring slider positions all
+    # produced the same current, and one step past the boundary jumped a whole
+    # level — which is why lightness 230 sat unreachable between 219 and 242
+    # (fairscope/PlanktoScope3#309).
+    #
+    # NOTE: this changes what a stored setting means. The same 0-1 value now
+    # produces a much higher current than before (0.4 was register 2, it is now
+    # register 50), so existing calibrations must be re-measured.
+    led.set_torch_value(round(max(0.0, min(float(value), 1.0)) * i2c_led.TORCH_MAX))
     return
