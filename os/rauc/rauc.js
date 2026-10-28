@@ -15,6 +15,11 @@ export async function getBootedSlot() {
   return await getRaucSlot(booted_partition_number)
 }
 
+export async function getInactiveSlot() {
+  const booted = await getBootedSlot()
+  return booted === 'A' ? 'B' : 'A'
+}
+
 export async function getRaucSlot(boot_partition_number) {
   const partitions = await getBlockDevices(device)
   const partition = partitions.find(

@@ -7,35 +7,52 @@ The PlanktoScope contains 2 slots; A and B; each able to host the entirety of th
 To create an update
 
 ```sh
-# Boot to slot A
-cd /opt/PlanktoScope/os/pkos
-sudo ./pkos.js reboot A
+# SSH
+ssh pi@xxx
 
-# Install RPI OS to slot B
-rauc install PlanktoScopeOS-2026-06-18-raspios.raucb
+# Install pkos
+just -f /opt/PlanktoScope/os/pkos/justfile
 
-# Boot to slot B
-cd /opt/PlanktoScope/os/pkos
-sudo ./pkos.js reboot B
+# Install RPI OS rauc bundle (see Updating Raspberry Pi OS to create a rauc bundle)
+rauc install PlanktoScopeOS-raspios-yyyy-mm-dd.raucb
 
-# Install deps
-sudo apt install git just
-git clone https://github.com/fairscope/PlanktoScope.git
-sudo mv PlanktoScope /opt/PlanktoScope
-sudo chown -R pi:pi /opt/PlanktoScope
+# Boot to new active slot with Raspberry Pi OS
+sudo reboot
+
+# SSH
+ssh pixxx
+
+# Make sure it booted to the new install
+
+# Install PlanktoScope software
+# This will download and install from `main` branch
+# If you want something else clone to `/opt/PlanktoScope` and run `/opt/PlanktoScope/os/setup.sh`
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/FairScope/PlanktoScope/HEAD/os/setup.sh)"
+
+# Reboot
+sudo reboot
+
+# Perform basic tests
+# Go to http://planktoscope-sponge-bob/ps/node-red-v2/dashboard/preview
+
+# SSH
+ssh pixxx
 
 # Run setup scripts
-cd /opt/PlanktoScope/os/pkos
-just
-sudo ./pkos.js prepare
+sudo NODE_DEBUG=execa pkos prepare
 
-# Boot to slot A
-cd /opt/PlanktoScope/os/pkos
-sudo ./pkos.js reboot A
+# Boot to inactive slot
+sudo pkos reboot X
+
+# SSH
+ssh pi@xxx
 
 # Create bundle
-cd /opt/PlanktoScope/os/pkos
-sudo ./pkos.js create-bundle /dev/nvme0n1 B 2026.4.0
+sudo NODE_DEBUG=execa pkos create-bundle /dev/nvme0n1 B 2026.4.0
+# It will display the path of the raucb file
+
+# From your computer; download the file
+scp pi@xxx:/data/tmp/PlanktoScopeOS-2026.4.0.raucb .
 ```
 
-You can also swap A and B.
+You can swap A and B.

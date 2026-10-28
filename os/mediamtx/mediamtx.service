@@ -5,10 +5,7 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-# The hostname/IP substitution into /etc/mediamtx.yaml is driven by the
-# `runOnInit` hook in the YAML itself (see os/mediamtx/mediamtx.yaml), so it
-# also runs when mediamtx is started outside systemd (e.g. `just dev`).
-# network-online.target is kept so the wired IP is available when that runs.
+WorkingDirectory=/opt/PlanktoScope/os/mediamtx
 ExecStart=/usr/local/bin/mediamtx /etc/mediamtx.yaml
 
 [Install]

@@ -5,20 +5,21 @@ import assert from "node:assert"
 import { basename, join } from "node:path"
 import { access, readFile, readlink } from "node:fs/promises"
 import { once } from "node:events"
+import { readFileSync } from 'node:fs';
+import { parseEnv } from 'node:util';
 
 import { $ } from "../../lib/exec.js"
 
 import { getBlockDevices, umount, getMountPoint } from "./lib.js"
 import { getRaspberryPiOSReference } from "./rpi.js"
 
-// ⚠️ IMPORTANT sync reference with setup.sh
-const url = `https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2026-06-19/2026-06-18-raspios-trixie-arm64-lite.img.xz`
-const sha256 =
-  "acff736ca7945e3b305f07cda4abdb870910e12634991da69783611756e381b3"
+export const RPIOS = parseEnv(readFileSync(new URL(import.meta.resolve('../RPIOS.env')), 'utf8'));
+const url = RPIOS.RPIOS_URL
+const sha256 = RPIOS.RPIOS_SHA256
+const reference = RPIOS.RPIOS_REFERENCE
+
 const file = basename(url)
 const img = basename(url, ".xz")
-const reference = file.match(/(.*)-raspios-.*.img/)?.[1]
-assert.ok(reference)
 
 async function downloadRaspberryPiOS(dir) {
   const cwd = process.cwd()

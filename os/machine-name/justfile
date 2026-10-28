@@ -12,3 +12,4 @@ setup:
 
     sudo cp update-hostname.service /usr/lib/systemd/system/
     sudo systemctl reenable update-hostname
+    sudo systemctl restart update-hostname

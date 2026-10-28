@@ -79,6 +79,10 @@ export async function prepareRoot() {
     JSON.stringify({ commit, url }, null, 2),
   )
 
+  await $`sudo apt remove --yes just tmux`
+  await $`sudo apt autoremove --purge --yes`
+  await $`sudo apt clean --yes`
+
   await $`rm -rf /var/log/journal`
   await $(`find /var/log -type f -exec truncate -s 0 {} \\;`, { shell: true })
   await $(`rm -f /var/lib/dhcp/* /var/lib/dhcpcd5/*`, { shell: true })

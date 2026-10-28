@@ -1,5 +1,7 @@
 setup:
     just --justfile ../../justfile           install-node
     npm ci --omit=dev
+    just --justfile ../../lib/justfile       setup
     npm --prefix ../rauc ci --omit=dev
     npm --prefix ../image ci --omit=dev
+    sudo ln -s -f /opt/PlanktoScope/os/pkos/pkos.js /usr/local/bin/pkos

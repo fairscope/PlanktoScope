@@ -11,6 +11,7 @@ import {
   getBootPartitionNumber,
   getRaucSlot,
   getBootedSlot,
+  getInactiveSlot,
 } from "../rauc/rauc.js"
 import { getBootedPartitionNumber } from "../image/rpi.js"
 import { getBlockDevices, getBootedDevice, umount } from "../image/lib.js"
@@ -19,16 +20,14 @@ import { mount_active_firmware } from "../image/mount-firmware.js"
 import {
   create_firmwarefs,
   create_rootfs,
+  default_bootnames,
   getPartitions,
-  setup_cloudinit,
-  setup_cmdline,
-  setup_config,
-  setup_fstab,
-  setup_machineid,
+  updateMountpoints,
 } from "../image/planktoscope.js"
 import {
   setupRaspberryPiOSDevice,
   teardownRaspberryPiOSDevice,
+  RPIOS,
 } from "../image/rpios.js"
 
 const device = await getBootedDevice()
@@ -57,16 +56,26 @@ if (import.meta.main) {
     if (!device_path || !bootname) {
       throw new Error("create-bundle /dev/device A|B [version]")
     }
-    const booted_slot = await getBootedSlot()
-    if (device_path === device && bootname === booted_slot) {
-      throw new Error(
-        `Cannot create a bundle for booted ${device} ${bootname} slot.`,
-      )
-    }
+    await assertNotBootedSlot(device_path, bootname)
     const bundle_path = await createBundle(device_path, bootname, version)
+    console.log(bundle_path)
+  } else if (command === "create-rpios-bundle") {
+    const bootname = await getInactiveSlot()
+    await assertNotBootedSlot(device, bootname)
+    await installRaspberryPiOSToSlot(device, bootname)
+    const bundle_path = await createBundle(device, bootname, `rpios-${RPIOS.RPIOS_REFERENCE}`)
     console.log(bundle_path)
   } else {
     throw new Error(`Unknwon command "${command}".`)
+  }
+}
+
+async function assertNotBootedSlot(device_path, bootname) {
+  const booted_slot = await getBootedSlot()
+  if (device_path === device && bootname === booted_slot) {
+    throw new Error(
+      `Cannot create a bundle for booted ${device} ${bootname} slot.`,
+    )
   }
 }
 
@@ -82,7 +91,6 @@ async function slot() {
 async function prepare() {
   await mount_active_firmware()
 
-  await $({ shell: true, stdio: "inherit" })`/opt/PlanktoScope/os/setup.sh`
   await $({
     shell: true,
     stdio: "inherit",
@@ -161,14 +169,13 @@ export async function installRaspberryPiOSToSlot(device, bootname) {
 
     partitions = await getPartitions(device)
 
-    await setup_cmdline(rpios_partitions, partitions, [bootname])
-    await setup_config(rpios_partitions, partitions, [bootname])
-    await $`mount -o remount,rw ${partitions["BOOTLOADER"].path}`
-    await setup_cloudinit(rpios_partitions, partitions, [bootname])
-    await $`mount -o remount,ro ${partitions["BOOTLOADER"].path}`
-    await setup_fstab(partitions, [bootname])
-    // await setup_autoboot(...)
-    await setup_machineid(partitions, [bootname])
+    for (const bootname of default_bootnames) {
+      await $`mount -o remount,rw ${partitions[`FIRMWARE_${bootname}`].path}`
+    }
+
+    // TODO: Ideally installing RPI OS on slot A does not touch slot B
+    // and vice versa
+    await updateMountpoints(device, rpios_partitions)
   } finally {
     await $`sync`
     await umount(partitions[`FIRMWARE_${bootname}`].path)

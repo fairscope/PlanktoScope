@@ -8,6 +8,7 @@ export default defineConfig([
   globalIgnores([
     "controller/.venv",
     "segmenter/.venv",
+    "reporter/.venv",
     "frontend/dist",
     "frontend/public",
   ]),
