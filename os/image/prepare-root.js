@@ -11,6 +11,10 @@ if (import.meta.main) {
     throw new Error("Please run as root.")
   }
 
+  await prepareRoot()
+}
+
+export async function prepareRoot() {
   // https://systemd.io/BUILDING_IMAGES/
   await rm(`/var/lib/systemd/random-seed`, { force: true })
   await rm(`/var/lib/systemd/credential.secret`, { force: true })
@@ -75,7 +79,7 @@ if (import.meta.main) {
     JSON.stringify({ commit, url }, null, 2),
   )
 
-  await $`sudo apt remove --yes just tmux`
+  await $`sudo apt remove --yes just tmux gdisk bmaptool libguestfs-tools`
   await $`sudo apt autoremove --purge --yes`
   await $`sudo apt clean --yes`
 
@@ -89,4 +93,8 @@ if (import.meta.main) {
     recursive: true,
   })
   await rm("/opt/PlanktoScope/.git", { force: true, recursive: true })
+
+  await $`sync`
+  await $`fstrim --verbose /`
+  await $`sync`
 }
