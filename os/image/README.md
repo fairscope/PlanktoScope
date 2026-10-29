@@ -18,11 +18,11 @@ Tested with:
 
 ```sh
 cd PlanktoScope/os/image
-just
+npm ci --omit=dev
 # List disk devices and copy approrpriate "PATH"
 lsblk -d -o +path,ID,model
 # Run the script ⚠️ it will erase everything on the device
-sudo NODE_DEBUG=execa ./make-disk.js
+sudo NODE_DEBUG=execa ./make-disk.js <PATH> /tmp
 ```
 
 You know should have a device with the partition table documented below.
@@ -111,7 +111,7 @@ sudo mount -o remound,ro /boot/firmware/
 
 `DATA` is a partition shared between A and B.
 
-It includes contains `/home` and `machine-id` and anything else that needs to be shared between `A` and `B`.
+It contains `/home` and `machine-id` and anything else that needs to be shared between `A` and `B`.
 
 ---
 
@@ -158,12 +158,12 @@ On a system with the block device
 
 ```sh
 sudo apt install bmaptool zerofree
-version=2026.0.0-beta.4
-device=/dev/sda99
+version=2026.0.0
+device=/dev/device
 sudo zerofree -v ${device}p4 # ROOT_A
 sudo zerofree -v ${device}p5 # ROOT_B
 sudo zerofree -v ${device}p6 # DATA
-sudo dd bs=4M if=/dev/${device} status=progress conv=sparse,fsync of=PlanktoScopeOS-${version}.img
+sudo dd bs=4M if=${device} status=progress conv=sparse,fsync of=PlanktoScopeOS-${version}.img
 bmaptool create PlanktoScopeOS-${version}.img --output PlanktoScopeOS-${version}.img.bmap
 xz -T0 -9e --keep PlanktoScopeOS-${version}.img
 ```
@@ -184,6 +184,7 @@ On a system with the block device
 
 ```sh
 sudo apt install bmaptool
-version=2026.0.0-beta.4
-sudo bmaptool copy PlanktoScopeOS-$version.img.xz /dev/device --bmap PlanktoScopeOS-$version.img.bmap
+version=2026.0.0
+device=/dev/device
+sudo bmaptool copy PlanktoScopeOS-$version.img.xz $device --bmap PlanktoScopeOS-$version.img.bmap
 ```
