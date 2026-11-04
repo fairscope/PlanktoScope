@@ -148,7 +148,7 @@ You need to have a rauc bundle. See [Creating a bundle](../pkos/README.md)
 On the live system
 
 ```sh
-sudo ./prepare-data.js
+sudo NODE_DEBUG=execa ./prepare-data.js
 sudo poweroff
 ```
 
