@@ -11,32 +11,6 @@ You can swap A and B
 3. Boot to slot B
 4. Run [`create-bundle`](#create-bundle)
 
-## reboot
-
-Reboot to a specific slot using its bootname (A or B)
-
-```sh
-sudo ./pkos.js reboot B
-```
-
-## install-rpios
-
-Install Raspberry Pi OS from the RPI OS img defined in [os/RPIOS.env](../RPIOS.env) to a slot
-
-```sh
-sudo NODE_DEBUG=execa ./pkos.js install-rpios /dev/device A
-```
-
-## prepare
-
-Run the preparation scripts on the current slot. This steps is needed before creating a bundle from the slot.
-
-```sh
-./pkos.js prepare
-```
-
-## Create a bundle
-
 A bundle is an update that can be installed on a slot.
 
 ```sh
@@ -74,7 +48,7 @@ sudo ./pkos.js reboot B
 
 ### install-rpios
 
-Install Raspberry Pi OS from a RPI OS img to a slot
+Install Raspberry Pi OS from the RPI OS img defined in [os/RPIOS.env](../RPIOS.env) to a slot.
 
 ```sh
 sudo NODE_DEBUG=execa ./pkos.js install-rpios /dev/device A
