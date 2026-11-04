@@ -21,10 +21,10 @@ const reference = RPIOS.RPIOS_REFERENCE
 const file = basename(url)
 const img = basename(url, ".xz")
 
-async function downloadRaspberryPiOS() {
+async function downloadRaspberryPiOS(dir) {
   const cwd = process.cwd()
 
-  process.chdir("/data/tmp")
+  process.chdir(dir)
 
   // download raspios
   await $`wget -c -nc ${url}`
@@ -44,11 +44,11 @@ async function downloadRaspberryPiOS() {
 
   process.chdir(cwd)
 
-  return join("/data/tmp", img)
+  return join(dir, img)
 }
 
-export async function setupRaspberryPiOSDevice() {
-  const path = await downloadRaspberryPiOS()
+export async function setupRaspberryPiOSDevice(dir = '/data/tmp') {
+  const path = await downloadRaspberryPiOS(dir)
 
   const { stdout: device } = await $`losetup --find --partscan --show ${path}`
   await $`partprobe ${device}`

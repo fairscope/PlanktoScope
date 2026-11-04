@@ -18,13 +18,12 @@ Tested with:
 
 ```sh
 cd PlanktoScope/os/image
-just
+npm ci --omit=dev
 # List disk devices and copy approrpriate "PATH"
 lsblk -d -o +path,ID,model
 # Run the script ⚠️ it will erase everything on the device
-sudo NODE_DEBUG=execa ./make-disk.js <PATH>
+sudo NODE_DEBUG=execa ./make-disk.js <PATH> /tmp
 ```
-
 
 You know should have a device with the partition table documented below.
 
@@ -112,7 +111,7 @@ sudo mount -o remound,ro /boot/firmware/
 
 `DATA` is a partition shared between A and B.
 
-It includes contains `/home` and `machine-id` and anything else that needs to be shared between `A` and `B`.
+It contains `/home` and `machine-id` and anything else that needs to be shared between `A` and `B`.
 
 ---
 
