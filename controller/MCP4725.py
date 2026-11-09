@@ -14,6 +14,11 @@ VOLTAGE_MAX = 5000  # mV
 i2c = None
 dac = None
 
+# Level `on()` restores, in raw DAC counts. `off()` drives the output to zero but leaves
+# this alone, so switching the LED back on returns it to the brightness it was last set to
+# rather than to full scale.
+_level = DAC_MAX
+
 
 def map_to_voltage(value):
     return (value / DAC_MAX) * VOLTAGE_MAX
@@ -25,7 +30,9 @@ def map_to_value(voltage):
 
 def on() -> None:
     assert dac is not None
-    dac.raw_value = DAC_MAX
+    # Deliberately not DAC_MAX: driving the LED to full scale here made every switch-on
+    # flash at maximum brightness before the caller set the requested level.
+    dac.raw_value = _level
 
 
 def off() -> None:
@@ -65,8 +72,11 @@ def get_value() -> float:
 
 
 def set_value(value: float) -> None:
+    global _level
     assert dac is not None
     dac.normalized_value = value
+    if dac.raw_value > DAC_MIN:
+        _level = dac.raw_value
 
 
 def get_raw_value() -> int:
@@ -75,5 +85,8 @@ def get_raw_value() -> int:
 
 
 def set_raw_value(value: int) -> None:
+    global _level
     assert dac is not None
     dac.raw_value = value
+    if value > DAC_MIN:
+        _level = value
