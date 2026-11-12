@@ -371,7 +371,7 @@ Now position the motor driver on the connector strips of the beadboard.
 
 !!! Warning
 
-    Make sure that the larger chip labeled trimatik is positioned on the bottom of the board and the four smaller chips are positioned on the top of the board as shown in the picture.
+    Make sure that the larger chip labeled Trinamic is positioned on the bottom of the board and the four smaller chips are positioned on the top of the board as shown in the picture.
 
 ---
 
