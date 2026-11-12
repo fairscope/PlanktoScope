@@ -77,7 +77,7 @@ FairScope is using Bamboo Plywood for V2.6.
 Valchromat is a wood-based composite material made from recycled wood fibers and colored with natural dyes. It is known for its durability, resistance to moisture and decay, and ability to be machined and finished in a similar way to solid wood.
 
 
-### Finnish of the plates
+### Finish of the plates
 
 After your wonderful milling process, remove all dust and remain of the milling and machining.
 
@@ -268,7 +268,7 @@ photo position drvier sur connector
 
 
 >[!WARNING]
-> Make sure that the larger chip labeled trimatik is positioned on the bottom of the board and the four smaller chips are positioned on the top of the board as shown in the picture.
+> Make sure that the larger chip labeled Trinamic is positioned on the bottom of the board and the four smaller chips are positioned on the top of the board as shown in the picture.
 
 photo de pres d'un driver non soudé
 
