@@ -1,10 +1,9 @@
 # Assembly guide of the PlanktoScope
 ![Complete](images/pictures/complete.webp)
 
-You can also use CAD renders and photos from the following links as a supplementary material for this assembly guide:
+You can also use CAD renders from the following link as a supplementary material for this assembly guide:
 
 - [CAD renders for the assembly guide](https://docs.google.com/presentation/d/13zDOGUVqgMvG0O11IOMVPIQBnWrfpkxs6CpLTylAv8o/present?slide=id.g8352987986_0_674)
-- [Photos for the assembly guide](https://docs.google.com/presentation/d/1JmmHwUz2F7l3kgRt4qVyNRQew6Ls7BI28o6T2OHM_GE/present?slide=id.g87b4a2be3a_2_106)
 
 For the assembly guide below, the pieces of the laser-cut structure are referred to by single-letter labels (A, J, L, K, H, F, E, C, B, N, M, D, G, I) according to the following assignments:
 
@@ -72,7 +71,7 @@ You should now have a sample stage and motor assembly that looks like this.
 ## Step 6: Lenses tapping and mounting
 ![step-12](images/pictures/step-12.webp)
 
-You now need to tap the holes for the M12 lenses in stage and mount **M** and **D**. It is helpful for alignment to do both the objeDtive and tube lens mount together. It is important to do this as straight as possible. A drop of mineral or olive oil can help the process. Be careful to use a right-hand tap (that goes down when turning clockwise).
+You now need to tap the holes for the M12 lenses in stage and mount **M** and **D**. It is helpful for alignment to do both the objective and tube lens mount together. It is important to do this as straight as possible. A drop of mineral or olive oil can help the process. Be careful to use a right-hand tap (that goes down when turning clockwise).
 
 ![step-13](images/pictures/step-13.webp)
 ![step-14](images/pictures/step-14.webp)
@@ -144,7 +143,7 @@ You will now want to wire the steppers and pump to the terminals on the motor dr
 !!! info
     The PlanktoScope **uses only bipolar stepper motors** (with 4 wires coming out, and two coils inside), so you need to identify the two wires working together for each coil. The [RepRap Wiki has great information](https://reprap.org/wiki/Stepper_wiring#.22pair.22_wires_on_4_wire_motors) on how to do this, either with a multimeter or without.
     
-    You can find more information about stepper motors and how they work in this [document](http://resources.linengineering.com/acton/attachment/3791/f-00ca/1/-/-/-/-/Stepper%20Motor%20Basics.pdf).
+    You can find more information about stepper motors and how they work in this [RepRap Wiki page about stepper motors](https://reprap.org/wiki/Stepper_motor).
 
 
 !!! tip

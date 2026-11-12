@@ -1,6 +1,6 @@
 # Product Specifications
 
-Product specifications for the PlanktoScope hardware are listed below for each hardwaare version. For more information on each hardware version, refer to the [hardware changelog](./changelog.md).
+Product specifications for the PlanktoScope hardware are listed below for each hardware version. For more information on each hardware version, refer to the [hardware changelog](./changelog.md).
 
 ## v2.6
 

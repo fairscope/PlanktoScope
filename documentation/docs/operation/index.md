@@ -16,7 +16,7 @@ You can connect your PlanktoScope to a router with an Ethernet cable. It will be
 
 Your PlanktoScope will create its own isolated Wi-Fi network (like a Wi-Fi hotspot, but without internet access). The Wi-Fi hotspot created by your PlanktoScope should appear on your computer's list of available Wi-Fi networks a few minutes after you turn on power to your PlanktoScope.
 
-The name of your PlanktoScope's Wi-Fi hotspot will be of the format `PlanktoScope {machine-name}`; `{machine-name}` has the format `{random word}-{random word}`; in the above screenshot, the highlighted Wi-Fi hotspot is from a PlanktoScope with machine name `chain-list-27764`. Your PlanktoScope's machine name corresponds exactly to the serial number of the Raspberry Pi computer in your PlanktoScope. You should connect your computer to the Wi-Fi hotspot specific to your PlanktoScope.
+The name of your PlanktoScope's Wi-Fi hotspot will be of the format `PlanktoScope {machine-name}`; `{machine-name}` has the format `{random word}-{random word}`, for example `sponge-bob`. Your PlanktoScope's machine name corresponds exactly to the serial number of the Raspberry Pi computer in your PlanktoScope. You should connect your computer to the Wi-Fi hotspot specific to your PlanktoScope.
 
 !!! tip
 
