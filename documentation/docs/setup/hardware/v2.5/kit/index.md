@@ -94,7 +94,7 @@ By following these steps, you can properly configure the feed rate and the diame
 
 ![planktoscope_case_00.png](../../../../images/hardware/planktoscope_case_00.png)
 
-### Finnish of the case parts
+### Finish of the case parts
 
 #### Requirements for case parts
 
