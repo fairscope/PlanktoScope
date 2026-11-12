@@ -94,7 +94,7 @@ By following these steps, you can properly configure the feed rate and the diame
 
 ![planktoscope_case_00.png](../../../../images/hardware/planktoscope_case_00.png)
 
-### Finnish of the case parts
+### Finish of the case parts
 
 #### Requirements for case parts
 
@@ -371,7 +371,7 @@ Now position the motor driver on the connector strips of the beadboard.
 
 !!! Warning
 
-    Make sure that the larger chip labeled trimatik is positioned on the bottom of the board and the four smaller chips are positioned on the top of the board as shown in the picture.
+    Make sure that the larger chip labeled Trinamic is positioned on the bottom of the board and the four smaller chips are positioned on the top of the board as shown in the picture.
 
 ---
 
