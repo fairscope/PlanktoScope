@@ -79,7 +79,7 @@ export async function prepareRoot() {
     JSON.stringify({ commit, url }, null, 2),
   )
 
-  await $`sudo apt remove --yes just tmux htop gdisk bmaptool libguestfs-tools`
+  await $`sudo apt remove --yes just tmux htop gdisk bmaptool zerofree`
   await $`sudo apt autoremove --purge --yes`
   await $`sudo apt clean --yes`
 

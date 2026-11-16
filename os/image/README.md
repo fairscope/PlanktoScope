@@ -19,10 +19,10 @@ Tested with:
 ```sh
 cd PlanktoScope/os/image
 npm ci --omit=dev
-# List disk devices and copy approrpriate "PATH"
+# List disk devices and copy appropriate device "PATH"
 lsblk -d -o +path,ID,model
 # Run the script ⚠️ it will erase everything on the device
-sudo NODE_DEBUG=execa ./make-disk.js <PATH> /tmp
+sudo NODE_DEBUG=execa ./make-disk.js <DEVICEPATH>
 ```
 
 You know should have a device with the partition table documented below.

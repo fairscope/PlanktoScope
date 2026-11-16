@@ -26,6 +26,11 @@ export async function prepareData(p = '/data') {
   await deleteAsync([
     `${p}/home/pi/**`,
     `!${p}/home/pi/.bashrc`,
+    `!${p}/home/pi/.profile`,
+  ], { force: true, dot: true })
+
+  await deleteAsync([
+    `${p}/home/tmp/**`,
   ], { force: true, dot: true })
 
   await $`sync`

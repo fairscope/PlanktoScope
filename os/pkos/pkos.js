@@ -136,10 +136,15 @@ async function createBundle(device, bootname, version) {
 
   await $`dd if=${part_firmware.path} of=${join(bundle_dir, manifest.image.FIRMWARE.filename)} bs=64M`
 
-  // TODO: Create a img file instead with "mkfs.ext4 rootfs.img"
+  // TODO: Consider creating an img file instead with "mkfs.ext4 rootfs.img"
   // mount it as loop device "mount -o loop rootfs.img /mnt"
   // then rsync files into it
-  await $`dd if=${part_root.path} of=${join(bundle_dir, manifest.image.ROOT.filename)} bs=64M`
+  const root_img = join(bundle_dir, manifest.image.ROOT.filename)
+  await $`dd if=${part_root.path} of=${root_img} bs=64M`
+  await $`e2fsck -fn ${root_img}`
+  await $`zerofree ${root_img}`
+  await $`fallocate --dig-holes ${root_img}`
+  await $`e2fsck -fn ${root_img}`
   const bundle_path = join(tmpdir, `PlanktoScopeOS-${version}.raucb`)
   await $`rauc --cert ${fileURLToPath(import.meta.resolve("../rauc/planktoscope-rauc-cert.pem"))} --key ${fileURLToPath(import.meta.resolve("../rauc/planktoscope-rauc-key.pem"))} bundle ${bundle_dir} ${bundle_path}`
   await rm(bundle_dir, {

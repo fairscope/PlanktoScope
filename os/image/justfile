@@ -1,5 +1,5 @@
 setup:
-    sudo apt install -y gdisk systemd-repart
+    sudo apt install -y gdisk systemd-repart bmaptool zerofree
     npm ci --omit=dev
     npm --prefix ../../lib ci --omit=dev
     sudo cp mount-firmware.service /etc/systemd/system/
