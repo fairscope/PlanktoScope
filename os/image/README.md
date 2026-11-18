@@ -64,7 +64,7 @@ The partition table is as such:
 | /dev/`${device_node}`p3 | FIRMWARE_B |                   | /boot/firmware    | vfat | 256M                |
 | /dev/`${device_node}`p4 | ROOT_A     | /                 |                   | ext4 | 10G                 |
 | /dev/`${device_node}`p5 | ROOT_B     |                   | /                 | ext4 | 10G                 |
-| /dev/`${device_node}`p6 | DATA       | /data             | /data             | ext4 | rest of avail space |
+| /dev/`${device_node}`p6 | DATA       | /data             | /data             | ext4 | XG                  |
 
 The following documentation assumes you are familiar with the traditional Raspberry Pi OS partitions (`bootfs`/`rootfs`) and boot flow.
 
@@ -112,6 +112,14 @@ sudo mount -o remound,ro /boot/firmware/
 `DATA` is a partition shared between A and B.
 
 It contains `/home` and `machine-id` and anything else that needs to be shared between `A` and `B`.
+It is created with a small size. To expend it to the remaining space of the disk:
+
+```sh
+sudo mount -o remount,rw /bootloader
+sudo touch /bootloader/grow-data
+reboot
+```
+
 
 ---
 

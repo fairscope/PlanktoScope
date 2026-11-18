@@ -110,7 +110,7 @@ async function createPartitionTable(device) {
   // "DATA"
   partn++
   label = "DATA"
-  await $`sgdisk --new=${partn}:0:+5G --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${label} --partition-guid=${partn}:${default_partitions[label].UUID} ${device}`
+  await $`sgdisk --new=${partn}:0:+1G --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${label} --partition-guid=${partn}:${default_partitions[label].UUID} ${device}`
 
   await $`sgdisk --verify ${device}`
 
@@ -403,6 +403,7 @@ export async function setup_fstab(partitions, bootnames = default_bootnames) {
 // we use x-systemd.growfs in fstab for that
 // > Note that these definitions may only be used to create and initialize new partitions or to grow existing ones. In the latter case, it will not grow the contained files systems however; separate mechanisms, such as systemd-growfs(8) may be used to grow the file systems inside of these partitions.
 // https://www.freedesktop.org/software/systemd/man/latest/repart.d.html#Description
+// DATA will only be grown if `/bootloader/grow-data` exists
 async function setup_repart(partitions) {
   for (const bootname of bootnames) {
     const path = join(
@@ -412,6 +413,13 @@ async function setup_repart(partitions) {
     await cp(fileURLToPath(import.meta.resolve("./repart.d")), path, {
       recursive: true,
     })
+    await cp(
+      fileURLToPath(import.meta.resolve("./systemd-repart-gate.ini")),
+      join(
+        partitions[`ROOT_${bootname}`].mountpoint,
+        "etc/systemd/system/systemd-repart.service.d/gate.conf",
+      ),
+    )
   }
 }
 

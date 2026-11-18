@@ -2,7 +2,8 @@
 
 import { $ } from "../../lib/exec.js"
 import { umount } from "./lib.js"
-import { chown } from "node:fs/promises"
+import { chown, writeFile } from "node:fs/promises"
+import assert from "node:assert"
 
 if (import.meta.main) {
   if (process.getuid() !== 0) {
@@ -19,11 +20,26 @@ if (import.meta.main) {
 export async function createImage(device, path) {
   await umount(device)
 
-  await $`dd bs=4M if=${device} conv=sparse,fsync of=${path}`
+  const bytes = await lastPartitionEndBytes(device)
+  await $`dd bs=4M if=${device} iflag=count_bytes count=${bytes} conv=sparse,fsync of=${path}`
   await chownToRealUser(path)
+
+  // Room for the backup GPT (~17 KiB), padded to 1 MiB so the end stays aligned.
+  // An absolute size is idempotent, unlike `truncate -s +1M`.
+  const MiB = 1024 * 1024
+  await $`truncate -s ${bytes + MiB} ${path}`
+  await $`sgdisk -e ${path}`
 
   const { stdout: loop_device } =
     await $`losetup --find --show --partscan ${path}`
+
+  // Enable DATA partition grow
+  await $`mount ${loop_device}p1 /mnt`
+  try {
+    await writeFile("/mnt/grow-data", "")
+  } finally {
+    await $`umount /mnt`
+  }
 
   try {
     // BOOTLOADER
@@ -58,4 +74,15 @@ async function chownToRealUser(path) {
   const gid = Number(process.env.SUDO_GID)
   if (!uid || !gid) return // not run through sudo (e.g. real root login)
   await chown(path, uid, gid)
+}
+
+async function lastPartitionEndBytes(device) {
+  const { stdout: ss } = await $`blockdev --getss ${device}`
+  const { stdout } = await $`sfdisk --json ${device}`
+  const partitions = JSON.parse(stdout).partitiontable?.partitions ?? []
+  if (partitions.length === 0) {
+    throw new Error(`No partitions found on ${device}`)
+  }
+  const endSector = Math.max(...partitions.map((p) => p.start + p.size))
+  return endSector * Number(ss.trim())
 }
