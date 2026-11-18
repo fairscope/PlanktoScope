@@ -79,7 +79,7 @@ export async function prepareRoot() {
     JSON.stringify({ commit, url }, null, 2),
   )
 
-  await $`sudo apt remove --yes just tmux htop gdisk bmaptool zerofree`
+  await $`sudo apt remove --yes just gcc cpp g++ gcc-14 cpp-14 libcap-dev libpython3-dev gettext tmux gdisk bmaptool zerofree squashfs-tools`
   await $`sudo apt autoremove --purge --yes`
   await $`sudo apt clean --yes`
 
