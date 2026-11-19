@@ -89,7 +89,7 @@ umount: /dev/mmcblk0p2: not mounted.
 
 ### Clone the SD card to an image
 
-To clone the Raspberry Pi's SD card to an image file which you can write to other SD cards, you should follow the instructions at <https://github.com/mgomesborges/raspberry-pi/blob/master/setup/clone-sd-card.md> or <https://raspberrytips.com/create-image-sd-card/> . For example, if you are using a Linux computer and the SD card shows up as `/dev/mmcblk0`, you could run the following command (replacing file paths and names accordingly):
+To clone the Raspberry Pi's SD card to an image file which you can write to other SD cards, you should follow the instructions at <https://raspberrytips.com/create-image-sd-card/>. For example, if you are using a Linux computer and the SD card shows up as `/dev/mmcblk0`, you could run the following command (replacing file paths and names accordingly):
 
 ```
 sudo dd bs=4M if=/dev/mmcblk0 of=/some/path/here/image-name-here.img status=progress

@@ -17,15 +17,15 @@ From here, you can quickly access any of the available tabs. The buttons are onl
 ![Tab List](../images/ui_guide/tab_list.webp)
 
 !!! tip
-This list is also available from any other tab and allows you to quickly navigate between tabs.
+    This list is also available from any other tab and allows you to quickly navigate between tabs.
 
 ## Machine shutdown
 
 From this page, you can also shutdown the machine when you are done.
 
 !!! warning
-It's **very very very important** to **always** shutdown the machine and wait a minute for it to completely shutdown before unplugging the power supply!
-**You risk data corruption if you turn off power without shutting down the machine through the software!**
+    It's **very very very important** to **always** shutdown the machine and wait a minute for it to completely shutdown before unplugging the power supply!
+    **You risk data corruption if you turn off power without shutting down the machine through the software!**
 
 To shutdown the machine, first unlock the shutdown button by clicking on "Unlock Button".
 
@@ -64,7 +64,7 @@ In the Optic Characterization block, you can control to turn the light on or not
     Only the "Light" setting in the Optic Characterization panel works; everything else in that panel does not work and instead will be removed in a future version of the PlanktoScope software.
 
 !!! warning
-For now, the characteristics shown here are not true values (except if you use the 25mm/16mm lens couple).
+    For now, the characteristics shown here are not true values (except if you use the 25mm/16mm lens couple).
 
 The Camera Settings block allows you to change the shutter speed, the ISO number and the camera white balance settings. You can set it to automatic, but it's better if you control it by hand to make sure the setting doesn't change when the acquisition is started.
 
@@ -83,7 +83,7 @@ Finally, this is where the magic happens! You will be able to chose the final pa
 First of all, change the Fraction Size of your sample. You can then choose a unique ID for your acquisition, the number of pictures you want to take, the pumped volume (in between images), the delay to stabilize the image and the Flowcell thickness. All those settings will influence the Total imaged volume (the total volume captured during the acquisition) and the Total pumped volume.
 
 !!! warning
-Make sure the Total pumped volume is lower than the volume of your sample.
+    Make sure the Total pumped volume is lower than the volume of your sample.
 
 ## Gallery
 

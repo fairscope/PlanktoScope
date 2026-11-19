@@ -10,7 +10,7 @@ It is important to ensure that you have all of the necessary components before b
 
 | **Bag** | **Content**                        |
 | ------- | ---------------------------------- |
-| **A**   | Scews                              |
+| **A**   | Screws                             |
 | **B**   | Tools                              |
 | **C**   | Adhesive Pads                      |
 | **D**   | Tubing, Glass Cuvettes             |
