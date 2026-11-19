@@ -16,7 +16,6 @@ updates:
       - '/documentation'
       - '/segmenter'
       - '/controller'
-      - '/reporter'
     patterns: ['*']
     multi-ecosystem-group: 'deps'
 
