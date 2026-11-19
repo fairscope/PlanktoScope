@@ -17,8 +17,7 @@ Tested with:
 - NVMe `/dev/nvme0n1`)
 
 ```sh
-cd PlanktoScope/os/image
-npm ci --omit=dev
+cd /opt/PlanktoScope/os/image
 # List disk devices and copy appropriate device "PATH"
 lsblk -d -o +path,ID,model
 # Run the script ⚠️ it will erase everything on the device
@@ -117,7 +116,7 @@ It is created with a small size. To expend it to the remaining space of the disk
 ```sh
 sudo mount -o remount,rw /bootloader
 sudo touch /bootloader/grow-data
-reboot
+sudo reboot
 ```
 
 

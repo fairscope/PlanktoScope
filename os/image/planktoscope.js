@@ -110,7 +110,7 @@ async function createPartitionTable(device) {
   // "DATA"
   partn++
   label = "DATA"
-  await $`sgdisk --new=${partn}:0:+1G --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${label} --partition-guid=${partn}:${default_partitions[label].UUID} ${device}`
+  await $`sgdisk --new=${partn}:0:+5G --typecode=${partn}:8300 -A ${partn}:set:0 -A ${partn}:set:1 -A ${partn}:set:62 -A ${partn}:set:63 --change-name=${partn}:${label} --partition-guid=${partn}:${default_partitions[label].UUID} ${device}`
 
   await $`sgdisk --verify ${device}`
 
