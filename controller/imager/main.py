@@ -17,6 +17,7 @@ from imager.camera.hardware import ISO_CALIBRATION
 
 from . import stopflow
 from .camera import mqtt as camera
+from .status import publish_status
 
 HAT_CUSTOM_DATA_PATH = "/proc/device-tree/hat/custom_0"
 
@@ -68,7 +69,7 @@ class Imager:
     def run(self) -> None:
         loguru.logger.info(f"The imager control thread has been started in process {os.getpid()}")
         self._mqtt = mqtt.MQTT_Client(topic="imager/#", name="imager_client")
-        self._mqtt.client.publish("status/imager", '{"status":"Starting up"}')
+        publish_status(self._mqtt.client, '{"status":"Starting up"}')
 
         loguru.logger.info("Starting the pump RPC client...")
         self._pump = _PumpClient()
@@ -81,12 +82,12 @@ class Imager:
         if self._camera.camera is None:
             loguru.logger.error("Missing camera - maybe it's disconnected or it never started?")
             # TODO(ethanjli): officially add this error status to the MQTT API!
-            self._mqtt.client.publish("status/imager", '{"status": "Error: missing camera"}')
+            publish_status(self._mqtt.client, '{"status": "Error: missing camera"}')
             self._cleanup()
             return
 
         loguru.logger.success("Camera is ready!")
-        self._mqtt.client.publish("status/imager", '{"status":"Ready"}')
+        publish_status(self._mqtt.client, '{"status":"Ready"}')
         try:
             while True:
                 if self._active_routine is not None and not self._active_routine.is_alive():
@@ -101,7 +102,7 @@ class Imager:
                 self._handle_new_message()
         finally:
             loguru.logger.info("Shutting down the imager process...")
-            self._mqtt.client.publish("status/imager", '{"status":"Dead"}')
+            publish_status(self._mqtt.client, '{"status":"Dead"}')
             self._cleanup()
             loguru.logger.success("Imager process shut down!")
 
@@ -157,17 +158,17 @@ class Imager:
         # action), so we'll do it later.
         if self._active_routine is not None and self._active_routine.is_alive():
             loguru.logger.error("Can't update configuration during image acquisition!")
-            self._mqtt.client.publish("status/imager", '{"status":"Busy"}')
+            publish_status(self._mqtt.client, '{"status":"Busy"}')
             return
 
         if "config" not in latest_message:
             loguru.logger.error(f"Received message is missing field 'config': {latest_message}")
-            self._mqtt.client.publish("status/imager", '{"status":"Configuration message error"}')
+            publish_status(self._mqtt.client, '{"status":"Configuration message error"}')
             return
 
         loguru.logger.info("Updating configuration...")
         self._metadata = latest_message["config"]
-        self._mqtt.client.publish("status/imager", '{"status":"Config updated"}')
+        publish_status(self._mqtt.client, '{"status":"Config updated"}')
         loguru.logger.success("Updated configuration!")
 
     def _start_acquisition(self, latest_message: dict[str, typing.Any]) -> None:
@@ -177,12 +178,12 @@ class Imager:
         assert self._camera is not None
 
         if (acquisition_settings := _parse_acquisition_settings(latest_message)) is None:
-            self._mqtt.client.publish("status/imager", '{"status":"Error"}')
+            publish_status(self._mqtt.client, '{"status":"Error"}')
             return
         if self._camera.camera is None:
             loguru.logger.error("Missing camera - maybe it was closed?")
             # TODO(ethanjli): officially add this error status to the MQTT API!
-            self._mqtt.client.publish("status/imager", '{"status": "Error: missing camera"}')
+            publish_status(self._mqtt.client, '{"status": "Error: missing camera"}')
             raise RuntimeError("Camera is not available")
 
         assert (capture_size := self._camera.camera.stream_config.capture_size) is not None
@@ -216,8 +217,8 @@ class Imager:
                 metadata,
             )
         except ValueError as e:
-            self._mqtt.client.publish(
-                "status/imager",
+            publish_status(
+                self._mqtt.client,
                 json.dumps({"status": f"Configuration update error: {str(e)}"}),
             )
             return
@@ -345,7 +346,7 @@ class ImageAcquisitionRoutine(threading.Thread):
 
     def run(self) -> None:
         """Run a stop-flow image-acquisition routine until completion or interruption."""
-        self._mqtt_client.publish("status/imager", '{"status":"Started"}')
+        publish_status(self._mqtt_client, '{"status":"Started"}')
         final_status: str = ""
         interrupted: bool = False
         while True:
@@ -410,17 +411,17 @@ class ImageAcquisitionRoutine(threading.Thread):
         )
 
         if final_status:
-            self._mqtt_client.publish("status/imager", final_status)
+            publish_status(self._mqtt_client, final_status)
 
     def pause(self) -> None:
         """Pause the acquisition between steps."""
         self._routine.pause()
-        self._mqtt_client.publish("status/imager", '{"status":"Paused"}')
+        publish_status(self._mqtt_client, '{"status":"Paused"}')
 
     def resume(self) -> None:
         """Resume the acquisition after being paused."""
         self._routine.resume()
-        self._mqtt_client.publish("status/imager", '{"status":"Resumed"}')
+        publish_status(self._mqtt_client, '{"status":"Resumed"}')
 
     def stop(self) -> None:
         """Stop the thread.
