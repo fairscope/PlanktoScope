@@ -37,6 +37,9 @@ export async function prepareRoot() {
     "/etc/hosts",
   )
 
+  // remove saved time
+  await rm("/var/lib/systemd/timesync/clock")
+
   await copyFile(
     fileURLToPath(import.meta.resolve("../cockpit/cockpit.ini")),
     "/etc/cockpit/cockpit.conf",
