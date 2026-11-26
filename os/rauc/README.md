@@ -4,6 +4,12 @@
 
 We have an A/B partitioning setup see [os/image](../image) for which RAUC is aware of.
 
+A bundle can be installed to either slot. So please consider:
+
+* Files on `FIRMWARE_A` and `FIRMWARE_B` should be strictly identical.
+* Files on `ROOT_A` and `ROOT_B` should be strictly identical.
+* A bundle must work for any slot
+
 ## Install a bundle
 
 ```sh

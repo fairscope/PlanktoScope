@@ -4,13 +4,6 @@
 
 ## Creating a bundle
 
-You can swap A and B
-
-1. Boot to slot A
-2. Run [`prepare`](#prepare)
-3. Boot to slot B
-4. Run [`create-bundle`](#create-bundle)
-
 A bundle is an update that can be installed on a slot.
 
 ```sh
@@ -18,14 +11,6 @@ sudo NODE_DEBUG=execa ./pkos.js create-bundle /dev/device B [version]
 ```
 
 This will create a bundle from partitions `FIRMWARE_B` and `ROOT_B` on device `/dev/device`.
-
-A bundle can be installed to either slot. So please consider:
-
-* Files on `FIRMWARE_A` and `FIRMWARE_B` should be considered identical.
-* Files on `ROOT_A` and `ROOT_B` should be considered identical.
-* A bundle must work for any slot
-
-We use the Raspberry Pi firmware and bootloader to dynamically switch between A and B.
 
 ## Commands
 
@@ -59,7 +44,7 @@ sudo NODE_DEBUG=execa ./pkos.js install-rpios /dev/device A
 Run the preparation scripts on the current slot. This steps is needed before creating a bundle from the slot.
 
 ```sh
-sudo ./pkos.js prepare
+sudo NODE_DEBUG=execa ./pkos.js prepare
 ```
 
 ### create-bundle

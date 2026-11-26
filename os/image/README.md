@@ -37,19 +37,6 @@ Both slots are bootable and contain a Raspberry Pi OS operating system. You can 
 
 To change the boot partition permanently update `/bootloader/autoboot.txt`. See below how to remount `/bootloader` readwrite.
 
-### Installing PlanktoScope software
-
-Boot the PlanktoScope into the newly flashed disk and connect Ethernet.
-
-Find its IP address using your router dashboard or `nmap 123 192.168.1.0/24`.
-
-```sh
-ssh pi@192.168.1.xxx
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/fairscope/PlanktoScope/HEAD/os/setup.sh)"
-```
-
-Congratulations, the slot is running PlanktoScope OS.
-
 ## How does it work
 
 ### Partition table
@@ -63,7 +50,7 @@ The partition table is as such:
 | /dev/`${device_node}`p3 | FIRMWARE_B |                   | /boot/firmware    | vfat | 256M                |
 | /dev/`${device_node}`p4 | ROOT_A     | /                 |                   | ext4 | 10G                 |
 | /dev/`${device_node}`p5 | ROOT_B     |                   | /                 | ext4 | 10G                 |
-| /dev/`${device_node}`p6 | DATA       | /data             | /data             | ext4 | XG                  |
+| /dev/`${device_node}`p6 | DATA       | /data             | /data             | ext4 | 5G                  |
 
 The following documentation assumes you are familiar with the traditional Raspberry Pi OS partitions (`bootfs`/`rootfs`) and boot flow.
 

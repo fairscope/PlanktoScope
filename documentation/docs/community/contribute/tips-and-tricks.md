@@ -84,11 +84,14 @@ ssh-add -k
 
 ```sh
 # Add the following to ~/.ssh/config
-Host $planktoscope
+Host planktoscope-* raspberrypi* 192.168.4.1
   # https://docs.github.com/en/authentication/connecting-to-github-with-ssh/using-ssh-agent-forwarding
   ForwardAgent yes
   User pi
-  IdentityFile ~/.ssh/$planktoscope
+  ServerAliveInterval 120
+  IdentityFile ~/.ssh/planktoscope
+  StrictHostKeyChecking no
+  UserKnownHostsFile /dev/null
 ```
 
 </details>
@@ -99,10 +102,15 @@ You can now SSH into your PlanktoScope without username / password (using `ssh $
     <summary>On the PlanktoScope</summary>
 
 ```sh
+sudo rm -rf /opt/PlanktoScope
+cd /data/tmp
+git clone --recursive git@github.com:fairscope/PlanktoScope.git
+sudo mv PlanktoScope /opt/PlanktoScope
 cd /opt/PlanktoScope
-just developer-mode
-git checkout main
+sudo chown -R pi:pi .
 git status
+just
+just developer-mode
 ```
 
 </details>
