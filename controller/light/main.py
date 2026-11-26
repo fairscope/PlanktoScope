@@ -89,7 +89,7 @@ async def on(payload) -> None:
         chronometer = int(time.time())
 
     led.on()
-    led.set_value(value)
+    led.set_value(0.6011)
 
     await publish_status()
 
