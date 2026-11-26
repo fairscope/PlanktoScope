@@ -85,7 +85,7 @@ sudo pkos reboot B
 # Optional but it is recommended to create a release git tag
 # git tag v2026.x.x
 # git push -u origin v2026.x.x
-sudo reboot
+sudo pkos reboot B
 
 # Run prepare scripts
 sudo NODE_DEBUG=execa pkos prepare
@@ -142,7 +142,8 @@ Plug the disk on a NVMe or SDCard reader.
 # Create the disk image file
 version=2026.x.x
 device=/dev/device # Find with lsblk -d -o +path,ID,model
-sudo NODE_DEBUG=execa "$device" PlanktoScopeOS-"$version".img
+cd os/image
+sudo NODE_DEBUG=execa ./create-image.js "$device" PlanktoScopeOS-"$version".img
 ```
 
 The resulting files are `PlanktoScopeOS-$version.img.xz` and `PlanktoScopeOS-$version.img.bmap`.
