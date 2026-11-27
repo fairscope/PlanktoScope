@@ -10,7 +10,7 @@
     "execa": "^9.6.1",
     "i2c-bus": "^5.2.3",
     "ini": "^7.0.0",
-    "isomorphic-git": "^1.38.5",
+    "isomorphic-git": "^1.38.6",
     "js-yaml": "^4.3.2",
     "mime": "^4.1.0",
     "mqtt": "^5.15.1",
