@@ -8,7 +8,7 @@ You can find a list of the components needed in the [Planktoscope V2.6 BOM](../.
 | [Planktoscope V2.6 BOM](../../../../assets/hardware/v2.6/Planktoscope V2.6 BOM.xlsx) | Bill Of Material for PlanktoScope |
 
 We tried to have the most easy-to-supply components, you still may have to adapt and research for new suppliers according to product availability and your location.
-If you find some local alternative please share your custom BOM to our GitHub Discussions thread for [v2.6 Localized Hardware BOMs](https://github.com/fairscope/PlanktoScope/discussions/297), so that other members of our community can learn from your work!
+If you find some local alternative please share your custom BOM to our GitHub Discussions thread for [v2.6 Localized Hardware BOMs](https://github.com/fairscope/PlanktoScope/discussions/502), so that other members of our community can learn from your work!
 
 In the following sections we will go more in detail:
 
@@ -77,7 +77,7 @@ FairScope is using Bamboo Plywood for V2.6.
 Valchromat is a wood-based composite material made from recycled wood fibers and colored with natural dyes. It is known for its durability, resistance to moisture and decay, and ability to be machined and finished in a similar way to solid wood.
 
 
-### Finnish of the plates
+### Finish of the plates
 
 After your wonderful milling process, remove all dust and remain of the milling and machining.
 
@@ -268,7 +268,7 @@ photo position drvier sur connector
 
 
 >[!WARNING]
-> Make sure that the larger chip labeled trimatik is positioned on the bottom of the board and the four smaller chips are positioned on the top of the board as shown in the picture.
+> Make sure that the larger chip labeled Trinamic is positioned on the bottom of the board and the four smaller chips are positioned on the top of the board as shown in the picture.
 
 photo de pres d'un driver non soudé
 
