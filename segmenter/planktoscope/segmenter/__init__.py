@@ -57,6 +57,19 @@ logger.info("planktoscope.segmenter is loaded")
 ################################################################################
 # Main Segmenter class
 ################################################################################
+def _select_flat_images(
+    images_list: list[str], current_index: int, window_size: int = 10
+) -> list[str]:
+    """Select up to `window_size` frames for flat-field recalculation at `current_index`."""
+    if len(images_list) <= window_size:
+        return list(images_list)
+    if current_index + window_size <= len(images_list):
+        return images_list[current_index : current_index + window_size]
+    if current_index >= window_size:
+        return images_list[current_index - window_size : current_index]
+    return images_list[-window_size:]
+
+
 class SegmenterProcess(multiprocessing.Process):
     """This class contains the main definitions for the segmenter of the PlanktoScope"""
 
@@ -144,14 +157,17 @@ class SegmenterProcess(multiprocessing.Process):
         """
         # TODO make this calculation optional if a flat already exists
 
-        # check to make sure images_number is odd
-        if not images_number % 2:
-            images_number -= 1
+        if not images_list:
+            raise ValueError("images_list must not be empty")
 
         # make sure image number is smaller than image list
         if images_number > len(images_list):
             logger.error("The image number can't be bigger than the length of the provided list!")
             images_number = len(images_list)
+
+        # check to make sure images_number is odd (keeping at least 1)
+        if images_number > 1 and not images_number % 2:
+            images_number -= 1
 
         logger.debug(f"Opening {images_number} images: {images_list[:images_number]}")
         # start = time.monotonic()
@@ -671,14 +687,8 @@ class SegmenterProcess(multiprocessing.Process):
             # we recalculate the flat if the heuristics detected we should
             if recalculate_flat:  # not i % 10 and i < (images_count - 10)
                 recalculate_flat = False
-                if len(images_list) == 10:
-                    # We are too close to the end of the list, take the previous 10 images instead of the next 10
-                    flat = self._calculate_flat(images_list, 10, self.__working_path)
-                elif i > (len(images_list) - 11):
-                    # We are too close to the end of the list, take the previous 10 images instead of the next 10
-                    flat = self._calculate_flat(images_list[i - 10 : i], 10, self.__working_path)
-                else:
-                    flat = self._calculate_flat(images_list[i : i + 10], 10, self.__working_path)  # noqa: F841
+                flat_images = _select_flat_images(images_list, i, 10)
+                flat = self._calculate_flat(flat_images, 10, self.__working_path)  # noqa: F841
                 if self.__save_debug_img:
                     self._save_image(
                         self.__flat,
