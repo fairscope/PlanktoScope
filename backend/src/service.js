@@ -7,6 +7,7 @@ import { capture } from "../../lib/scope.js"
 
 import app from "./app.js"
 
+import "./calibration.js"
 import "./factory.js"
 // import "./config.js"
 import "./led-operating-time.js"
