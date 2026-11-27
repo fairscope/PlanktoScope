@@ -16,20 +16,43 @@ export default function Stream() {
   let loader_container
   let stream_container
 
+  const rotation = new URL(document.location).searchParams.get("rotate")
+
   const video = (
     <video
       on:loadedmetadata={onVideoLoad}
       class={styles.video}
+      style={
+        rotation
+          ? { "max-width": "calc(100vh + 4px)", "max-height": "calc(100vw + 4px)" }
+          : undefined
+      }
       muted
       autoplay
+      playsinline
       disablepictureinpicture
       preload="auto"
     />
   )
 
+  function playVideo() {
+    video.muted = true
+    video.play().catch((err) => console.error("video play rejected", err))
+  }
+
   function onVideoLoad() {
     stream_container.style.display = "flex"
     loader_container.style.display = "none"
+    if (rotation) {
+      const style = stream_container.style
+      style.position = "absolute"
+      style.top = "50%"
+      style.left = "50%"
+      style.width = "calc(100vh + 4px)"
+      style.height = "calc(100vw + 4px)"
+      style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`
+    }
+    playVideo()
     new Zoomist(zoomist_container, {
       slider: true,
       zoomer: true,
@@ -41,6 +64,7 @@ export default function Stream() {
   const url = new URL(document.location)
   url.port = 8889
   url.pathname = "/cam/whep"
+  url.search = ""
   const reader = new MediaMTXWebRTCReader({
     url,
     onError: (err) => {
